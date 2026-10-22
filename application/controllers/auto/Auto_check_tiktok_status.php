@@ -1,0 +1,183 @@
+<?php
+class Auto_check_tiktok_status extends CI_Controller
+{
+  public $home;
+  public $mc;
+  public $ms;
+  public $isViewer = FALSE;
+  public $notibars = FALSE;
+  public $menu_code = NULL;
+  public $menu_group_code = NULL;
+  public $pm;
+  public $error;
+  public $default_shop_id = "7494677687526394819";
+  public $statusList = [
+    'UNPAID' => 'Unpaid',
+    'ON_HOLD' => 'On hold',
+    'AWAITING_SHIPMENT' => 'AWAITING_SHIPMENT : Awaiting the seller to place a logistic order. OK',
+    'AWAITING_COLLECTION' => 'AWAITING_COLLECTION : The logistic order was placed. At least one item in the order is still waiting to be collected by the carrier. OK',
+    'PARTIALLY_SHIPPING' => 'Partial shipment',
+    'IN_TRANSIT' => 'IN_TRANSIT : All items have been collected by the carrier. At least one package is has yet to be delivered to the buyer.',
+    'DELIVERED' => 'DELIVERED : All items have been delivered to the buyer.,',
+    'COMPLETED' => 'COMPLETED : The order has been completed. Completed orders can no longer be returned or refunded.',
+    'CANCELLED' => 'CANCELLED : The order has been canceled. The order can be canceled by the buyer, the seller, the TikTok SYSTEM, or a TikTok OPERATOR.',
+    '100' => 'Unpaid',
+    '105' => 'On hold',
+    '111' => 'AWAITING_SHIPMENT : Awaiting the seller to place a logistic order. OK',
+    '112' => 'AWAITING_COLLECTION : The logistic order was placed. At least one item in the order is still waiting to be collected by the carrier. OK',
+    '114' => 'Partial shipment',
+    '121' => 'IN_TRANSIT : All items have been collected by the carrier. At least one package is has yet to be delivered to the buyer.',
+    '122' => 'DELIVERED : All items have been delivered to the buyer.',
+    '130' => 'COMPLETED : The order has been completed. Completed orders can no longer be returned or refunded.',
+    '140' => 'CANCELLED : The order has been canceled. The order can be canceled by the buyer, the seller, the TikTok SYSTEM, or a TikTok OPERATOR.'
+  ];
+
+  public function __construct()
+  {
+    parent::__construct();
+    $this->home = base_url().'auto/auto_check_tiktok_status';
+    $this->load->model('orders/orders_model');
+    $this->pm = new stdClass();
+    $this->pm->can_view = 1;
+  }
+
+
+  public function index($show = NULL)
+  {
+    if($show) { echo "start : " . now() . "<br/>";}
+
+    $list = $this->get_orders_list([3,4,5,6]);
+
+    if( ! empty($list))
+    {
+      $this->load->library('wrx_tiktok_api');
+
+      foreach($list as $rs)
+      {
+        $shop_id = empty($rs->shop_id) ? $this->default_shop_id : $rs->shop_id;
+
+        $order_status = $this->wrx_tiktok_api->get_order_status($rs->reference, $shop_id);
+
+        if($show) { echo "{$rs->code} : {$order_status} => {$this->statusList[$order_status]} <br/>"; }
+
+        if($order_status == 'CANCELLED' OR $order_status == '140')
+        {
+          $this->orders_model->update($rs->code, ['is_cancled' => 1, 'last_check' => now()]);
+        }
+        else
+        {
+          $this->orders_model->update($rs->code, ['last_check' => now()]);
+        }
+      }
+    }
+
+    if($show) { echo "end : " . now(); }
+  }
+
+
+  public function pick($show = NULL)
+  {
+    if($show) { echo "start : " . now() . "<br/>";}
+    $list = $this->get_orders_list([3, 4]);
+
+    if( ! empty($list))
+    {
+      $this->load->library('wrx_tiktok_api');
+
+      foreach($list as $rs)
+      {
+        $shop_id = empty($rs->shop_id) ? $this->default_shop_id : $rs->shop_id;
+
+        $order_status = $this->wrx_tiktok_api->get_order_status($rs->reference, $shop_id);
+
+        if($show) { echo "{$rs->code} : {$order_status} => {$this->statusList[$order_status]} <br/>"; }
+
+        if($order_status == 'CANCELLED' OR $order_status == '140')
+        {
+          $this->orders_model->update($rs->code, ['is_cancled' => 1, 'last_check' => now()]);
+        }
+        else
+        {
+          $this->orders_model->update($rs->code, ['last_check' => now()]);
+        }
+      }
+    }
+
+    if($show) { echo "end : " . now(); }
+  }
+
+
+  public function pack($show = NULL)
+  {
+    if($show) { echo "start : " . now() . "<br/>";}
+
+    $list = $this->get_orders_list([5, 6]);
+
+    if( ! empty($list))
+    {
+      $this->load->library('wrx_tiktok_api');
+
+      foreach($list as $rs)
+      {
+        $shop_id = empty($rs->shop_id) ? $this->default_shop_id : $rs->shop_id;
+
+        $order_status = $this->wrx_tiktok_api->get_order_status($rs->reference, $shop_id);
+
+        if($show) { echo "{$rs->code} : {$order_status} => {$this->statusList[$order_status]} <br/>"; }
+
+        if($order_status == 'CANCELLED' OR $order_status == '140')
+        {
+          $this->orders_model->update($rs->code, ['is_cancled' => 1, 'last_check' => now()]);
+        }
+        else
+        {
+          $this->orders_model->update($rs->code, ['last_check' => now()]);
+        }
+      }
+    }
+
+    if($show) { echo "end : " . now(); }
+  }
+
+
+  public function get_max_order_id()
+  {
+    $rs = $this->db->select_max('id')->get('orders');
+
+    if($rs->num_rows() === 1)
+    {
+      return $rs->row()->id;
+    }
+
+    return 1000000;
+  }
+
+
+  public function get_orders_list(array $state = array())
+  {
+    $max_id = $this->get_max_order_id();
+
+    $id = $max_id > 100000 ? $max_id - 10000 : $id;
+
+    $rs = $this->db
+    ->select('code, reference, shop_id')
+    ->where('id >', $id)
+    ->where('role', 'S')
+    ->where('channels_code', '0009')
+    ->where('is_cancled', 0)
+    ->where_in('state', $state)
+    ->order_by('last_check', 'ASC')
+    ->order_by('id', 'ASC')
+    ->limit(100)
+    ->get('orders');
+
+    if($rs->num_rows() > 0)
+    {
+      return $rs->result();
+    }
+
+    return NULL;
+  }
+
+} //--- end class
+ ?>

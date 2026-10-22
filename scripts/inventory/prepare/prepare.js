@@ -1,0 +1,183 @@
+function refresh() {
+  load_in();
+  setTimeout(() => {
+    window.location.reload();
+  }, 100);
+}
+
+//---- ไปหน้าจัดสินค้า
+function goPrepare(code, view) {
+  let ex = $('#ex').val();
+  let url = `${HOME}/process/${code}/${ex}`;
+
+  if(view !== undefined) {
+    url += '/mobile';
+  }  
+
+  $('#order-code').val('');
+  
+  window.open(url, '_blank');
+}
+
+
+function goProcess(view){
+  window.location.href = `${HOME}view_process`;
+}
+
+
+function express_order() {
+  window.location.href = `${HOME}express_order`;
+}
+
+
+function goToBuffer() {
+  window.location.href = `${BASE_URL}inventory/buffer`;
+}
+
+
+function toggleAllPc(el) {
+  if(el.is(':checked')) {
+    $('.pc').prop('checked', true);
+  }
+  else {
+    $('.pc').prop('checked', false);
+  }
+}
+
+
+function goToProcess() {
+  let code = $('#order-code').val().trim();
+
+  if(code.length) {
+    goPrepare(code);
+  }
+}
+
+
+$('#order-code').keyup(function(e) {
+  if(e.keyCode === 13) {
+    goToProcess();
+  }
+})
+
+
+$('#barcode-order').keyup(function(e) {
+  if(e.keyCode === 13) {
+    let code = $(this).val().trim();
+    if(code.length) {
+      goPrepare(code, 'mobile');
+    }
+  }
+})
+
+
+function genPickList() {
+  let limit = 100;
+  let count = $('.pc:checked').length;
+
+  if(count > limit) {
+    beep();
+    swal("เลือกได้ไม่เกิน "+limit+" ออเดอร์");
+    return false;
+  }
+
+  if(count > 0 && count <= limit) {
+    let h = [];
+
+    $('.pc:checked').each(function(){
+      let code = $(this).val();
+      h.push({'code' : code});
+    });
+
+    if(h.length) {
+      var mapForm = document.createElement('form');
+       mapForm.target = "Map";
+       mapForm.method = "POST";
+       mapForm.action = `${HOME}gen_pick_list`;
+
+       var mapInput = document.createElement("input");
+       mapInput.type = "hidden";
+       mapInput.name = "data";
+       mapInput.value = JSON.stringify(h);
+
+       mapForm.appendChild(mapInput);
+
+       document.body.appendChild(mapForm);
+
+       map = window.open("", "Map", "status=0,title=0,height=900,width=800,scrollbars=1");
+
+       if(map) {
+         mapForm.submit();
+       }
+       else {
+         swal('You must allow popups for this map to work.');
+       }
+    }
+  }
+}
+
+
+function pullBack(code){
+  $.ajax({
+    url:`${HOME}pull_order_back`,
+    type:'POST',
+    cache:'false',
+    data:{
+      'order_code' : code
+    },
+    success:function(rs){
+      var rs = $.trim(rs);
+      if(rs == 'success'){
+        $('#row-'+code).remove();
+        reIndex();
+      }else{
+        swal('Error', rs, 'error');
+      }
+    }
+  });
+}
+
+
+function viewProcess(){
+  window.location.href = `${HOME}view_process`;
+}
+
+
+function confirmCanceledOrder(code) {
+
+  load_in();
+
+  $.ajax({
+    url:`${BASE_URL}orders/orders/order_state_change`,
+    type:'POST',
+    cache:false,
+    data:{
+      'order_code' : code,
+      'state' : 9,
+      'force_cancel' : 1,
+      'reason_id' : 4,
+      'cancle_reason' : "ออเดอร์ถูกยกเลิกบน platform แล้ว"
+    },
+    success:function(rs) {
+      load_out();
+
+      if(rs.trim() === 'success') {
+        swal({
+          title:'Canceled',
+          type:'success',
+          timer:1000
+        });
+
+        setTimeout(() => {
+          goBack();
+        }, 1200);
+      }
+      else {
+        showError(rs);
+      }
+    },
+    error:function(rs) {
+      showError(rs);
+    }
+  });
+}

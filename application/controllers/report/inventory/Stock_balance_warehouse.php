@@ -1,0 +1,226 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+class Stock_balance_warehouse extends PS_Controller
+{
+  public $menu_code = 'RICSBW';
+	public $menu_group_code = 'RE';
+  public $menu_sub_group_code = 'REINVT';
+	public $title = 'รายงานสินค้าคงเหลือ แยกตามคลัง';
+  public $filter;
+  public function __construct()
+  {
+    parent::__construct();
+    $this->home = base_url().'report/inventory/stock_balance_warehouse';
+    $this->load->model('report/inventory/stock_balance_report_model');
+    $this->load->model('masters/warehouse_model');
+  }
+
+  public function index()
+  {
+    $whList = $this->warehouse_model->get_all_warehouse();
+    $ds['whList'] = $whList;
+    $this->load->view('report/inventory/report_stock_balance_warehouse', $ds);
+  }
+
+
+  public function countStockItems()
+  {
+    $count = 0;
+
+    $whsList = json_decode($this->input->post('whsList'));
+
+    if( ! empty($whsList))
+    {
+      $whsCodes = [];
+
+      foreach($whsList as $whs)
+      {
+        $whsCodes[] = $whs->code;
+      }
+
+      if( ! empty($whsCodes))
+      {
+        $count = $this->ms
+        ->where_in('WhsCode', $whsCodes)
+        ->where('OnHand >', 0)
+        ->count_all_results('OITW');
+      }
+    }
+
+    echo $count;
+  }
+
+
+  public function countWhsItems()
+  {
+    $count = 0;
+
+    $whsCode = $this->input->post('whsCode');
+
+    if( ! empty($whsCode))
+    {
+      $count = $this->ms
+      ->where('WhsCode', $whsCode)
+      ->where('OnHand >', 0)
+      ->count_all_results('OITW');
+    }
+
+    echo $count;
+  }
+
+
+  public function getStock()
+  {
+    $sc = TRUE;
+    $ds = [];
+    $whsCode = $this->input->post('whsCode');
+    $limit = intval($this->input->post('limit'));
+    $offset = intval($this->input->post('offset'));
+
+    if( ! empty($whsCode))
+    {
+      $result = $this->stock_balance_report_model->get_warehouse_stock($whsCode, $limit, $offset);
+
+      if( ! empty($result))
+      {
+        foreach($result as $rs)
+        {
+          $arr = array(
+            'WhsCode' => $rs->WhsCode,
+            'WhsName' => $rs->WhsName,
+            'ItemCode' => $rs->ItemCode,
+            'ItemName' => $rs->ItemName,
+            'Cost' => round($rs->Cost, 2),
+            'Qty' => round($rs->OnHand, 2)
+          );
+
+          $ds[] = $arr;
+        }
+      }
+    }
+
+    $arr = array(
+      'status' => $sc === TRUE ? 'success' : 'failed',
+      'message' => $sc === TRUE ? 'success' : $this->error,
+      'rows' => $sc === TRUE ? count($ds) : 0,
+      'data' => $sc === TRUE ? $ds : NULL
+    );
+
+    echo json_encode($arr);
+  }
+
+
+  public function do_export()
+  {
+    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
+    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
+    ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
+
+    $allProduct = $this->input->post('allProduct');
+    $pdFrom = $this->input->post('pdFrom');
+    $pdTo = $this->input->post('pdTo');
+    $allWhouse = $this->input->post('allWhouse');
+    $warehouse = $this->input->post('warehouse');
+    $token = $this->input->post('token');
+
+
+    $wh_list = '';
+    if(!empty($warehouse))
+    {
+      $i = 1;
+      foreach($warehouse as $wh)
+      {
+        $wh_list .= $i === 1 ? $wh : ', '.$wh;
+        $i++;
+      }
+    }
+
+
+    //---  Report title
+    $report_title = 'รายงานสินค้าคงเหลือ(หักยอดจอง) ณ วันที่  '.thai_date(date('Y-m-d'), '/');
+    $wh_title     = 'คลัง :  '. ($allWhouse == 1 ? 'ทั้งหมด' : $wh_list);
+    $pd_title     = 'สินค้า :  '. ($allProduct == 1 ? 'ทั้งหมด' : '('.$pdFrom.') - ('.$pdTo.')');
+
+    $result = $this->inventory_report_model->get_current_stock_balance($allProduct, $pdFrom, $pdTo, $allWhouse, $warehouse);
+
+    //--- load excel library
+    $this->load->library('excel');
+
+    $this->excel->setActiveSheetIndex(0);
+    $this->excel->getActiveSheet()->setTitle('Sell Stock Report');
+
+    //--- set report title header
+    $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
+    $this->excel->getActiveSheet()->mergeCells('A1:G1');
+    $this->excel->getActiveSheet()->setCellValue('A2', $wh_title);
+    $this->excel->getActiveSheet()->mergeCells('A2:G2');
+    $this->excel->getActiveSheet()->setCellValue('A3', $pd_title);
+    $this->excel->getActiveSheet()->mergeCells('A3:G3');
+
+    //--- set Table header
+    $this->excel->getActiveSheet()->setCellValue('A4', 'ลำดับ');
+    $this->excel->getActiveSheet()->setCellValue('B4', 'รหัส');
+    $this->excel->getActiveSheet()->setCellValue('C4', 'รหัสเก่า');
+    $this->excel->getActiveSheet()->setCellValue('D4', 'สินค้า');
+    $this->excel->getActiveSheet()->setCellValue('E4', 'ทุน');
+    $this->excel->getActiveSheet()->setCellValue('F4', 'จำนวน');
+    $this->excel->getActiveSheet()->setCellValue('G4', 'มูลค่า');
+
+    $row = 5;
+    if(!empty($result))
+    {
+
+      $no = 1;
+      foreach($result as $rs)
+      {
+        $item = $this->products_model->get_item($rs->product_code);
+        if(!empty($item))
+        {
+          $reserv_stock = $this->inventory_report_model->get_reserv_stock($item->code, $warehouse);
+          $availableStock = $rs->qty - $reserv_stock;
+
+          $this->excel->getActiveSheet()->setCellValue('A'.$row, $no);
+          $this->excel->getActiveSheet()->setCellValue('B'.$row, $item->code);
+          $this->excel->getActiveSheet()->setCellValue('C'.$row, $item->old_code);
+          $this->excel->getActiveSheet()->setCellValue('D'.$row, $item->name);
+          $this->excel->getActiveSheet()->setCellValue('E'.$row, $item->cost);
+          $this->excel->getActiveSheet()->setCellValue('F'.$row, $availableStock);
+          $this->excel->getActiveSheet()->setCellValue('G'.$row, '=E'.$row.'*F'.$row);
+          $no++;
+          $row++;
+        }
+
+      }
+
+      $res = $row -1;
+
+      $this->excel->getActiveSheet()->setCellValue('A'.$row, 'รวม');
+      $this->excel->getActiveSheet()->mergeCells('A'.$row.':E'.$row);
+      $this->excel->getActiveSheet()->setCellValue('F'.$row, '=SUM(F5:F'.$res.')');
+      $this->excel->getActiveSheet()->setCellValue('G'.$row, '=SUM(G5:G'.$res.')');
+
+      $this->excel->getActiveSheet()->getStyle('A'.$row)->getAlignment()->setHorizontal('right');
+      $this->excel->getActiveSheet()->getStyle('B5:B'.$res)->getNumberFormat()->setFormatCode('0');
+      $this->excel->getActiveSheet()->getStyle('F5:G'.$row)->getAlignment()->setHorizontal('right');
+      $this->excel->getActiveSheet()->getStyle('F5:F'.$row)->getNumberFormat()->setFormatCode('#,##0');
+      $this->excel->getActiveSheet()->getStyle('G5:G'.$row)->getNumberFormat()->setFormatCode('#,##0.00');
+    }
+
+    setToken($token);
+    $file_name = "Report Sell Stock.xlsx";
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
+    header('Content-Disposition: attachment;filename="'.$file_name.'"');
+    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer->save('php://output');
+
+  }
+} //--- end class
+
+
+
+
+
+
+
+
+ ?>

@@ -1,0 +1,155 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+class Ix_api_logs_model extends CI_Model
+{
+	public $wms;
+	private $td = 'ix_api_logs';
+
+  public function __construct()
+  {
+    parent::__construct();
+		$this->wms = $this->load->database('wms', TRUE);
+  }
+
+	public function add_logs($ds = array())
+	{
+		return $this->wms->insert($this->td, $ds);
+	}
+
+
+	public function get_list(array $ds = array(), $perpage = 20, $offset = 0)
+	{
+		if(!empty($ds['code']))
+		{
+			$this->wms->like('code', $ds['code'], 'after');
+		}
+
+		if(isset($ds['channels']) && $ds['channels'] != 'all')
+		{
+			if($ds['channels'] ==  'NULL')
+			{
+				$this->wms->where('channels IS NULL', NULL, FALSE);
+			}
+			else
+			{
+				$this->wms->where('channels', $ds['channels']);
+			}
+		}
+
+		if(isset($ds['shop_id']) && $ds['shop_id'] != 'all')
+		{
+			if($ds['shop_id'] == 'NULL')
+			{
+				$this->wms->where('shop_id IS NULL', NULL, FALSE);
+			}
+			else
+			{
+				$this->wms->where('shop_id', $ds['shop_id']);
+			}
+		}
+
+		if(!empty($ds['status']) && $ds['status'] !== 'all')
+		{
+			$this->wms->where('status', $ds['status']);
+		}
+
+		if(! empty($ds['type']) && $ds['type'] !== 'all')
+		{
+			$this->wms->where('type', $ds['type']);
+		}
+
+		if(isset($ds['action']) && $ds['action'] != 'all')
+		{
+			$this->wms->where('action', $ds['action']);
+		}
+
+		if(!empty($ds['from_date']) && !empty($ds['to_date']))
+		{
+			$this->wms
+			->where('date_upd >=', from_date($ds['from_date']))
+			->where('date_upd <=', to_date($ds['to_date']));
+		}
+
+		$this->wms->order_by('id', 'DESC');
+		$this->wms->limit($perpage, $offset);
+		$rs = $this->wms->get($this->td);
+
+		if($rs->num_rows() > 0)
+		{
+			return $rs->result();
+		}
+
+		return NULL;
+	}
+
+
+	public function count_rows(array $ds = array())
+	{
+		if(!empty($ds['code']))
+		{
+			$this->wms->like('code', $ds['code'], 'after');
+		}
+
+		if(isset($ds['channels']) && $ds['channels'] != 'all')
+		{
+			if($ds['channels'] ==  'NULL')
+			{
+				$this->wms->where('channels IS NULL', NULL, FALSE);
+			}
+			else
+			{
+				$this->wms->where('channels', $ds['channels']);
+			}
+		}
+
+		if(isset($ds['shop_id']) && $ds['shop_id'] != 'all')
+		{
+			if($ds['shop_id'] == 'NULL')
+			{
+				$this->wms->where('shop_id IS NULL', NULL, FALSE);
+			}
+			else
+			{
+				$this->wms->where('shop_id', $ds['shop_id']);
+			}
+		}
+
+		if(!empty($ds['status']) && $ds['status'] !== 'all')
+		{
+			$this->wms->where('status', $ds['status']);
+		}
+
+		if(! empty($ds['type']) && $ds['type'] !== 'all')
+		{
+			$this->wms->where('type', $ds['type']);
+		}
+
+		if(isset($ds['action']) && $ds['action'] != 'all')
+		{
+			$this->wms->where('action', $ds['action']);
+		}
+
+		if(!empty($ds['from_date']) && !empty($ds['to_date']))
+		{
+			$this->wms
+			->where('date_upd >=', from_date($ds['from_date']))
+			->where('date_upd <=', to_date($ds['to_date']));
+		}
+
+		return $this->wms->count_all_results($this->td);
+	}
+
+
+	public function get_logs($id)
+	{
+		$rs = $this->wms->where('id', $id)->get($this->td);
+
+		if($rs->num_rows() == 1)
+		{
+			return $rs->row();
+		}
+
+		return NULL;
+	}
+
+} //---

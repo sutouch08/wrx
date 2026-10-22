@@ -1,0 +1,1409 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Dispatch extends PS_Controller
+{
+  public $menu_code = 'ICODDP';
+	public $menu_group_code = 'IC';
+  public $menu_sub_group_code = 'PICKPACK';
+	public $title = 'Dispatch';
+  public $filter;
+  public $error;
+  public $segment = 4;
+
+  public function __construct()
+  {
+    parent::__construct();
+    $this->home = base_url().'inventory/dispatch';
+    $this->load->model('inventory/dispatch_model');
+    $this->load->model('orders/orders_model');
+    $this->load->model('masters/channels_model');
+
+    $this->load->helper('dispatch');
+    $this->load->helper('channels');
+    $this->load->helper('sender');
+    $this->load->helper('order');
+    $this->load->helper('warehouse');
+
+    $this->load->library('user_agent');
+  }
+
+
+  public function index()
+  {
+    $filter = array(
+      'code' => get_filter('code', 'dp_code', ''),
+      'plate_no' => get_filter('plate_no', 'dp_plate_no',''),
+      'sender' => get_filter('sender', 'dp_sender', 'all'),
+      'channels' => get_filter('channels', 'dp_channels', 'all'),
+      'from_date' => get_filter('from_date', 'dp_from_date', ''),
+      'to_date' => get_filter('to_date', 'dp_to_date', ''),
+      'status' => get_filter('status', 'dp_status', 'all')
+    );
+
+    if($this->input->post('search'))
+    {
+      redirect($this->home);
+    }
+    else
+    {
+      //--- แสดงผลกี่รายการต่อหน้า
+      $perpage = get_rows();
+      $rows = $this->dispatch_model->count_rows($filter);
+      $init = pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
+      $this->pagination->initialize($init);
+      $filter['data'] = $this->dispatch_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+      $this->load->view('inventory/dispatch/dispatch_list', $filter);
+    }
+  }
+
+
+  public function add_new()
+  {
+    $this->load->view('inventory/dispatch/dispatch_add');
+  }
+
+
+  public function add()
+  {
+    $sc = TRUE;
+    $ds = json_decode($this->input->post('data'));
+
+    if($this->pm->can_add)
+    {
+      if( ! empty($ds))
+      {
+        $date_add = empty($ds->date_add) ?  date('Y-m-d H:i:s') : db_date($ds->date_add);
+        $code = $this->get_new_code($date_add);
+
+        $arr = array(
+          'code' => $code,
+          'warehouse_code' => get_null($ds->warehouse_code),
+          'channels_code' => get_null($ds->channels_code),
+          'channels_name' => get_null($ds->channels_name),
+          'sender_code' => get_null($ds->sender_code),
+          'sender_name' => get_null($ds->sender_name),
+          'plate_no' => $ds->plate_no,
+          'plate_province' => $ds->province,
+          'driver_name' => $ds->driver_name,
+          'date_add' => $date_add,
+          'remark' => get_null(trim($ds->remark)),
+          'user' => $this->_user->uname
+        );
+
+        if( ! $this->dispatch_model->add($arr))
+        {
+          $sc = FALSE;
+          set_error('insert');
+        }
+        else
+        {
+          $arr = array(
+            'plate_no' => $ds->plate_no,
+            'province' => $ds->province
+          );
+
+          if( ! $this->dispatch_model->is_exists_carplate($ds->plate_no, $ds->province))
+          {
+            $this->dispatch_model->add_carplate($arr);
+          }
+
+          if( ! $this->dispatch_model->is_exists_driver($ds->driver_name))
+          {
+            $this->dispatch_model->add_driver($ds->driver_name);
+          }
+        }
+      }
+      else
+      {
+        $sc = FALSE;
+        set_error('required');
+      }
+    }
+    else
+    {
+      $sc = FALSE;
+      set_error('permission');
+    }
+
+    $arr = array(
+      'status' => $sc === TRUE ? 'success' : 'failed',
+      'message' => $sc === TRUE ? 'success' : $this->error,
+      'code' => $sc === TRUE ? $code : NULL
+    );
+
+    echo json_encode($arr);
+  }
+
+
+  public function update()
+  {
+    $sc = TRUE;
+    $ds = json_decode($this->input->post('data'));
+
+    if($this->pm->can_add)
+    {
+      if( ! empty($ds))
+      {
+        $code = $ds->code;
+
+        $arr = array(
+          'warehouse_code' => get_null($ds->warehouse_code),
+          'channels_code' => get_null($ds->channels_code),
+          'channels_name' => get_null($ds->channels_name),
+          'sender_code' => get_null($ds->sender_code),
+          'sender_name' => get_null($ds->sender_name),
+          'plate_no' => $ds->plate_no,
+          'plate_province' => $ds->province,
+          'driver_name' => $ds->driver_name,
+          'remark' => get_null(trim($ds->remark)),
+          'date_upd' => now(),
+          'update_user' => $this->_user->uname
+        );
+
+        if( ! $this->dispatch_model->update($code, $arr))
+        {
+          $sc = FALSE;
+          set_error('insert');
+        }
+        else
+        {
+          $arr = array(
+            'plate_no' => $ds->plate_no,
+            'province' => $ds->province
+          );
+
+          if( ! $this->dispatch_model->is_exists_carplate($ds->plate_no, $ds->province))
+          {
+            $this->dispatch_model->add_carplate($arr);
+          }
+
+          if( ! $this->dispatch_model->is_exists_driver($ds->driver_name))
+          {
+            $this->dispatch_model->add_driver($ds->driver_name);
+          }
+        }
+      }
+      else
+      {
+        $sc = FALSE;
+        set_error('required');
+      }
+    }
+    else
+    {
+      $sc = FALSE;
+      set_error('permission');
+    }
+
+    $arr = array(
+      'status' => $sc === TRUE ? 'success' : 'failed',
+      'message' => $sc === TRUE ? 'success' : $this->error,
+      'code' => $sc === TRUE ? $code : NULL
+    );
+
+    echo json_encode($arr);
+  }
+
+  
+  public function save()
+  {
+    $sc = TRUE;
+    $code = $this->input->post('code');
+
+    if( ! empty($code))
+    {
+      $doc = $this->dispatch_model->get($code);
+
+      if( ! empty($doc))
+      {
+        if($doc->status == 'P' OR $doc->status == 'S')
+        {
+          $this->db->trans_begin();
+
+          $arr = array(
+            'status' => 'S',
+            'shipped_date' => now(),
+            'date_upd' => now(),
+            'update_user' => $this->_user->uname
+          );
+
+          if( ! $this->dispatch_model->update($doc->code, $arr))
+          {
+            $sc = FALSE;
+            $this->error = "Failed to change document status";
+          }
+
+          if($sc === TRUE)
+          {
+            $arr = array(
+              'line_status' => 'S',
+              'date_upd' => now(),
+              'update_user' => $this->_user->uname
+            );
+
+            if( ! $this->dispatch_model->update_details($doc->code, $arr))
+            {
+              $sc = FALSE;
+              $this->error = "Failed to update row items";
+            }
+          }
+
+          if($sc === TRUE)
+          {
+            $this->db->trans_commit();
+          }
+          else
+          {
+            $this->db->trans_rollback();
+          }
+        }
+        else
+        {
+          $sc = FALSE;
+          set_error('status');
+        }
+      }
+      else
+      {
+        $sc = FALSE;
+        set_error('notfound');
+      }
+    }
+    else
+    {
+      $sc = FALSE;
+      set_error('required');
+    }
+
+    $this->_response($sc);
+  }
+
+
+  public function close_dispatch()
+  {
+    $sc = TRUE;
+
+    $code = $this->input->post('code');
+
+    if( ! empty($code))
+    {
+      $doc = $this->dispatch_model->get($code);
+
+      if( ! empty($doc))
+      {
+        if($doc->status == 'S')
+        {
+          $this->db->trans_begin();
+
+          $arr = array(
+            'status' => 'C',
+            'shipped_date' => now(),
+            'date_upd' => now(),
+            'update_user' => $this->_user->uname
+          );
+
+          if( ! $this->dispatch_model->update($doc->code, $arr))
+          {
+            $sc = FALSE;
+            $this->error = "Failed to change document status";
+          }
+
+          if($sc === TRUE)
+          {
+            $arr = array(
+              'line_status' => 'C',
+              'date_upd' => now(),
+              'update_user' => $this->_user->uname
+            );
+
+            if( ! $this->dispatch_model->update_details($doc->code, $arr))
+            {
+              $sc = FALSE;
+              $this->error = "Failed to update row items";
+            }
+          }
+
+          if($sc === TRUE)
+          {
+            $this->db->trans_commit();
+          }
+          else
+          {
+            $this->db->trans_rollback();
+          }
+        }
+        else
+        {
+          $sc = FALSE;
+          set_error('status');
+        }
+      }
+      else
+      {
+        $sc = FALSE;
+        set_error('notfound');
+      }
+    }
+    else
+    {
+      $sc = FALSE;
+      set_error('required');
+    }
+
+    $this->_response($sc);
+  }
+
+
+  public function is_cancel($reference, $channels, $shop_id)
+  {
+    $is_cancel = FALSE;
+
+    if(is_true(getConfig('WRX_API')))
+    {
+      if($channels == '0009')
+      {
+        if(is_true(getConfig('WRX_TIKTOK_API')))
+        {
+          $this->load->library('wrx_tiktok_api');
+
+          $order_status = $this->wrx_tiktok_api->get_order_status($reference, $shop_id);
+
+          if($order_status == 'CANCELLED' OR $order_status == '140')
+          {
+            $is_cancel = TRUE;
+          }
+        }
+      }
+
+      if($channels == 'SHOPEE')
+      {
+        if(is_true(getConfig('WRX_SHOPEE_API')))
+        {
+          $this->load->library('wrx_shopee_api');
+
+          $order_status = $this->wrx_shopee_api->get_order_status($reference, $shop_id);
+
+          if($order_status == 'CANCELLED' OR $order_status == 'IN_CANCEL')
+          {
+            $is_cancel = TRUE;
+          }
+        }
+      }
+
+      if($channels == 'LAZADA')
+      {
+        if(is_true(getConfig('WRX_LAZADA_API')))
+        {
+          $this->load->library('wrx_lazada_api');
+
+          $order_status = $this->wrx_lazada_api->get_order_status($reference, $shop_id);
+
+          if($order_status == 'canceled' OR $order_status == 'CANCELED' OR $order_status == 'Canceled')
+          {
+            $is_cancel = TRUE;
+          }
+        }
+      }
+    }
+
+    return $is_cancel;
+  }
+
+  // public function add_to_dispatch()
+  // {
+  //   $sc = TRUE;
+  //   $id = $this->input->post('id');
+  //   $code = $this->input->post('code');
+  //   $channels_code = $this->input->post('channels');
+  //   $channels_name = $this->input->post('channels_name');
+  //   $order_code = $this->input->post('order_code');
+  //   $row = [];
+
+  //   $doc = $this->dispatch_model->get($code);
+
+  //   if (! empty($doc))
+  //   {
+  //     if ($doc->status != 'C' && $doc->status != 'D')
+  //     {
+  //       if (! empty($order_code) && ! empty($code))
+  //       {
+  //         $order = $this->orders_model->get_order_by_tracking($order_code);
+
+  //         if (empty($order))
+  //         {
+  //           $order = $this->orders_model->get_order_by_reference($order_code);
+  //         }
+
+  //         if (empty($order))
+  //         {
+  //           $order = $this->orders_model->get($order_code);
+  //         }
+
+  //         if (empty($order))
+  //         {
+  //           $order = $this->orders_model->get_order_in_qc_box($order_code);
+  //         }
+
+  //         if (! empty($order))
+  //         {
+  //           if (! empty($doc->sender_code) && ($doc->sender_code != $order->id_sender))
+  //           {
+  //             $sc = FALSE;
+  //             $this->error = "การจัดส่งไม่ตรงกับเอกสาร";
+  //           }
+
+  //           if ($sc === TRUE)
+  //           {
+  //             if ($order->state == 8 or $order->state == 7)
+  //             {
+  //               if (! empty($channels_code))
+  //               {
+  //                 if (! empty($order->channels_code) && $order->channels_code != $channels_code)
+  //                 {
+  //                   $sc = FALSE;
+  //                   $this->error = "ออเดอร์ไม่ตรงช่องทางขาย";
+  //                 }
+  //               }
+
+  //               if (! empty($order->reference) && ($order->channels_code == '0009' or $order->channels_code == 'SHOPEE' or $order->channels_code == 'LAZADA'))
+  //               {
+  //                 if ($this->is_cancel($order->reference, $order->channels_code, $order->shop_id))
+  //                 {
+  //                   $sc = FALSE;
+  //                   $this->error = "{$order->code} : ออเดอร์นี้ถูกยกเลิกจาก platform";
+  //                   $this->orders_model->update($order->code, ['is_cancled' => 1]);
+  //                 }
+  //                 else
+  //                 {
+  //                   if ($order->is_cancled == 1)
+  //                   {
+  //                     $this->orders_model->update($order->code, ['is_cancled' => 0]);
+  //                   }
+  //                 }
+  //               }
+
+
+  //               if ($sc === TRUE)
+  //               {
+  //                 $customer = $order->customer_code . " : " . (empty($order->customer_ref) ? $order->customer_name : $order->customer_ref);
+
+  //                 $row = array(
+  //                   'dispatch_id' => $id,
+  //                   'dispatch_code' => $code,
+  //                   'order_code' => $order->code,
+  //                   'reference' => get_null($order->reference),
+  //                   'tracking_no' => get_null($order->shipping_code),
+  //                   'channels_code' => get_null($channels_code),
+  //                   'channels_name' => get_null($channels_name),
+  //                   'customer_code' => get_null($order->customer_code),
+  //                   'customer_name' => empty($order->customer_ref) ? get_null($order->customer_name) : $order->customer_ref,
+  //                   'user' => $this->_user->uname
+  //                 );
+
+  //                 $detail = $this->dispatch_model->get_detail_by_order($code, $order->code);
+
+  //                 if (empty($detail))
+  //                 {
+  //                   $cartons = $this->dispatch_model->count_order_box($order->code);
+  //                   $row['carton_qty'] = $cartons;
+  //                   $row['carton_shipped'] = 1;
+
+  //                   $dispatch_detail_id = $this->dispatch_model->add_detail($row);
+
+  //                   if ($dispatch_detail_id)
+  //                   {
+  //                     $arr = array(
+  //                       'dispatch_id' => $id,
+  //                       'shipped_date' => empty($order->shipped_date) ? now() : $order->shipped_date,
+  //                       'real_shipped_date' => now()
+  //                     );
+
+  //                     $this->orders_model->update($order->code, $arr);
+
+  //                     $row['id'] = $dispatch_detail_id;
+  //                     $row['channels'] = $channels_name;
+  //                     $row['customer'] = $customer;
+  //                   }
+  //                 }
+  //                 else
+  //                 {
+  //                   $carton_shipped = $detail->carton_shipped + 1;
+
+  //                   if ($detail->carton_qty >= $carton_shipped)
+  //                   {
+  //                     $arr = array(
+  //                       'carton_shipped' => $carton_shipped
+  //                     );
+
+  //                     if (! $this->dispatch_model->update_detail($detail->id, $arr))
+  //                     {
+  //                       $sc = FALSE;
+  //                       $this->error = "Failed to update carton shipped";
+  //                     }
+
+  //                     if ($sc === TRUE)
+  //                     {
+  //                       $row['id'] = $detail->id;
+  //                       $row['carton_shipped'] = $carton_shipped;
+  //                       $row['channels'] = $channels_name;
+  //                       $row['customer'] = $customer;
+  //                     }
+  //                   }
+  //                   else
+  //                   {
+  //                     $sc = FALSE;
+  //                     $this->error = "ออเดอร์ซ้ำ : {$order_code}";
+  //                   }
+  //                 }
+  //               }
+  //             }
+  //             else
+  //             {
+  //               $sc = FALSE;
+  //               $this->error = "Invalid order status";
+  //             }
+  //           }
+  //         }
+  //         else
+  //         {
+  //           $sc = FALSE;
+  //           $this->error = "Invalid order number";
+  //         }
+  //       }
+  //       else
+  //       {
+  //         $sc = FALSE;
+  //         set_error('required');
+  //       }
+  //     }
+  //     else
+  //     {
+  //       $sc = FALSE;
+  //       set_error('status');
+  //     }
+  //   }
+  //   else
+  //   {
+  //     $sc = FALSE;
+  //     set_error('notfound');
+  //   }
+
+  //   $arr = array(
+  //     'status' => $sc === TRUE ? 'success' : 'failed',
+  //     'message' => $sc === TRUE ? 'success' : $this->error,
+  //     'data' => $sc === TRUE ? $row : NULL
+  //   );
+
+  //   echo json_encode($arr);
+  // }
+
+
+  public function add_to_dispatch()
+  {
+    $sc = TRUE;
+    $id = $this->input->post('id');
+    $code = $this->input->post('code');
+    $channels_code = $this->input->post('channels');
+    $channels_name = $this->input->post('channels_name');
+    $order_code = $this->input->post('order_code');
+    $row = [];
+
+    $doc = $this->dispatch_model->get_by_id($id);
+
+    if( ! empty($doc))
+    {
+      if($doc->status != 'C' && $doc->status != 'D')
+      {
+        if( ! empty($order_code) && ! empty($code))
+        {
+          $order = $this->orders_model->get_order_by_tracking($order_code);
+
+          if(empty($order))
+          {
+            $order = $this->orders_model->get_order_by_reference($order_code);
+          }
+
+          if(empty($order))
+          {
+            $order = $this->orders_model->get($order_code);
+          }
+
+          if(empty($order))
+          {
+            $order = $this->orders_model->get_order_in_qc_box($order_code);
+          }
+
+          if( ! empty($order))
+          {
+            if( ! empty($doc->sender_code) && ($doc->sender_code != $order->id_sender))
+            {
+              $sc = FALSE;
+              $this->error = "การจัดส่งไม่ตรงกับเอกสาร";
+            }            
+
+            if($sc === TRUE && ($order->state != 8 && $order->state != 7))
+            {
+              $sc = FALSE;
+              $this->error = "{$order->code} : สถานะออเดอร์ไม่ถูกต้อง";
+            }
+
+            if($sc === TRUE)
+            {
+              if (! empty($channels_code))
+              {
+                if (! empty($order->channels_code) && $order->channels_code != $channels_code)
+                {
+                  $sc = FALSE;
+                  $this->error = "ออเดอร์ไม่ตรงช่องทางขาย";
+                }
+              }
+            }
+
+            if ($sc === TRUE && $order->is_cancled == 1)
+            {
+              if($order->channels_code != '0009' && $order->channels_code != 'SHOPEE' && $order->channels_code != 'LAZADA')
+              {
+                $sc = FALSE;
+                $this->error = "{$order->code} : ออเดอร์นี้ถูกยกเลิกจาก platform แล้ว";
+              }
+            }
+
+            if($sc === TRUE && ! empty($order->reference))
+            {
+              if ($order->channels_code == '0009' OR $order->channels_code == 'SHOPEE' OR $order->channels_code == 'LAZADA')
+              {
+                if ($this->is_cancel($order->reference, $order->channels_code, $order->shop_id))
+                {
+                  $sc = FALSE;
+                  $this->error = "{$order->code} : ออเดอร์นี้ถูกยกเลิกจาก platform แล้ว";
+                  $this->orders_model->update($order->code, ['is_cancled' => 1]);
+                }
+                else
+                {
+                  if ($order->is_cancled == 1)
+                  {
+                    $this->orders_model->update($order->code, ['is_cancled' => 0]);
+                  }
+                }
+              }
+            }            
+
+            if($sc === TRUE)
+            {
+              $customer = $order->customer_code . " : " . (empty($order->customer_ref) ? $order->customer_name : $order->customer_ref);
+
+              $row = array(
+                'dispatch_id' => $doc->id,
+                'dispatch_code' => $doc->code,
+                'order_code' => $order->code,
+                'reference' => get_null($order->reference),
+                'tracking_no' => get_null($order->shipping_code),
+                'channels_code' => get_null($channels_code),
+                'channels_name' => get_null($channels_name),
+                'customer_code' => get_null($order->customer_code),
+                'customer_name' => empty($order->customer_ref) ? get_null($order->customer_name) : $order->customer_ref,
+                'user' => $this->_user->uname
+              );
+
+              $detail = $this->dispatch_model->get_detail_by_order($doc->code, $order->code);
+
+              if (empty($detail))
+              {
+                $cartons = $this->dispatch_model->count_order_box($order->code);
+                $row['carton_qty'] = $cartons;
+                $row['carton_shipped'] = 1;
+
+                $dispatch_detail_id = $this->dispatch_model->add_detail($row);
+
+                if ($dispatch_detail_id)
+                {
+                  $arr = array(
+                    'dispatch_id' => $doc->id,
+                    'shipped_date' => empty($order->shipped_date) ? now() : $order->shipped_date,
+                    'real_shipped_date' => now()
+                  );
+
+                  $this->orders_model->update($order->code, $arr);
+
+                  $row['id'] = $dispatch_detail_id;
+                  $row['channels'] = $channels_name;
+                  $row['customer'] = $customer;
+                }
+              }
+              else
+              {
+                $carton_shipped = $detail->carton_shipped + 1;
+
+                if ($detail->carton_qty >= $carton_shipped)
+                {
+                  $arr = array(
+                    'carton_shipped' => $carton_shipped
+                  );
+
+                  if (! $this->dispatch_model->update_detail($detail->id, $arr))
+                  {
+                    $sc = FALSE;
+                    $this->error = "Failed to update carton shipped";
+                  }
+
+                  if ($sc === TRUE)
+                  {
+                    $row['id'] = $detail->id;
+                    $row['carton_shipped'] = $carton_shipped;
+                    $row['channels'] = $channels_name;
+                    $row['customer'] = $customer;
+                  }
+                }
+                else
+                {
+                  $sc = FALSE;
+                  $this->error = "ออเดอร์ซ้ำ : {$order->code}";
+                }
+              }
+            }
+          }
+          else
+          {
+            $sc = FALSE;
+            $this->error = "Invalid order number";
+          }
+        }
+        else
+        {
+          $sc = FALSE;
+          set_error('required');
+        }
+      }
+      else
+      {
+        $sc = FALSE;
+        set_error('status');
+      }
+    }
+    else
+    {
+      $sc = FALSE;
+      set_error('notfound');
+    }
+
+    $arr = array(
+      'status' => $sc === TRUE ? 'success' : 'failed',
+      'message' => $sc === TRUE ? 'success' : $this->error,
+      'data' => $sc === TRUE ? $row : NULL
+    );
+
+    echo json_encode($arr);
+  }
+
+
+  public function edit($code)
+  {
+    $this->load->library('user_agent');
+
+    if($this->pm->can_add OR $this->pm->can_edit)
+    {
+      $doc = $this->dispatch_model->get($code);
+
+      if( ! empty($doc))
+      {
+        $details = $this->dispatch_model->get_details($doc->code);
+
+        //---- order state = 8 and dispatch id IS NULL
+        $totalOrder = $this->dispatch_model->count_orders_by_channels($doc->channels_code, $doc->warehouse_code);
+
+        $ds = array(
+          'doc' => $doc,
+          'details' => $details,
+          'total_orders' => $totalOrder,
+          'total_qty' => empty($details) ? 0 : count($details)
+        );
+
+        if($this->agent->is_mobile())
+        {
+          $ds['title'] = "Dispatch<br/>".$doc->code." | ".$this->channels_model->get_name($doc->channels_code);
+          $this->load->view('inventory/dispatch/dispatch_edit_mobile', $ds);
+        }
+        else
+        {
+          $this->load->view('inventory/dispatch/dispatch_edit', $ds);
+        }
+      }
+      else
+      {
+        $this->error_page();
+      }
+    }
+    else
+    {
+      $this->deny_page();
+    }
+  }
+
+
+  public function view_pending_order($code)
+  {
+    $doc = $this->dispatch_model->get($code);
+
+    if( ! empty($doc))
+    {
+      $this->title = "Pending Orders";
+
+      if( ! empty($doc->warehouse_code))
+      {        
+        $this->title .= " | ".warehouse_name($doc->warehouse_code);
+      }
+
+      $ds = array(
+        'doc' => $doc,
+        'orders' => $this->dispatch_model->get_pending_order_by_channels($doc->channels_code, $doc->warehouse_code)
+      );
+
+      if($this->agent->is_mobile())
+      {
+        $channels_name = empty($doc->channels_code) ? "ไม่ระบุ" : $this->channels_model->get_name($doc->channels_code);
+        $ds['title'] = "{$this->title}<br/>{$doc->code} | {$channels_name}";
+        $this->load->view('inventory/dispatch/mobile/view_pending_mobile', $ds);
+      }
+      else
+      {
+        $this->load->view('inventory/dispatch/dispatch_view_pending', $ds);
+      }
+    }
+    else
+    {
+      $this->error_page();
+    }
+  }
+
+
+  public function view_detail($code)
+  {
+    $doc = $this->dispatch_model->get($code);
+
+    if( ! empty($doc))
+    {
+      $ds = array(
+        'doc' => $doc,
+        'details' => $this->dispatch_model->get_details($doc->code)
+      );
+
+      $this->load->view('inventory/dispatch/dispatch_view_detail', $ds);
+    }
+    else
+    {
+      $this->error_page();
+    }
+  }
+
+
+  public function delete_dispatch_details()
+  {
+    $sc = TRUE;
+    $ds = json_decode($this->input->post('data'));
+
+    if( ! empty($ds))
+    {
+      $doc = $this->dispatch_model->get($ds->code);
+
+      if( ! empty($doc))
+      {
+        if($doc->status == 'P' OR $doc->status == 'S')
+        {
+          if( ! empty($ds->rows))
+          {
+            $this->db->trans_begin();
+
+            foreach($ds->rows as $rs)
+            {
+              if($sc === FALSE) { break; }
+
+              $detail = $this->dispatch_model->get_detail($rs->id);
+
+              if( ! empty($detail))
+              {
+                if($detail->line_status == 'P' OR $detail->line_status == 'S')
+                {
+                  if( ! $this->dispatch_model->delete_detail($detail->id))
+                  {
+                    $sc = FALSE;
+                    $this->error = "Failed to delete item row";
+                  }
+
+                  if($sc === TRUE)
+                  {
+                    $arr = array(
+                      'dispatch_id' => NULL
+                    );
+
+                    if( ! $this->orders_model->update($rs->order_code, $arr))
+                    {
+                      $sc = FALSE;
+                      $this->error = "Failed to update order dispatch id";
+                    }
+                  }
+                }
+              }
+            } //-- end foreach
+
+            if($sc === TRUE)
+            {
+              $this->db->trans_commit();
+            }
+            else
+            {
+              $this->db->trans_rollback();
+            }
+          }
+          else
+          {
+            $sc = FALSE;
+            $this->error = "Missing Order Number";
+          }
+        }
+        else
+        {
+          $sc = FALSE;
+          set_error('status');
+        }
+      }
+      else
+      {
+        $sc = FALSE;
+        set_error('notfound');
+      }
+    }
+    else
+    {
+      $sc = FALSE;
+      set_error('required');
+    }
+
+    $this->_response($sc);
+  }
+
+
+  public function remove_detail()
+  {
+    $sc = TRUE;
+    $code = $this->input->post('code');
+    $order_code = $this->input->post('order_code');
+    $action = "delete";
+
+    if( ! empty($code) && ! empty($order_code))
+    {
+      $doc = $this->dispatch_model->get($code);
+
+      if( ! empty($doc))
+      {
+        if($doc->status == 'P' OR $doc->status == 'S')
+        {
+          $detail = $this->dispatch_model->get_detail_by_order($doc->code, $order_code);
+
+          if( ! empty($detail))
+          {
+            if($detail->carton_shipped > 1)
+            {
+              $carton_shipped = $detail->carton_shipped - 1;
+
+              if( ! $this->dispatch_model->update_detail($detail->id, ['carton_shipped' => $carton_shipped]))
+              {
+                $sc = FALSE;
+                $this->error = "Failed to update carton shipped";
+              }
+              else
+              {
+                $action = "update";
+              }
+            }
+            else
+            {
+              $this->db->trans_begin();
+
+              if( ! $this->dispatch_model->delete_detail($detail->id))
+              {
+                $sc = FALSE;
+                $this->error = "Failed to delete {$order_code}";
+              }
+
+              if($sc === TRUE)
+              {
+                $arr = array(
+                  'dispatch_id' => NULL
+                );
+
+                if( ! $this->orders_model->update($detail->order_code, $arr))
+                {
+                  $sc = FALSE;
+                  $this->error = "Failed to update order status";
+                }
+              }
+
+              if($sc === TRUE)
+              {
+                $this->db->trans_commit();
+              }
+              else
+              {
+                $this->db->trans_rollback();
+              }
+            }
+          }
+          else
+          {
+            $sc = FALSE;
+            $this->error = "{$order_code} not found";
+          }
+        }
+        else
+        {
+          $sc = FALSE;
+          set_error('status');
+        }
+      }
+      else
+      {
+        $sc = FALSE;
+        set_error('notfound');
+      }
+    }
+    else
+    {
+      $sc = FALSE;
+      set_error('required');
+    }
+
+    $arr = array(
+      'status' => $sc === TRUE ? 'success' : 'failed',
+      'message' => $sc === TRUE ? 'success' : $this->error,
+      'id' => $sc === TRUE ? $detail->id : NULL,
+      'action' => $action
+    );
+
+    echo json_encode($arr);
+  }
+
+
+  public function cancel_dispatch()
+  {
+    $sc = TRUE;
+
+    if($this->pm->can_delete)
+    {
+      $code = $this->input->post('code');
+      $reason = trim($this->input->post('reason'));
+
+      if( ! empty($code))
+      {
+        $doc = $this->dispatch_model->get($code);
+
+        if( ! empty($doc))
+        {
+          if($doc->status != 'D')
+          {
+            if($doc->status != 'C')
+            {
+              $this->db->trans_begin();
+
+              $details = $this->dispatch_model->get_details($code);
+
+              if( ! empty($details))
+              {
+
+                foreach($details as $rs)
+                {
+                  if($sc === FALSE)
+                  {
+                    break;
+                  }
+
+                  $arr = array(
+                    'dispatch_id' => NULL
+                  );
+
+                  if( ! $this->orders_model->update($rs->order_code, $arr))
+                  {
+                    $sc = FALSE;
+                    $this->error = "Failed to roll back order dispatch status";
+                  }
+                }
+
+                if($sc === TRUE)
+                {
+                  if( ! $this->dispatch_model->delete_details($code))
+                  {
+                    $sc = FALSE;
+                    $this->error = "Failed to delete dispatch details";
+                  }
+                }
+              }
+
+              if($sc === TRUE)
+              {
+                $arr = array(
+                  'status' => 'D',
+                  'cancel_date' => now(),
+                  'cancel_user' => $this->_user->uname,
+                  'cancel_reason' => $reason
+                );
+
+                if( ! $this->dispatch_model->update($code, $arr))
+                {
+                  $sc = FALSE;
+                  $this->error = "Failed to update document status";
+                }
+              }
+
+              if($sc === TRUE)
+              {
+                $this->db->trans_commit();
+              }
+              else
+              {
+                $this->db->trans_rollback();
+              }
+            }
+            else
+            {
+              $sc = FALSE;
+              $this->error = "Document already closed cannot be cancel";
+            }
+          }
+        }
+        else
+        {
+          $sc = FALSE;
+          set_error('notfound');
+        }
+      }
+      else
+      {
+        $sc = FALSE;
+        set_error('required');
+      }
+    }
+    else
+    {
+      $sc = FALSE;
+      set_error('permission');
+    }
+
+    $this->_response($sc);
+  }
+
+
+  public function get_dispatch_table()
+  {
+    $sc = TRUE;
+    $code = $this->input->post('code');
+
+    $details = $this->dispatch_model->get_details($code);
+
+    if( ! empty($details))
+    {
+      $channels = get_channels_array();
+      $no = 1;
+      foreach($details as $rs)
+      {
+        $rs->no = $no;
+        $rs->customer = $rs->customer_code.':'.$rs->customer_name;
+        $rs->channels = empty($channels[$rs->channels_code]) ? NULL : $channels[$rs->channels_code];
+        $no++;
+      }
+    }
+    else
+    {
+      $details[] =  (object)['nodata' => 'nodata'];
+    }
+
+    $arr = array(
+      'status' => $sc === TRUE ? 'success' : 'failed',
+      'message' => $sc === TRUE ? 'success' : $this->error,
+      'data' => $sc === TRUE ? $details : NULL
+    );
+
+    echo json_encode($arr);
+  }
+
+
+  public function print_dispatch($code)
+  {
+    $this->load->model('masters/sender_model');
+    $doc = $this->dispatch_model->get($code);
+
+    if( ! empty($doc))
+    {
+      $this->load->library('xprinter');
+
+      $ds = array(
+        'doc' => $doc,
+        'details' => $this->dispatch_model->get_details($doc->code)
+      );
+
+      $this->load->view('print/print_dispatch', $ds);
+    }
+    else
+    {
+      $this->page_error();
+    }
+  }
+
+
+  public function remove_orders_from_pending()
+  {
+    $sc = TRUE;
+    $ds = json_decode($this->input->post('data'));
+
+    if( ! empty($ds))
+    {
+      if( ! $this->dispatch_model->remove_orders_from_pending($ds))
+      {
+        $sc = FALSE;
+        $this->error = "Failed to update orders";
+      }
+    }
+    else
+    {
+      $sc = FALSE;
+      set_error('required');
+    }
+
+    $this->_response($sc);
+  }
+
+
+  public function do_export()
+  {
+    ini_set('memory_limit', '2048M');
+
+    $token = $this->input->post('token');
+    $code = $this->input->post('code');
+    
+    $this->load->library('excel');
+
+    $this->excel->setActiveSheetIndex(0);
+    $this->excel->getActiveSheet()->setTitle($code);
+    $sheet = $this->excel->getActiveSheet();    
+    $row = 1;
+
+    $sheet->setCellValue("A{$row}", "รายงานการจัดส่ง");
+    $sheet->mergeCells("A{$row}:H{$row}");
+    $sheet->getStyle("A{$row}")->getFont()->setSize(16)->setBold(true);
+    $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+    $row++;
+
+    $sheet->setCellValue("B{$row}", "เลขที่เอกสาร");
+    $sheet->setCellValue("C{$row}", $code);
+    $sheet->setCellValue("D{$row}", "วันที่");
+    $sheet->setCellValue("E{$row}", thai_date(now(), TRUE));
+    $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+    $sheet->getStyle("C{$row}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+    $sheet->getStyle("D{$row}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
+    $sheet->getStyle("E{$row}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+    $row++;
+
+    //--- set Table header
+    $sheet->setCellValue("A{$row}", '#');
+    $sheet->setCellValue("B{$row}", 'ออเดอร์');
+    $sheet->setCellValue("C{$row}", 'อ้างอิง');
+    $sheet->setCellValue("D{$row}", 'Tracking');
+    $sheet->setCellValue("E{$row}", 'ลูกค้า');
+    $sheet->setCellValue("F{$row}", 'ช่องทาง');
+    $sheet->setCellValue("G{$row}", 'กล่อง');
+    $sheet->setCellValue("H{$row}", 'จำนวน');
+    $row++;
+
+    $ds = $this->dispatch_model->get_details($code);
+
+    if (! empty($ds))
+    {
+      $no = 1;
+
+      foreach ($ds as $rs)
+      {
+        $sheet->setCellValue("A{$row}", $no);
+        $sheet->setCellValueExplicit("B{$row}", $rs->order_code, PHPExcel_Cell_DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("C{$row}", $rs->reference, PHPExcel_Cell_DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("D{$row}", $rs->tracking_no, PHPExcel_Cell_DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("E{$row}", $rs->customer_code .' | '.$rs->customer_name, PHPExcel_Cell_DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("F{$row}", $rs->channels_name, PHPExcel_Cell_DataType::TYPE_STRING);
+        $sheet->setCellValue("G{$row}", $rs->carton_qty);
+        $sheet->setCellValue("H{$row}", $this->count_qc_qty($rs->order_code));
+        $row++;
+        $no++;
+      }
+    }
+
+    $sheet->getColumnDimension("A")->setAutoSize(true);
+    $sheet->getColumnDimension("B")->setAutoSize(true);
+    $sheet->getColumnDimension("C")->setAutoSize(true);
+    $sheet->getColumnDimension("D")->setAutoSize(true);
+    $sheet->getColumnDimension("E")->setAutoSize(true);
+    $sheet->getColumnDimension("F")->setAutoSize(true);
+    $sheet->getColumnDimension("G")->setAutoSize(true);
+    $sheet->getColumnDimension("H")->setAutoSize(true);
+
+    setToken($token);
+    $file_name = "Dispatch-{$code}.xlsx";
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment;filename="' . $file_name . '"', true);
+    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer->save('php://output');
+  }
+
+
+  public function count_qc_qty($order_code)
+  {
+    $rs = $this->db
+      ->select_sum('qty')
+      ->where('order_code', $order_code)
+      ->get('qc');
+
+    if ($rs->num_rows() === 1)
+    {
+      return $rs->row()->qty;
+    }
+
+    return 0;
+  }
+
+  private function get_new_code($date = NULL)
+  {
+    $date = empty($date) ? date('Y-m-d') : $date;
+    $Y = date('y', strtotime($date));
+    $M = date('m', strtotime($date));
+    $prefix = getConfig('PREFIX_DISPATCH');
+    $run_digit = getConfig('RUN_DIGIT_DISPATCH');
+    $pre = $prefix .'-'.$Y.$M;
+    $code = $this->dispatch_model->get_max_code($pre);
+
+    if( ! empty($code))
+    {
+      $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
+      $new_code = $prefix . '-' . $Y . $M . sprintf('%0'.$run_digit.'d', $run_no);
+    }
+    else
+    {
+      $new_code = $prefix . '-' . $Y . $M . sprintf('%0'.$run_digit.'d', '001');
+    }
+
+    return $new_code;
+  }
+
+
+  public function clear_filter(){
+    $filter = array(
+      'dp_code',
+      'dp_channels',
+      'dp_plate_no',
+      'dp_sender',
+      'dp_from_date',
+      'dp_to_date',
+      'dp_status'
+    );
+
+    return clear_filter($filter);
+  }
+
+} //--- end class
+?>

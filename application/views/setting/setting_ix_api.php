@@ -1,0 +1,146 @@
+		<form id="ixForm" method="post" action="<?php echo $this->home; ?>/update_config">
+  	<div class="row">
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">Ix API</span>
+      </div>
+      <div class="col-lg-8 col-md-8 col-sm-8">
+				<label style="padding-top:5px; margin-bottom:0px;">
+					<input class="ace ace-switch ace-switch-7" data-name="IX_API" type="checkbox" value="1" <?php echo is_checked($IX_API , '1'); ?> onchange="toggleOption($(this))"/>
+					<span class="lbl margin-left-0" data-lbl="OFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON"></span>
+				</label>
+				<input type="hidden" name="IX_API" id="ix-api" value="<?php echo $IX_API; ?>" />
+				<span class="help-block">Turn API On/Off</span>
+      </div>
+      <div class="divider"></div>
+
+      <div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">รหัสคลัง IX</span>
+      </div>
+      <div class="col-lg-8 col-md-8 col-sm-8">
+				<select class="fix-width-350" id="ix-warehouse" name="IX_WAREHOUSE" onchange="ixZoneInit()">
+					<option value="">เลือกคลัง</option>
+					<?php echo select_sell_warehouse($DEFAULT_WAREHOUSE); ?>
+				</select>
+      </div>
+      <div class="divider-hidden"></div>
+
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">รหัสโซน IX</span>
+      </div>
+      <div class="col-lg-8 col-md-8 col-sm-8">
+        <input type="text" class="form-control input-sm input-large" id="ix-zone" name="IX_ZONE" value="<?php echo $IX_ZONE; ?>" />
+      </div>
+      <div class="divider"></div>
+
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">รหัสคลังรับคืน IX</span>
+      </div>
+      <div class="col-lg-8 col-md-8 col-sm-8">
+				<select class="fix-width-350" id="ix-return-warehouse" name="IX_RETURN_WAREHOUSE" onchange="ixReturnZoneInit()">
+					<option value="">เลือกคลัง</option>
+					<?php echo select_sell_warehouse($IX_RETURN_WAREHOUSE); ?>
+				</select>
+      </div>
+      <div class="divider-hidden"></div>
+
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">รหัสโซนรับคืน IX</span>
+      </div>
+      <div class="col-lg-8 col-md-8 col-sm-8">
+        <input type="text" class="form-control input-sm input-large" id="ix-return-zone" name="IX_RETURN_ZONE" value="<?php echo $IX_RETURN_ZONE; ?>" />
+      </div>
+      <div class="divider"></div>
+
+
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">SYNC API STOCK</span>
+      </div>
+      <div class="col-lg-8 col-md-8 col-sm-8">
+				<label style="padding-top:5px; margin-bottom:0px;">
+					<input class="ace ace-switch ace-switch-7" data-name="SYNC_IX_STOCK" type="checkbox" value="1" <?php echo is_checked($SYNC_IX_STOCK , '1'); ?> onchange="toggleOption($(this))"/>
+					<span class="lbl margin-left-0" data-lbl="OFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON"></span>
+				</label>
+				<input type="hidden" name="SYNC_IX_STOCK" id="sync-ix-stock" value="<?php echo $SYNC_IX_STOCK; ?>" />
+      </div>
+			<div class="divider-hidden"></div>
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">GLOBAL STOCK RATE (%)</span>
+      </div>
+			<div class="col-lg-1-harf col-md-2-harf col-sm-3">
+				<div class="input-group">
+					<input type="number" class="form-control input-sm text-center" id="ix-stock-rate" name="IX_STOCK_RATE" value="<?php echo $IX_STOCK_RATE; ?>" onchange="checkValidRate()" />
+					<span class="input-group-addon">%</span>
+				</div>
+      </div>
+      <div class="divider-hidden"></div>
+
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">STOCK RATE BY</span>
+      </div>
+      <div class="col-lg-8 col-md-8 col-sm-8">
+				<select class="fix-width-150" id="ix-stock-rate-type" name="IX_STOCK_RATE_TYPE">
+					<option value="0" <?php echo is_selected('0', $IX_STOCK_RATE_TYPE); ?>>GLOBAL RATE</option>
+					<option value="1" <?php echo is_selected('1', $IX_STOCK_RATE_TYPE); ?>>ITEM RATE</option>
+				</select>
+      </div>
+			<!-- <div class="divider-hidden"></div>
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">USE STEPPING RATE</span>
+      </div>
+      <div class="col-lg-8 col-md-8 col-sm-8">
+				<label style="padding-top:5px; margin-bottom:0px;">
+					<input class="ace ace-switch ace-switch-7" data-name="IX_STEPPING_RATE" type="checkbox" value="1" <?php // echo is_checked($IX_STEPPING_RATE , '1'); ?> onchange="toggleOption($(this))"/>
+					<span class="lbl margin-left-0" data-lbl="OFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON"></span>
+				</label>
+				<input type="hidden" name="IX_STEPPING_RATE" value="<?php //echo $IX_STEPPING_RATE; ?>" />
+      </div>
+			<div class="divider-hidden"></div>
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">DEFINED STEPPING RATE (%)</span>
+      </div>
+      <div class="col-lg-1-harf col-md-1-harf col-sm-1-harf col-xs-4">
+      	<div class="input-group width-100">
+      		<span class="input-group-addon width-40">1</span>
+					<input type="number" class="form-control input-sm text-center" placeholder="Step 1" value="<?php // echo $IX_STEPPING_RATE_1; ?>" />
+      	</div>
+      </div> -->
+
+      <div class="divider"></div>
+
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">Logs Json</span>
+      </div>
+      <div class="col-lg-8 col-md-8 col-sm-8">
+				<label style="padding-top:5px; margin-bottom:0px;">
+					<input class="ace ace-switch ace-switch-7" data-name="IX_LOG_JSON" type="checkbox" value="1" <?php echo is_checked($IX_LOG_JSON , '1'); ?> onchange="toggleOption($(this))"/>
+					<span class="lbl margin-left-0" data-lbl="OFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON"></span>
+				</label>
+				<input type="hidden" name="IX_LOG_JSON" id="ix-log-json" value="<?php echo $IX_LOG_JSON; ?>" />
+				<span class="help-block">Logs Json text for test</span>
+      </div>
+      <div class="divider"></div>
+
+			<div class="col-lg-4 col-md-4 col-sm-4">
+        <span class="form-control left-label">Test Mode</span>
+      </div>
+      <div class="col-lg-8 col-md-8 col-sm-8">
+				<label style="padding-top:5px; margin-bottom:0px;">
+					<input class="ace ace-switch ace-switch-7" data-name="IX_TEST" type="checkbox" value="1" <?php echo is_checked($IX_TEST , '1'); ?> onchange="toggleOption($(this))"/>
+					<span class="lbl margin-left-0" data-lbl="OFF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON"></span>
+				</label>
+				<input type="hidden" name="IX_TEST" id="ix-test" value="<?php echo $IX_TEST; ?>" />
+				<span class="help-block">เปิดระบบทดสอบหรือไม่ เมื่อเปิดทดสอบจะไม่ทำการ interface จริง</span>
+      </div>
+      <div class="divider"></div>
+			<div class="divider-hidden"></div>
+			<div class="divider-hidden"></div>
+
+			<div class="col-lg-8 col-lg-offset-4 col-md-8 col-md-offset-4 col-sm-8 col-sm-offset-8">
+				<?php if($this->pm->can_add OR $this->pm->can_edit) : ?>
+        <button type="button" class="btn btn-sm btn-success btn-100" onClick="updateConfig('ixForm')">SAVE</button>
+				<?php endif; ?>
+      </div>
+      <div class="divider-hidden"></div>
+
+  	</div><!--/ row -->
+  </form>
