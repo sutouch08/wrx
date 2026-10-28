@@ -3,7 +3,7 @@
 function generateEAN($ean)
 {
   //---- ตัดช่องว่างหน้า-หลังออก
-  $ean = trim($ean);
+  $ean = trim($ean ?? '');
 
   //--- ถ้าเจอ string ที่ไม่ใช่ตัวเลข แจ้ง error
   if(preg_match("/[^0-9]/i", $ean))
@@ -32,6 +32,7 @@ function generateEAN($ean)
 
 function ean_checkdigit($code)
 {
+  $code = trim($code ?? '');
   //--- ถ้ารหัสมาไม่ครบ 12 digit ให้เติม 0 ด้ายซ้ายให้ครบ 12 digit
   $code = str_pad($code, 12, "0", STR_PAD_LEFT);
 
@@ -54,5 +55,3 @@ function ean_checkdigit($code)
 
   return $rs == 10 ? 0 : $rs;
 }
-
- ?>

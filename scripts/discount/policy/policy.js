@@ -1,40 +1,93 @@
-var HOME = BASE_URL + 'discount/discount_policy';
-
-function goBack(){
-  window.location.href = BASE_URL + 'discount/discount_policy';
+function addNew() {
+  window.location.href = `${HOME}add_new`;
 }
 
-
-function goAdd(){
-  window.location.href = BASE_URL + 'discount/discount_policy/add_new';
+function edit(code) {
+  window.location.href = `${HOME}edit/${code}`;
 }
-
-
-
-function goEdit(code){
-  window.location.href = BASE_URL + 'discount/discount_policy/edit_policy/' + code;
-}
-
-
 
 function viewDetail(code){
-  window.location.href = BASE_URL + 'discount/discount_policy/view_policy_detail/'+code;
+  window.location.href = `${HOME}view_detail/${code}`;
 }
 
-
-
-
-
-$('#fromDate').datepicker({
+$('#start-date').datepicker({
   dateFormat:'dd-mm-yy',
   onClose:function(sd){
-    $('#toDate').datepicker('option', 'minDate', sd);
+    $('#end-date').datepicker('option', 'minDate', sd);
   }
 });
 
-$('#toDate').datepicker({
+$('#end-date').datepicker({
   dateFormat:'dd-mm-yy',
   onClose:function(sd){
-    $('#fromDate').datepicker('option', 'maxDate', sd);
+    $('#start-date').datepicker('option', 'maxDate', sd);
   }
 });
+
+function toggleActive(el, id) {
+  const active = el.checked ? 1 : 0;
+
+  $.ajax({
+    url: `${HOME}set_active`,
+    type: 'POST',
+    cache: false,
+    data: {
+      'id': id,
+      'active': active
+    },
+    success: function (rs) {
+      if (rs.trim() !== 'success') {
+        $(el).prop('checked', !active);
+
+        showError(rs);
+      }
+    },
+    error: function (rs) {
+      showError(rs);
+    }
+  });
+}
+
+function confirmDelete(id, name) {
+  swal({
+    title: "คุณแน่ใจ ?",
+    text: `ต้องการลบ '${name}' หรือไม่ ?`,
+    type: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#FA5858",
+    confirmButtonText: 'ใช่, ฉันต้องการลบ',
+    cancelButtonText: 'ยกเลิก',
+    closeOnConfirm: true
+  }, function () {
+    load_in();
+
+    setTimeout(() => {
+      $.ajax({
+        url:`${HOME}/delete`,
+        type:'POST',
+        cache:false,
+        data:{ id: id },
+        success: function(rs){
+          load_out();
+
+          if(rs.trim() === 'success') {
+            swal({
+              title: 'Deleted',
+              type: 'success',
+              timer: 1000
+            });
+
+            $(`#row-${id}`).remove();
+            reIndex();
+          } 
+          else {
+            showError(rs);
+          }
+        },
+        error:function(rs) {
+          showError(rs);
+        }
+      })
+    }, 100);   
+  });
+}

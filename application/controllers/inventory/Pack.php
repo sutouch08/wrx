@@ -6,8 +6,7 @@ class Pack extends PS_Controller
   public $menu_code = 'ICCKQC';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'CHECK';
-	public $title = 'ตรวจสอบ QC';
-  public $filter;
+	public $title = 'ตรวจสอบ QC'; 
   public $error;
 	public $segment = 4;
 
@@ -19,7 +18,6 @@ class Pack extends PS_Controller
 		$this->load->helper('state');
   }
 
-
   public function index()
   {
     $filter = array(
@@ -27,10 +25,17 @@ class Pack extends PS_Controller
       'pd_code' => get_filter('pd_code', 'pd_code'),
       'from_date' => get_filter('from_date', 'from_date', ''),
       'to_date' => get_filter('to_date', 'to_date', ''),
-			'range' => get_filter('range', 'range', 'top')
+			'range' => get_filter('range', 'range', '500000')
     );
+
+		if($this->input->post('search'))
+		{
+			redirect($this->home);
+			exit;
+		}
 		
-		$perpage = get_rows();		
+		$perpage = get_rows();
+		$filter['max_id'] = $this->pack_model->get_max_id($filter['range']);
 		$rows = $this->pack_model->count_rows($filter);
 		$filter['data'] = $this->pack_model->get_list($filter, $perpage, $this->uri->segment($this->segment));		
 		$init = pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);		
@@ -38,15 +43,15 @@ class Pack extends PS_Controller
     $this->load->view('inventory/pack/pack_view', $filter);
   }
 
-
-
 	public function delete_row()
 	{
 		$sc = TRUE;
 		$id = trim($this->input->post('id'));
+
 		if(!empty($id))
 		{
 			$rs = $this->pack_model->delete($id);
+
 			if(!$rs)
 			{
 				$sc = FALSE;

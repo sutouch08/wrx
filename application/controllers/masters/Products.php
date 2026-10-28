@@ -48,13 +48,13 @@ class Products extends PS_Controller
     $this->load->helper('item_group');
 
     $this->wms = $this->load->database('wms', TRUE);
-    $this->load->library('wms_product_api');
-    $this->load->library('soko_product_api');
+    // $this->load->library('wms_product_api');
+    // $this->load->library('soko_product_api');
 
-    $this->wmsApi = is_true(getConfig('WMS_API'));
-    $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
+    // $this->wmsApi = is_true(getConfig('WMS_API'));
+    // $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
 
-    $this->wms_export_item = getConfig('WMS_EXPORT_ITEMS');
+    // $this->wms_export_item = getConfig('WMS_EXPORT_ITEMS');
   }
 
 

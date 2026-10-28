@@ -67,16 +67,10 @@ class Product_image_model extends CI_Model
 
 
 
-  public function get_style_code($id)
+  public function get_style_code(int $id)
   {
     $rs = $this->db->where('id', $id)->get('images');
-    if($rs->num_rows() > 0)
-    {
-      return $rs->row()->style;
-    }
-
-    return FALSE;
-
+    return $rs->num_rows() > 0 ? $rs->row()->style : '';    
   }
 
 

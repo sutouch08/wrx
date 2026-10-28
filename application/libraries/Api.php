@@ -21,9 +21,7 @@ class Api
       $setHeaders = array("Content-Type:application/json","Authorization:Bearer {$token}");
 	    $apiUrl = str_replace(" ","%20",$url);
 	    $method = 'POST';
-
       $data_string = json_encode($ds);
-
       $ch = curl_init();
 	    curl_setopt($ch, CURLOPT_URL, $apiUrl);
 	    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
@@ -31,30 +29,22 @@ class Api
 	    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 	    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 	    curl_setopt($ch, CURLOPT_HTTPHEADER, $setHeaders);
-	    $result = curl_exec($ch);
-	    curl_close($ch);
-
-      return $result;
+	    return curl_exec($ch);
     }
 
     return FALSE;
   }
 
-
   public function update_web_stock(array $ds = array())
   {
 		if(!empty($ds))
 		{
-
 			$token = $this->token;
 	    $url = $this->web_url."products/{$item}/stockItems/1";
-
 	    $setHeaders = array("Content-Type:application/json","Authorization:Bearer {$token}");
 	    $apiUrl = str_replace(" ","%20",$url);
 	    $method = 'PUT';
-
-	    $data_string = json_encode($ds);
-	    //echo $data_string;
+	    $data_string = json_encode($ds);	    
 	    $ch = curl_init();
 	    curl_setopt($ch, CURLOPT_URL, $apiUrl);
 	    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
@@ -62,13 +52,9 @@ class Api
 	    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 	    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 	    curl_setopt($ch, CURLOPT_HTTPHEADER, $setHeaders);
-	    $result = curl_exec($ch);
-	    curl_close($ch);
-	    return $result;
+	    return curl_exec($ch);
 		}
-
   }
-
 
   public function update_order_status($order_id, $current_state, $status)
   {
@@ -77,7 +63,6 @@ class Api
     $setHeaders = array("Content-Type:application/json","Authorization:Bearer {$token}");
     $apiUrl = str_replace(" ","%20",$url);
     $method = 'PUT';
-
     //---- ไม่สามารถย้อนสถานะได้ เดินหน้าได้อย่างเดียว
     if($status > $current_state)
     {
@@ -96,9 +81,7 @@ class Api
           "status" => $state[$status]
         );
 
-
         $data_string = json_encode($data);
-
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $apiUrl);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
@@ -106,18 +89,10 @@ class Api
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $setHeaders);
-        $result = curl_exec($ch);
-        curl_close($ch);
-        return $result;
+        return curl_exec($ch);        
       }
-
     }
 
     return TRUE;
-
   }
-
-
-} //-- end class
-
- ?>
+}

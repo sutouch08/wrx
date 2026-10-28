@@ -6,108 +6,138 @@ class Sap_consignment_stock_model extends CI_Model
   public function __construct()
   {
     parent::__construct();
-
   }
 
-
-  public function get_list(array $ds = array(), $perpage = NULL, $offset = NULL)
+  public function consignment_warehouse_in()
   {
-    if(!empty($ds['item_code']) OR !empty($ds['zone_code']))
+    $whs = ['x'];
+
+    $rs = $this->db->select('code')->where('role', 2)->where('is_consignment', 1)->get('warehouse');
+    if($rs->num_rows() > 0)
     {
-      if(!empty($ds['item_code']) OR !empty($ds['zone_code']))
+      foreach($rs->result() as $row)
       {
-        $itemCode = $ds['item_code'];
-        $zoneCode = $ds['zone_code'];
-
-        $qr  = "SELECT OITM.ItemCode, OITM.ItemName, OITM.U_OLDCODE, ";
-        $qr .= "OBIN.BinCode, OBIN.Descr, OIBQ.OnHandQty ";
-        $qr .= "FROM OIBQ ";
-        $qr .= "LEFT JOIN OBIN ON OIBQ.BinAbs = OBIN.AbsEntry ";
-        $qr .= "LEFT JOIN OITM ON OIBQ.ItemCode = OITM.ItemCode ";
-        $qr .= "WHERE OIBQ.OnHandQty != 0 ";
-
-        if(!empty($ds['show_system']))
-        {
-          if($ds['show_system'] == 'no')
-          {
-            $qr .= "AND OBIN.SysBin = 'N' ";
-          }
-        }
-
-        if(!empty($ds['item_code']))
-        {
-          $qr .= "AND (OITM.ItemCode LIKE '%{$itemCode}%' OR OITM.U_OLDCODE LIKE '%{$itemCode}%') ";
-        }
-
-        if(!empty($ds['zone_code']))
-        {
-          $qr .= "AND (OBIN.BinCode LIKE '%{$zoneCode}%' OR OBIN.Descr LIKE N'%{$zoneCode}%') ";
-        }
-
-        $qr .= "ORDER BY OIBQ.ItemCode ASC, OBIN.BinCode ASC ";
-
-        if(!empty($perpage))
-        {
-          if(!empty($offset))
-          {
-            $qr .= "OFFSET {$offset} ROWS FETCH NEXT {$perpage} ROWS ONLY";
-          }
-          else
-          {
-            $qr .= "OFFSET 0 ROWS FETCH FIRST {$perpage} ROWS ONLY";
-          }
-        }
-
-        $rs = $this->cn->query($qr);
-
-        if($rs->num_rows() > 0)
-        {
-          return $rs->result();
-        }
+        $whs[] = $row->code;
       }
-
-      return NULL;
     }
+
+    return $whs;
   }
 
-
-  public function count_rows(array $ds = array())
+  public function get_list($ds = [], $perpage = 20, $offset = 0)
   {
     if(!empty($ds['item_code']) OR !empty($ds['zone_code']))
     {
-      $itemCode = $ds['item_code'];
-      $zoneCode = $ds['zone_code'];
-
-      $qr  = "SELECT COUNT(*) AS numrows ";
-      $qr .= "FROM OIBQ ";
-      $qr .= "LEFT JOIN OBIN ON OIBQ.BinAbs = OBIN.AbsEntry ";
-      $qr .= "LEFT JOIN OITM ON OIBQ.ItemCode = OITM.ItemCode ";
-      $qr .= "WHERE OIBQ.OnHandQty != 0 ";
+      $this->cn
+      ->select('I.ItemCode, I.ItemName, I.U_OLDCODE, B.BinCode, B.Descr, Q.OnHandQty')
+      ->from('OIBQ Q')
+      ->join('OBIN B', 'Q.BinAbs = B.AbsEntry', 'left')
+      ->join('OITM I', 'Q.ItemCode = I.ItemCode', 'left')
+      ->where_in('Q.WhsCode', $ds['whs'])
+      ->where('Q.OnHandQty !=', 0);
 
       if(!empty($ds['show_system']))
       {
         if($ds['show_system'] == 'no')
         {
-          $qr .= "AND OBIN.SysBin = 'N' ";
+          $this->cn->where('B.SysBin', 'N');
         }
       }
 
       if(!empty($ds['item_code']))
       {
-        $qr .= "AND (OITM.ItemCode LIKE '%{$itemCode}%' OR OITM.U_OLDCODE LIKE '%{$itemCode}%') ";
+        $this->cn->like('I.ItemCode', $ds['item_code']);
       }
 
       if(!empty($ds['zone_code']))
       {
-        $qr .= "AND (OBIN.BinCode LIKE '%{$zoneCode}%' OR OBIN.Descr LIKE N'%{$zoneCode}%') ";
+        $this->cn->like('B.BinCode', $ds['zone_code']);
       }
 
-      $rs = $this->cn->query($qr);
+      $this->cn->order_by('Q.ItemCode', 'ASC');
+      $this->cn->order_by('B.BinCode', 'ASC');
+      $rs = $this->cn->limit($perpage, $offset)->get();
 
-      return $rs->row()->numrows;
+      return $rs->num_rows() > 0 ? $rs->result() : NULL;
+    }
+
+    return NULL;
+  }
+
+  public function count_rows($ds = [])
+  {
+    if(!empty($ds['item_code']) OR !empty($ds['zone_code']))
+    {
+      $this->cn
+      ->from('OIBQ Q')
+      ->join('OBIN B', 'Q.BinAbs = B.AbsEntry', 'left')
+      ->join('OITM I', 'Q.ItemCode = I.ItemCode', 'left')
+      ->where_in('Q.WhsCode', $ds['whs'])
+      ->where('Q.OnHandQty !=', 0);
+
+      if(!empty($ds['show_system']))
+      {
+        if($ds['show_system'] == 'no')
+        {
+          $this->cn->where('B.SysBin', 'N');
+        }
+      }
+
+      if(!empty($ds['item_code']))
+      {
+        $this->cn->like('I.ItemCode', $ds['item_code']);
+      }
+
+      if(!empty($ds['zone_code']))
+      {
+        $this->cn->like('B.BinCode', $ds['zone_code']);
+      }
+
+      return $this->cn->count_all_results();
     }
 
     return 0;
+  }
+
+  public function get_data($ds = [], $limit = 1000, $offset = 0)
+  {
+    if(!empty($ds['item_code']) OR !empty($ds['zone_code']))
+    {
+      $this->cn
+      ->select('I.ItemCode, I.ItemName, I.U_OLDCODE, B.BinCode, B.Descr, Q.OnHandQty')
+      ->from('OIBQ Q')
+      ->join('OBIN B', 'Q.BinAbs = B.AbsEntry', 'left')
+      ->join('OITM I', 'Q.ItemCode = I.ItemCode', 'left')
+      ->where_in('Q.WhsCode', $ds['whs'])
+      ->where('Q.OnHandQty !=', 0);
+
+      if(!empty($ds['show_system']))
+      {
+        if($ds['show_system'] == 'no')
+        {
+          $this->cn->where('B.SysBin', 'N');
+        }
+      }
+
+      if(!empty($ds['item_code']))
+      {
+        $this->cn->like('I.ItemCode', $ds['item_code']);
+      }
+
+      if(!empty($ds['zone_code']))
+      {
+        $this->cn->like('B.BinCode', $ds['zone_code']);
+      }
+
+      $rs = $this->cn
+      ->order_by('Q.ItemCode', 'ASC')
+      ->order_by('B.BinCode', 'ASC')
+      ->limit($limit, $offset)->get();
+
+      return $rs->num_rows() > 0 ? $rs->result() : NULL;
+    }
+
+    return NULL;
   }
 
 
@@ -126,10 +156,4 @@ class Sap_consignment_stock_model extends CI_Model
 
     return 0;
   }
-
-
-
-
-} //--- end class
-
-?>
+} 

@@ -1,11 +1,11 @@
 <?php
 
-function discount_rule_in($txt)
+function discount_rule_in(string $txt)
 {
   $sc = "0";
-  $CI =& get_instance();
-  $CI->load->model('discount/discount_rule_model');
-  $rs = $CI->discount_rule_model->search($txt);
+  $ci =& get_instance();
+  $ci->load->model('discount/discount_rule_model');
+  $rs = $ci->discount_rule_model->search($txt);
 
   if(!empty($rs))
   {
@@ -18,24 +18,10 @@ function discount_rule_in($txt)
   return $sc;
 }
 
-
-function showItemDiscountLabel($item_price, $item_disc, $unit)
+function showItemDiscountLabel($item_price = 0.00, $item_disc = 0.00, $unit = 'percent')
 {
-	$disc = 0.00;
-	//---	ถ้าเป็นการกำหนดราคาขาย
-	if($item_price > 0)
-	{
-		$disc = 'Price '.$item_price;
-	}
-	else
-	{
-		$symbal = $unit == 'percent' ? '%' : '';
-		$disc = $item_disc.' '.$symbal;
-	}
-
-	return $disc;
+  return $item_price > 0 ? 'Price '.$item_price : ($unit == 'percent' ? $item_disc.'%' : $item_disc);	
 }
-
 
 function parse_discount_to_label(array $ds = array())
 {
@@ -61,4 +47,4 @@ function parse_discount_to_label(array $ds = array())
 
 	return $disc;
 }
-?>
+

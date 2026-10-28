@@ -1,6 +1,8 @@
 <?php
 function production_issue_status_text($status = 'P')
 {
+  $status = $status ?? 'P';
+
   $txt = [
     'P' => 'Draft',
     'R' => 'Released',
@@ -11,9 +13,10 @@ function production_issue_status_text($status = 'P')
   return empty($txt[$status]) ? 'Draft' : $txt[$status];
 }
 
-
 function issue_status_color($status = 'P')
 {
+  $status = $status ?? 'P';
+  
   $color = [
     'P' => '', //-- draft
     'R' => 'background-color:#fbe4ff;', //-- released
@@ -23,5 +26,3 @@ function issue_status_color($status = 'P')
 
   return empty($color[$status]) ? '' : $color[$status];
 }
-
- ?>

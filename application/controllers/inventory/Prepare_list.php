@@ -1,14 +1,16 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use OpenSpout\Writer\XLSX\Writer;
+use OpenSpout\Common\Entity\Row;
 
 class Prepare_list extends PS_Controller
 {
   public $menu_code = 'ICPREP';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'CHECK';
-	public $title = 'ตรวจสอบ รายการจัดสินค้า';
-  public $filter;
+	public $title = 'ตรวจสอบ รายการจัดสินค้า';  
   public $error;
+  public $segment = 4;
   public function __construct()
   {
     parent::__construct();
@@ -18,7 +20,6 @@ class Prepare_list extends PS_Controller
     $this->load->helper('warehouse');
     $this->load->helper('state');
   }
-
 
   public function index()
   {
@@ -30,122 +31,127 @@ class Prepare_list extends PS_Controller
       'user' => get_filter('user', 'user', 'all'),
       'from_date' => get_filter('from_date', 'from_date', ''),
       'to_date' => get_filter('to_date', 'to_date', ''),
-      'range' => get_filter('range', 'range', 'top')
+      'range' => get_filter('range', 'range', 500000)
     );
 
     if($this->input->post('search'))
     {
       redirect($this->home);
+      exit;
     }
     else
     {
       $perpage = get_rows();
-      $segment = 4; //-- url segment
+      $filter['max_id'] = $this->prepare_list_model->get_max_id($filter['range']);
   		$rows = $this->prepare_list_model->count_rows($filter);
-  		$init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
+      $filter['data'] = $this->prepare_list_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+  		$init = pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
   		$this->pagination->initialize($init);
-      $filter['data'] = $this->prepare_list_model->get_list($filter, $perpage, $this->uri->segment($segment));
       $this->load->view('inventory/prepare_list/prepare_list_view', $filter);
     }
   }
 
 
   public function export_filter()
-  {
-    // This also needs to be increased in some cases. Can be changed to a higher value as per need)
+  {    
     ini_set('memory_limit','2048M');
-
-    $token = $this->input->post('token');
-
-    $ds = array(
-      'order_code' => $this->input->post('order_code'),
-      'product_code' => $this->input->post('product_code'),
-      'warehouse_code' => $this->input->post('warehouse_code'),
-      'zone_code' => $this->input->post('zone_code'),
-      'from_date' => $this->input->post('from_date'),
-      'to_date' => $this->input->post('to_date'),
-      'user' => $this->input->post('user'),
-      'range' => $this->input->post('range')
-    );
-  
-    $header = array(
-      'OrderDate', 'Order No', 'Reference', 'Channels', 'Item', 'Qty', 'Status', 'Picking Date', 'Warehouse', 'Zone', 'User'
+    $data = json_decode($this->input->post('data'), true);
+       
+    $filter = array(
+      'order_code' => $data['order_code'],
+      'warehouse_code' => $data['warehouse_code'],
+      'zone_code' => $data['zone_code'],
+      'pd_code' => $data['pd_code'],
+      'user' => $data['user'],
+      'from_date' => $data['from_date'],
+      'to_date' => $data['to_date']           
     );
 
-    $list = $this->prepare_list_model->get_export_data($ds);
+    $filter['max_id'] = $this->prepare_list_model->get_max_id($data['range']);
+    $token = $data['token'];
+    $tempFile = tempnam(sys_get_temp_dir(), 'pickLogs_');
+    $fileName = "PickLogs-".date('Ymd-His').".xlsx";
 
-    // Create a file pointer
-    $f = fopen('php://memory', 'w');
-    $delimiter = ",";
-    fputs($f, $bom = ( chr(0xEF) . chr(0xBB) . chr(0xBF) ));
-    fputcsv($f, $header, $delimiter);
+   try
+   {
+      $writer = new Writer();
+      $writer->openToFile($tempFile);
+      $header = ['No', 'OrderDate', 'OrderNo', 'Reference', 'Channels', 'Item', 'Qty', 'Status', 'PickingDate', 'Warehouse', 'Zone', 'User'];
+      $writer->addRow(Row::fromValues($header));
 
-    if( ! empty($list))
-    {
+      $limit = 10000;
+      $rows = $this->prepare_list_model->count_rows($filter);
+
       $stateName = $this->prepare_list_model->state_name_array();
       $channelsName = $this->prepare_list_model->channels_name_array();
-      $userName = [];
-      $orders = [];
+      $userName = []; //--- cache for user names      
+      $no = 1;         
 
-      foreach($list as $rs)
-      {
-        if(empty($orders[$rs->order_code]))
+      if($rows > 0)
+      {               
+        while($rows > 0)
         {
-          $orders[$rs->order_code] = $this->prepare_list_model->get_order($rs->order_code);
-        }
-
-        if( ! empty($orders[$rs->order_code]))
-        {
-          if(empty($userName[$rs->user]))
+          // echo "Max ID: ".$filter['max_id'].", Rows left: $rows<br>";
+          $list = $this->prepare_list_model->get_export_data($filter, $limit);
+          $count = count($list ?? []);         
+          $rows -= $count;
+         
+          if(! empty($list))
           {
-            $userName[$rs->user] = $this->user_model->get_name($rs->user);
+            foreach ($list as $rs)
+            {
+              //--- check and cache user names
+              if (empty($userName[$rs->user]))
+              {
+                $userName[$rs->user] = $this->user_model->get_name($rs->user);
+              }
+
+              $row = array(
+                $no,
+                thai_date($rs->order_date),
+                $rs->order_code,
+                $rs->reference,
+                empty($channelsName[$rs->channels_code ?? '']) ? '' : $channelsName[$rs->channels_code ?? ''],
+                $rs->product_code,
+                $rs->qty,
+                empty($stateName[$rs->state ?? '']) ? '' : $stateName[$rs->state ?? ''],
+                thai_date($rs->date_upd, TRUE),
+                $rs->warehouse_code,
+                $rs->zone_code,
+                empty($userName[$rs->user]) ? $rs->user : $userName[$rs->user]
+              );
+
+              $writer->addRow(Row::fromValues($row));
+              $no++;
+
+              $filter['max_id'] = $rs->id;
+            }
           }
-
-          $order = $orders[$rs->order_code];
-
-          $arr = array(
-            thai_date($order->date_add),
-            $order->code,
-            $order->reference,
-            empty($channelsName[$order->channels_code]) ? $order->channels_code : $channelsName[$order->channels_code],
-            $rs->product_code,
-            $rs->qty,
-            $stateName[$order->state],
-            thai_date($rs->date_upd, TRUE),
-            $rs->warehouse_code,
-            $rs->zone_code,
-            empty($userName[$rs->user]) ? $rs->user : $userName[$rs->user]
-          );
-
-          fputcsv($f, $arr, $delimiter);
         }
       }
-      // $memuse = (memory_get_usage() / 1024) / 1024;
-      // $arr = array('memory usage', round($memuse, 2).' MB');
-      // fputcsv($f, $arr, $delimiter);
+
+      $writer->close();
+      setToken($token);
+      while(ob_get_level() > 0) { ob_end_flush(); }
+      header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      header('Content-Disposition: attachment;filename="'.$fileName.'"');
+      header('Content-Length: ' . filesize($tempFile));
+      header('Cache-Control: max-age=0');
+      readfile($tempFile);    
+    }    
+    finally
+    {
+      if(file_exists($tempFile))
+      {
+        unlink($tempFile);
+      }
     }
 
-    //--- Move to begin of file
-    fseek($f, 0);
-
-    setToken($token);
-
-    $file_name = "Picking details.csv";
-    header('Content-Type: text/csv');
-    header('Content-Disposition: attachment;filename="'.$file_name.'"');
-
-    //output all remaining data on a file pointer
-    fpassthru($f); ;
-
-    exit();
+    exit;    
   }
-
 
   function clear_filter(){
     $filter = array('order_code', 'pd_code', 'warehouse_code', 'zone_code', 'user', 'from_date', 'to_date', 'range');
-    clear_filter($filter);
+    return clear_filter($filter);
   }
-
-
-} //--- end class
-?>
+}

@@ -491,7 +491,7 @@ class Warehouse_model extends CI_Model
 	}
 
 
-  public function is_stock_exists($role = 'N', $whsCode)
+  public function is_stock_exists($role, $whsCode)
   {
     $rows = 0;
 
@@ -509,7 +509,7 @@ class Warehouse_model extends CI_Model
   }
 
 
-  public function get_balance_amount($role = 'N', $whsCode)
+  public function get_balance_amount($role, $whsCode)
   {
     $qr  = "SELECT SUM(Amount) AS Amount FROM ";
     $qr .= "(SELECT (O.OnHand * P.Price) AS Amount FROM OITW AS O ";

@@ -3,9 +3,9 @@
 function select_currency($code = NULL)
 {
   $sc = '';
-  $CI =& get_instance();
-  $CI->load->model('tool_model');
-  $options = $CI->tool_model->get_currency();
+  $ci =& get_instance();
+  $ci->load->model('tool_model');
+  $options = $ci->tool_model->get_currency();
 
   if(!empty($options))
   {
@@ -26,5 +26,3 @@ function select_currency($code = NULL)
 
   return $sc;
 }
-
-?>

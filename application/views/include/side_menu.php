@@ -22,7 +22,7 @@ $menu_sub_group_code = isset($this->menu_sub_group_code) ? $this->menu_sub_group
 <ul class="nav nav-list">
 <?php if(!empty($menuGroups)) : ?>
 <?php 	foreach($menuGroups as $menuGroup) : ?>
-	<li class="<?php echo isActiveOpenMenu($this->menu_group_code, $menuGroup->code); ?>">
+	<li class="<?php echo isActiveOpenMenu($this->menu_group_code ?? '', $menuGroup->code ?? ''); ?>">
 		<a href="#" class="dropdown-toggle">
 			<i class="menu-icon fa <?php echo $menuGroup->icon; ?>"></i>
 			<span class="menu-text"><?php echo $menuGroup->name; ?></span>
@@ -42,7 +42,7 @@ $menu_sub_group_code = isset($this->menu_sub_group_code) ? $this->menu_sub_group
 							</a>
 							<ul class="submenu">
 						<?php foreach($menus as $menu) : ?>
-								<?php echo side_menu($this->menu_code, $menu->code,  $menu->url, $menu->name); ?>
+								<?php echo side_menu($this->menu_code ?? '', $menu->code,  $menu->url, $menu->name); ?>
 							<?php endforeach; ?>
 							</ul>
 						</li>
@@ -52,7 +52,7 @@ $menu_sub_group_code = isset($this->menu_sub_group_code) ? $this->menu_sub_group
 			<?php $menus = $this->menu->get_menus_by_group($menuGroup->code, FALSE); ?>
 			<?php if(!empty($menus)) : ?>
 				<?php foreach($menus as $menu) : ?>
-						<?php echo side_menu($this->menu_code, $menu->code,  $menu->url, $menu->name); ?>
+						<?php echo side_menu($this->menu_code ?? '', $menu->code,  $menu->url, $menu->name); ?>
 					<?php endforeach; ?>
 			<?php endif; ?>
 		</ul> <!-- level 1 -->

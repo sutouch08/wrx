@@ -1,6 +1,7 @@
 <?php
   function reserv_stock_status_text($status = 'D')
   {
+    $status = $status ?? 'D';
     $arr = array(
       'D' => 'Draft',
       'P' => 'Pending Approve',
@@ -12,4 +13,3 @@
     return  empty($arr[$status]) ? 'Draft' : $arr[$status];
   }
 
- ?>

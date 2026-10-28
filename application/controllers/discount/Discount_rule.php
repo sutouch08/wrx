@@ -1,5 +1,6 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use OpenSpout\Reader\XLSX\Reader;
 
 class Discount_rule extends PS_Controller
 {
@@ -15,14 +16,12 @@ class Discount_rule extends PS_Controller
     $this->home = base_url().'discount/discount_rule';
     $this->load->model('discount/discount_policy_model');
     $this->load->model('discount/discount_rule_model');
-  }
-
-
-  public function index()
-  {
     $this->load->helper('discount_policy');
     $this->load->helper('discount_rule');
+  }
 
+  public function index()
+  {    
     $filter = array(
       'code' => get_filter('rule_code', 'rule_code', ''),
       'policy' => get_filter('policy', 'policy', ''),
@@ -31,23 +30,19 @@ class Discount_rule extends PS_Controller
       'discount' => get_filter('rule_disc', 'rule_disc', '')
     );
 
-			//--- แสดงผลกี่รายการต่อหน้า
+		if($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+
 		$perpage = get_rows();
-
 		$rows = $this->discount_rule_model->count_rows($filter);
-
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
-
-		$result = $this->discount_rule_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
-
-    $filter['rules'] = $result;
-
+    $filter['rules'] = $this->discount_rule_model->get_list($filter, $perpage, $this->uri->segment($this->segment));		
+		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);		
 		$this->pagination->initialize($init);
-
     $this->load->view('discount/rule/rule_view', $filter);
   }
-
 
 
   public function add_new()
@@ -289,7 +284,7 @@ class Discount_rule extends PS_Controller
 
 
   public function set_product_rule()
-  {
+  {    
     $id_rule = $this->input->post('id_rule');
 
     //--- all product ?
@@ -495,6 +490,76 @@ class Discount_rule extends PS_Controller
     $ds['rule'] = $rule;
     $ds['policy'] = $policy;
     $this->load->view('discount/policy/view_rule_detail', $ds);
+  }
+
+  //-- read import product by Excel file
+  //-- return json list of products if readable
+  public function read_product_file()
+  {
+    $sc = TRUE;
+    $file = isset($_FILES['uploadFile']) ? $_FILES['uploadFile'] : NULL;
+
+    if($file !== NULL)
+    {
+      $file = 'uploadFile';
+      $config = array(
+        "allowed_types" => "xlsx",
+        "upload_path" => $this->config->item('upload_file_path').'import_files/',
+        "file_name"  => 'import-discount-model',
+        "max_size" => 5120,
+        "overwrite" => TRUE
+      );
+
+      $this->load->library('upload', $config);
+
+      if(! $this->upload->do_upload($file))
+      {
+        $sc = FALSE;
+        $this->error = $this->upload->display_errors();
+      }
+      else
+      {
+        $this->load->model('masters/product_style_model');
+        $data = $this->upload->data();
+        $file_path = $data['full_path'];
+        $reader = new Reader();
+        $reader->open($file_path);
+        $sheet = $reader->getSheetIterator()->current();
+        $ds = [];
+
+        foreach ($sheet->getRowIterator() as $row) 
+        {
+          $cells = $row->getCells();
+          $code = isset($cells[0]) ? $cells[0]->getValue() : '';
+
+          if( ! empty($code))
+          {
+            if(!in_array($code, $ds))
+            {
+              if($this->product_style_model->is_exists($code))
+              {
+                $ds[] = $code;
+              }
+            }
+          }                  
+        }
+
+        $reader->close();               
+      }
+    }
+    else
+    {
+      $sc = FALSE;
+      $this->error = "No file uploaded";
+    }
+
+    $arr = array(
+      'status' => $sc === TRUE ? 'success' : 'error',
+      'message' => $sc === TRUE ? '' : $this->error,
+      'data' => isset($ds) ? $ds : NULL
+    );
+
+    echo json_encode($arr);
   }
 
   public function get_new_code()

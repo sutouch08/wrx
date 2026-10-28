@@ -1,6 +1,7 @@
 <?php
-function get_state_name($state = NULL)
+function get_state_name($state = 0)
 {
+  $state = intval($state ?? '');
   $name = array(
     '1' => 'รอดำเนินการ',
     '2' => 'รอชำระเงิน',
@@ -29,8 +30,7 @@ function get_state_name($state = NULL)
   return isset($name[$state]) ? $name[$state] : 'Unknown';
 }
 
-
-function state_color($state, $is_saved = 1, $is_expired = 0)
+function state_color($state = 1, $is_saved = 1, $is_expired = 0)
 {
   if($is_saved == 0 && $is_expired == 0)
   {
@@ -92,6 +92,3 @@ function soko_state_list_array()
 
   return $stateList;
 }
-
-
-?>

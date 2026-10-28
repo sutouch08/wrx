@@ -41,67 +41,25 @@
     <button type="button" class="btn btn-xs btn-default btn-block" onclick="clearFields()">เคลียร์</button>
   </div>
 </div>
-<hr class="margin-top-15 margin-bottom-15">
-<div class="row">
-  <div class="col-lg-2 col-md-2-harf col-sm-3 col-xs-8 padding-5">
-    <input type="text" class="form-control input-sm text-center" id="pd-box" placeholder="ค้นรหัสสินค้า" />
-  </div>
-  <div class="col-lg-1-harf col-md-1-harf col-sm-1-harf col-xs-4 padding-5">
-    <button type="button" class="btn btn-xs btn-primary btn-block" onclick="getProductGrid()"><i class="fa fa-tags"></i> แสดงสินค้า</button>
-  </div>
-
-  <div class="col-lg-1 col-md-1 col-sm-1 col-xs-12">&nbsp;</div>
-
-  <div class="col-lg-1-harf col-md-2 col-sm-2 col-xs-4 padding-5">
-    <input type="text" class="form-control input-sm text-center" name="ref_code" id="ref_code" value="<?php echo $doc->ref_code; ?>" disabled>
-  </div>
-  <div class="col-lg-1-harf col-md-1-harf col-sm-1-harf col-xs-4 padding-5">
-    <button type="button" class="btn btn-xs btn-danger btn-block" onclick="clearImportDetail('<?php echo $doc->ref_code; ?>')">
-      ลบการนำเข้า
-    </button>
-  </div>
-
-  <?php if($this->pm->can_add OR $this->pm->can_edit OR $this->pm->can_delete) : ?>
-  <div class="col-lg-4-harf col-md-3-harf col-sm-3 col-xs-4 padding-5 text-right">
-    <button type="button" class="btn btn-xs btn-danger btn-clock" onclick="clearAll()"><i class="fa fa-trash"></i> ลบทั้งหมด</button>
-  </div>
-  <?php endif; ?>
-</div>
-
 <input type="hidden" id="product_code" />
 <input type="hidden" id="count_stock" value="1" />
 <hr class="margin-top-15 margin-bottom-15" />
+
 <div class="row margin-bottom-5">
-  <div class="col-sm-12 col-xs-12 first last">
+  <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6 padding-5">
   <?php if(getConfig('ALLOW_EDIT_PRICE')) : ?>
-    <button type="button" class="btn btn-xs btn-warning" id="btn-edit-price" onclick="getEditPrice()">แก้ไขราคา</button>
-    <button type="button" class="btn btn-xs btn-primary hide" id="btn-update-price" onclick="updatePrice()">บันทึกราคา</button>
+    <button type="button" class="btn btn-white btn-sm btn-purple" id="btn-edit-price" onclick="getEditPrice()">แก้ไขราคา</button>
+    <button type="button" class="btn btn-white btn-sm btn-primary hide" id="btn-update-price" onclick="updatePrice()">บันทึกราคา</button>
   <?php endif; ?>
   <?php if(getConfig('ALLOW_EDIT_DISCOUNT')) : ?>
-    <button type="button" class="btn btn-xs btn-warning" id="btn-edit-disc" onclick="getEditDiscount()">แก้ไขส่วนลด</button>
-    <button type="button" class="btn btn-xs btn-primary hide" id="btn-update-disc" onclick="updateDiscount()">บันทึกส่วนลด</button>
+    <button type="button" class="btn btn-white btn-sm btn-purple" id="btn-edit-disc" onclick="getEditDiscount()">แก้ไขส่วนลด</button>
+    <button type="button" class="btn btn-white btn-sm btn-primary hide" id="btn-update-disc" onclick="updateDiscount()">บันทึกส่วนลด</button>
   <?php endif; ?>
   </div>
+  <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6 padding-5 text-right">
+    <?php if( ! empty($doc->ref_code)) : ?>
+      <button type="button" class="btn btn-white btn-sm btn-danger" onclick="clearImportDetail('<?php echo $doc->ref_code; ?>')"><i class="fa fa-times"></i> ลบเอกสารกระทบยอด (<?php echo $doc->ref_code; ?>)</button>
+    <?php endif; ?>
+    <button type="button" class="btn btn-white btn-sm btn-danger" onclick="removeChecked()"><i class="fa fa-check-square-o"></i> ลบที่เลือก</button>
+  </div>
 </div>
-
-<form id="orderForm">
-<div class="modal fade" id="orderGrid" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-	<div class="modal-dialog" id="modal">
-		<div class="modal-content">
-  			<div class="modal-header">
-				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-				<h4 class="modal-title" id="modalTitle">title</h4>
-        <div class="">
-          <label>ส่วนลด</label>
-            <input type="text" class="form-control input-sm input-medium text-center" id="discountLabel" value="0"/>
-        </div>
-			 </div>
-			 <div class="modal-body" id="modalBody"></div>
-			 <div class="modal-footer">
-				<button type="button" class="btn btn-default" data-dismiss="modal">ปิด</button>
-				<button type="button" class="btn btn-primary" onClick="addToOrder()" >เพิ่มในรายการ</button>
-			 </div>
-		</div>
-	</div>
-</div>
-</form>

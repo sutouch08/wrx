@@ -15,17 +15,15 @@
 	<div class="form-group">
     <label class="col-sm-3 control-label no-padding-right">รหัส</label>
     <div class="col-xs-12 col-sm-3">
-      <input type="text" name="code" id="code" class="width-100" value="<?php echo $code; ?>" autofocus required />
+      <input type="text" name="code" id="code" class="form-control input-sm" value="<?php echo $code; ?>" autofocus required />
     </div>
     <div class="help-block col-xs-12 col-sm-reset inline red" id="code-error"></div>
   </div>
 
-
-
   <div class="form-group">
     <label class="col-sm-3 control-label no-padding-right">ชื่อ</label>
     <div class="col-xs-12 col-sm-3">
-			<input type="text" name="name" id="name" class="width-100" value="<?php echo $name; ?>" required />
+			<input type="text" name="name" id="name" class="form-control input-sm" value="<?php echo $name; ?>" required />
     </div>
     <div class="help-block col-xs-12 col-sm-reset inline red" id="name-error"></div>
   </div>
@@ -33,14 +31,14 @@
 	<div class="form-group">
     <label class="col-sm-3 control-label no-padding-right">เลขประจำตัว/Tax ID</label>
     <div class="col-xs-12 col-sm-3">
-			<input type="text" name="Tax_id" id="Tax_id" class="width-100" value="<?php echo $Tax_Id; ?>" />
+			<input type="text" name="Tax_id" id="Tax_id" class="form-control input-sm" value="<?php echo $Tax_Id; ?>" />
     </div>
   </div>
 
 	<div class="form-group">
  	 <label class="col-sm-3 control-label no-padding-right">รหัสบัญชีลูกหนี้</label>
  	 <div class="col-xs-12 col-sm-3">
- 		 <select name="DebPayAcct" id="DebPayAcct" class="form-control" required>
+ 		 <select name="DebPayAcct" id="DebPayAcct" class="form-control input-sm" required>
 			 <option value="">เลือกรายการ</option>
  			 <?php echo select_DebPayAcct($DebPayAcct); ?>
  		 </select>
@@ -48,11 +46,10 @@
   </div>
 
 
-
 	<div class="form-group">
  	 <label class="col-sm-3 control-label no-padding-right">กลุ่มลูกหนี้</label>
  	 <div class="col-xs-12 col-sm-3">
- 		 <select name="GroupCode" id="GroupCode" class="form-control" required>
+ 		 <select name="GroupCode" id="GroupCode" class="form-control input-sm" required>
  			 <?php echo select_GroupCode($GroupCode); ?>
  		 </select>
  	 </div>
@@ -61,7 +58,7 @@
 	<div class="form-group">
  	 <label class="col-sm-3 control-label no-padding-right">รูปแบบ</label>
  	 <div class="col-xs-12 col-sm-3">
- 		 <select name="cmpPrivate" id="cmpPrivate" class="form-control">
+ 		 <select name="cmpPrivate" id="cmpPrivate" class="form-control input-sm">
  			<option value="C" <?php echo is_selected('C', $cmpPrivate); ?>>บริษัท/ร้าน</option>
 			<option value="G" <?php echo is_selected('G', $cmpPrivate); ?>>หน่วนงานรัฐ</option>
 			<option value="I" <?php echo is_selected('I', $cmpPrivate); ?>>บุคคลทั่วไป</option>
@@ -72,7 +69,7 @@
 	<div class="form-group">
  	 <label class="col-sm-3 control-label no-padding-right">รหัสกลุ่มเครดิต</label>
  	 <div class="col-xs-12 col-sm-3">
- 		 <select name="GroupNum" id="GroupNum" class="form-control">
+ 		 <select name="GroupNum" id="GroupNum" class="form-control input-sm">
  			 <?php echo select_GroupNum($GroupNum); ?>
  		 </select>
  	 </div>
@@ -82,7 +79,7 @@
 	<div class="form-group">
     <label class="col-sm-3 control-label no-padding-right">กลุ่มลูกค้า</label>
     <div class="col-xs-12 col-sm-3">
-			<select name="group" id="group" class="form-control" required>
+			<select name="group" id="group" class="form-control input-sm" required>
 				<option value="">เลือกรายการ</option>
 				<?php echo select_customer_group($group); ?>
 			</select>
@@ -94,7 +91,7 @@
 	<div class="form-group">
     <label class="col-sm-3 control-label no-padding-right">ประเภทลูกค้า</label>
     <div class="col-xs-12 col-sm-3">
-			<select name="kind" id="kind" class="form-control" required>
+			<select name="kind" id="kind" class="form-control input-sm" required>
 				<option value="">เลือกรายการ</option>
 				<?php echo select_customer_kind($kind); ?>
 			</select>
@@ -106,7 +103,7 @@
 	<div class="form-group">
     <label class="col-sm-3 control-label no-padding-right">ชนิดลูกค้า</label>
     <div class="col-xs-12 col-sm-3">
-			<select name="type" id="type" class="form-control" required>
+			<select name="type" id="type" class="form-control input-sm" required>
 				<option value="">เลือกรายการ</option>
 				<?php echo select_customer_type($type); ?>
 			</select>
@@ -119,7 +116,7 @@
 	<div class="form-group">
     <label class="col-sm-3 control-label no-padding-right">เกรดลูกค้า</label>
     <div class="col-xs-12 col-sm-3">
-			<select name="class" id="class" class="form-control" required>
+			<select name="class" id="class" class="form-control input-sm" required>
 				<option value="">เลือกรายการ</option>
 				<?php echo select_customer_class($class); ?>
 			</select>
@@ -131,7 +128,7 @@
 	<div class="form-group">
     <label class="col-sm-3 control-label no-padding-right">พื้นที่ขาย</label>
     <div class="col-xs-12 col-sm-3">
-			<select name="area" id="area" class="form-control" required>
+			<select name="area" id="area" class="form-control input-sm" required>
 				<option value="">เลือกรายการ</option>
 				<?php echo select_customer_area($area); ?>
 			</select>
@@ -142,7 +139,7 @@
 	<div class="form-group">
 	 <label class="col-sm-3 control-label no-padding-right">พนักงานขาย</label>
 	 <div class="col-xs-12 col-sm-3">
-		 <select name="sale" id="sale" class="form-control">
+		 <select name="sale" id="sale" class="form-control input-sm">
 			 <?php echo select_sale($sale); ?>
 		 </select>
 	 </div>
@@ -151,7 +148,7 @@
 	<div class="form-group">
     <label class="col-sm-3 control-label no-padding-right">วงเงินเครดิต</label>
     <div class="col-xs-12 col-sm-3">
-			<input type="number" name="CreditLine" id="CreditLine" class="width-100" value="<?php echo $CreditLine; ?>" />
+			<input type="number" name="CreditLine" id="CreditLine" class="form-control input-sm" value="<?php echo $CreditLine; ?>" />
     </div>
   </div>
 
@@ -170,5 +167,17 @@
   </div>
 </form>
 
-<script src="<?php echo base_url(); ?>scripts/masters/customers.js"></script>
+<script>
+	$('#GroupCode').select2();
+	$('#cmpPrivate').select2();
+	$('#GroupNum').select2();
+	$('#group').select2();
+	$('#kind').select2();
+	$('#type').select2();
+	$('#class').select2();
+	$('#area').select2();
+	$('#sale').select2();
+</script>
+
+<script src="<?php echo base_url(); ?>scripts/masters/customers.js?v=<?php echo date('Ymd'); ?>"></script>
 <?php $this->load->view('include/footer'); ?>

@@ -1,10 +1,11 @@
 <?php
-function paymentLabel($order_code, $isExists, $isPaid)
+function paymentLabel($isExists = FALSE, $isPaid = 0)
 {
 	$sc = "";
-	if( $isExists === TRUE )
+
+	if( $isExists)
 	{
-    if( $isPaid == 1 )
+    if( $isPaid)
 		{
 			$sc .= '<button type="button" class="btn btn-sm btn-success" onClick="viewPaymentDetail()">';
 			$sc .= 'จ่ายเงินแล้ว | ดูรายละเอียด';
@@ -21,47 +22,37 @@ function paymentLabel($order_code, $isExists, $isPaid)
 	return $sc;
 }
 
-
-
-function paymentExists($order_code)
+function paymentExists(string $order_code)
 {
-  $CI =& get_instance();
-  $CI->load->model('orders/order_payment_model');
-  return $CI->order_payment_model->is_exists($order_code);
+  $ci =& get_instance();
+  $ci->load->model('orders/order_payment_model');
+  return $ci->order_payment_model->is_exists($order_code);
 }
 
-
-function payment_image_url($order_code)
+function payment_image_url(string $order_code)
 {
-  $CI =& get_instance();
+  $ci =& get_instance();
 	$link	= base_url().'images/payments/'.$order_code.'.jpg';
-  $file = $CI->config->item('image_file_path').'payments/'.$order_code.'.jpg';
-	if( ! file_exists($file) )
-	{
-		$link = FALSE;
-	}
-
-	return $link;
+  $file = $ci->config->item('image_file_path').'payments/'.$order_code.'.jpg';
+	return (! file_exists($file)) ? "" : $link;
 }
 
-
-function getSpace($amount, $length)
+function getSpace($amount = '', $length = 0)
 {
 	$sc = '';
-	$i	= strlen($amount);
+	$i = strlen($amount ?? '');
 	$m	= $length - $i;
+
 	while($m > 0 )
 	{
 		$sc .= '&nbsp;';
 		$m--;
 	}
+
 	return $sc.$amount;
 }
 
-
-
-
-function get_summary($order, $details, $banks)
+function get_summary(object $order, array $details, array $banks)
 {
 	$payAmount = 0;
 	$orderAmount = 0;
@@ -91,11 +82,8 @@ function get_summary($order, $details, $banks)
 		$orderTxt .= '<br/>';
 	}
 
-
-
 	$payAmount = $orderAmount - ($discount + $order->bDiscAmount);
 	$orderTxt .= 'ยอดชำระ' . getSpace(number( $payAmount, 2), 29).'<br/>';
-
 
 	$orderTxt .= '====================<br/><br/>';
 
@@ -119,12 +107,12 @@ function get_summary($order, $details, $banks)
 	return $orderTxt;
 }
 
-
-function select_order_role($role = '')
+function select_order_role(string $role = '')
 {
 	$sc = '';
-	$CI =& get_instance();
-	$rs = $CI->db->query("SELECT * FROM order_role");
+	$ci =& get_instance();
+	$rs = $ci->db->query("SELECT * FROM order_role");
+
 	if($rs->num_rows() > 0)
 	{
 		foreach($rs->result() as $rd)
@@ -136,8 +124,7 @@ function select_order_role($role = '')
 	return $sc;
 }
 
-
-function role_name($role)
+function role_name(string $role = 'S')
 {
 	$ds = array(
 		'C' => 'ฝากขาย',
@@ -151,11 +138,10 @@ function role_name($role)
 		'U'	=> 'อภินันท์',
 	);
 
-	return isset($ds[$role]) ? $ds[$role] : NULL;
+	return isset($ds[$role]) ? $ds[$role] : '';
 }
 
-
-function select_shop_name($shop_id = NULL)
+function select_shop_name(?string $shop_id = NULL)
 {
 	$ci =& get_instance();
 	$ds = "";
@@ -177,20 +163,17 @@ function select_shop_name($shop_id = NULL)
 	return $ds;
 }
 
-
-function shop_name($shop_id = NULL)
+function shop_name(?string $shop_id = NULL)
 {
 	if( ! empty($shop_id))
 	{
 		$ci =& get_instance();
 		$ci->load->model('orders/orders_model');
-
 		return $ci->orders_model->shop_name($shop_id);
 	}
 
-	return NULL;
+	return '';
 }
-
 
 function shop_name_arr()
 {
@@ -208,5 +191,3 @@ function shop_name_arr()
 
 	return $ds;
 }
-
- ?>

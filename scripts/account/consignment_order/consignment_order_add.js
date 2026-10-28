@@ -1,83 +1,79 @@
-var zero_qty = 0;
+function saveConsign() {
+  let code = $('#consign_code').val();
 
-function saveConsign(){
-  var code = $('#consign_code').val();
-  var details = $('.rox').length;
-  if(details == 0){
+  if ($('.rox').length == 0) {
     swal("ไม่พบรายการสินค้า");
     return false;
   }
 
-  check_zero();
-
-  if(zero_qty > 0){
+  if (!validateQty()) {
     swal("พบรายการที่เป็น 0");
     return false;
-  }else{
-    $('.qty').css('color', '');
   }
 
-  console.log(zero_qty);
   swal({
-		title: "บันทึกขายและตัดสต็อก",
-		text: "เมื่อบันทึกแล้วจะไม่สามารถแก้ไขได้ ต้องการบันทึกหรือไม่ ?",
-		type: "warning",
-		showCancelButton: true,
-		confirmButtonColor: "#8CC152",
-		confirmButtonText: 'บันทึก',
-		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: false
-		}, function(){
-      load_in();
+    title: "บันทึกขายและตัดสต็อก",
+    text: "เมื่อบันทึกแล้วจะไม่สามารถแก้ไขได้ ต้องการบันทึกหรือไม่ ?",
+    type: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#8CC152",
+    confirmButtonText: 'บันทึก',
+    cancelButtonText: 'ยกเลิก',
+    closeOnConfirm: false
+  }, function () {
+    load_in();
+    setTimeout(() => {
       $.ajax({
-        url: HOME + 'save_consign/'+code,
-        type:'POST',
-        cache:'false',
-        success:function(rs){
+        url: `${HOME}save_consign/${code}`,
+        type: 'POST',
+        cache: false,
+        success: function (rs) {
           load_out();
-          if(rs == 'success'){
+
+          if (rs.trim() == 'success') {
             swal({
-              title:'Saved',
-              type:'success',
-              timer:1000
+              title: 'Saved',
+              type: 'success',
+              timer: 1000
             });
 
-            setTimeout(function(){
-              viewDetail(code);
-            },1500);
-          }else{
-            swal({
-              title:'Error!',
-              text: rs,
-              html:true,
-              type:'error'
-            })
+            setTimeout(() => { viewDetail(code); }, 1500);
           }
+          else {
+            showError(rs);
+          }
+        },
+        error: function (rs) {
+          showError(rs);
         }
       });
-	});
+    }, 100);
+  });
 }
 
+function validateQty() {
+  let valid = true;
 
-function check_zero(){
-  zero_qty = 0;
-  $('.qty').each(function(){
-    var qty = parseInt($(this).text())
-    if(qty == 0){
-      var id = $(this).attr('id');
-      var arr = id.split('-');
-      if(arr.length == 2){
+  $('.qty').each(function () {
+    let qty = parseDefaultFloat(removeCommas($(this).text()), 0);
+
+    if (qty <= 0) {
+      valid = false;
+      let id = $(this).attr('id');
+      let arr = id.split('-');
+      if (arr.length == 2) {
         id = arr[1];
-        $('#row-'+id).css('color','red');
-        zero_qty++;
+        $(`#row-${id}`).hasError();
       }
     }
-  })
+  });
+
+  return valid;
 }
 
-function unSaveConsign(){
-  var code = $('#consign_code').val();
-  msg  = '<center><span style="color:red;">ก่อนยืนยันการทำรายการนี้</span></center>';
+function unSaveConsign() {
+  let code = $('#consign_code').val();
+  msg = '<center><span style="color:red;">ก่อนยืนยันการทำรายการนี้</span></center>';
   msg += '<center><span style="color:red;">คุณต้องแน่ใจว่าได้ลบ เอกสารใน SAP แล้ว</span></center>';
   msg += '<center><span style="color:red;">ต้องการยกเลิกการเปิดบิลหรือไม่</span></center>';
 
@@ -85,122 +81,107 @@ function unSaveConsign(){
     title: "ยกเลิกการเปิดบิล ?",
     text: msg,
     type: "warning",
-    html:true,
+    html: true,
     showCancelButton: true,
     confirmButtonColor: "#FA5858",
     confirmButtonText: 'ใช่, ฉันต้องการ',
     cancelButtonText: 'ยกเลิก',
     closeOnConfirm: false
-    }, function(){
-      load_in();
+  }, function () {
+    load_in();
+
+    setTimeout(() => {
       $.ajax({
-        url: HOME + 'unsave_consign/'+code,
-        type:'POST',
-        cache:'false',
-        success:function(rs){
+        url: `${HOME}unsave_consign/${code}`,
+        type: 'POST',
+        cache: false,
+        success: function (rs) {
           load_out();
-          var rs = $.trim(rs);
-          if(rs == 'success'){
+
+          if (rs.trim() == 'success') {
             swal({
-              title:'Success',
-              type:'success',
-              timer:1000
+              title: 'Success',
+              type: 'success',
+              timer: 1000
             });
 
-            setTimeout(function(){
-              goEdit(code);
-            }, 1500);
-
-          }else{
-            swal('Error!', rs, 'error');
+            setTimeout(() => { edit(code); }, 1500);
+          } 
+          else {
+            showError(rs);
           }
+        },
+        error: function (rs) {
+          showError(rs);
         }
       });
+    }, 100);
   });
 }
 
-
 $('#date').datepicker({
-  dateFormat:'dd-mm-yy'
+  dateFormat: 'dd-mm-yy'
 });
-
-
 
 $("#customerCode").autocomplete({
-	source: BASE_URL + 'auto_complete/get_customer_code_and_name',
-	autoFocus: true,
-	close: function(){
-		var rs = $.trim($(this).val());
-		var arr = rs.split(' | ');
-		if( arr.length == 2 ){
-			var code = arr[0];
-			var name = arr[1];
-			$("#customerCode").val(code);
-			$("#customer").val(name);
-      zoneInit(code, true);
-		}else{
-			$("#customerCode").val('');
-			$("#customer").val('');
-      zoneInit('');
-		}
-	}
-});
+  source: `${BASE_URL}auto_complete/get_customer_code_and_name`,
+  autoFocus: true,
+  close: function () {        
+    let arr = $(this).val().trim().split(' | ');
 
+    if (arr.length == 2) {      
+      $("#customerCode").val(arr[0]);
+      $("#customer").val(arr[1]);
+      zoneInit(arr[0], true);
+    } 
+    else {
+      $("#customerCode").val('');
+      $("#customer").val('');
+      zoneInit('');
+    }
+  }
+});
 
 $("#customer").autocomplete({
-	source: BASE_URL + 'auto_complete/get_customer_code_and_name',
-	autoFocus: true,
-	close: function(){
-		var rs = $.trim($(this).val());
-		var arr = rs.split(' | ');
-		if( arr.length == 2 ){
-			var code = arr[0];
-			var name = arr[1];
-			$("#customerCode").val(code);
-			$("#customer").val(name);
-      zoneInit(code, true);
-		}else{
-			$("#customerCode").val('');
-			$(this).val('');
+  source: `${BASE_URL}auto_complete/get_customer_code_and_name`,
+  autoFocus: true,
+  close: function () {    
+    let arr = $(this).val().trim().split(' | ');
+
+    if (arr.length == 2) {      
+      $("#customerCode").val(arr[0]);
+      $("#customer").val(arr[1]);
+      zoneInit(arr[0], true);
+    } 
+    else {
+      $("#customerCode").val('');
+      $(this).val('');
       zoneInit('');
-		}
-	}
+    }
+  }
 });
 
-$('#pd-box').autocomplete({
-  source: BASE_URL + 'auto_complete/get_style_code',
-  autoFocus:true
-})
-
-
-//---	กำหนดให้สามารถค้นหาโซนได้ก่อนจะค้นหาลูกค้า(กรณี edit header)
-$(document).ready(function(){
-	var customer_code = $('#customerCode').val();
-	zoneInit(customer_code, false);
+window.addEventListener('load', function() {
+  let customer_code = $('#customerCode').val();
+  zoneInit(customer_code, false);
 });
 
-
-
-function zoneInit(customer_code, edit)
-{
-  if(edit) {
+function zoneInit(customer_code, edit) {
+  if (edit) {
     $('#zone_code').val('');
     $('#zone').val('');
   }
 
   $('#zone').autocomplete({
-    source:BASE_URL + 'auto_complete/get_consign_zone/' + customer_code,
+    source: `${BASE_URL}auto_complete/get_consign_zone/${customer_code}`,
     autoFocus: true,
-    close:function(){
-      var rs = $.trim($(this).val());
-      var arr = rs.split(' | ');
-      if(arr.length == 2)
-      {
-        var code = arr[0];
-        var name = arr[1];
-        $('#zone_code').val(code);
-        $('#zone').val(name);
-      }else{
+    close: function () {      
+      let arr = $(this).val().trim().split(' | ');
+      if (arr.length == 2) {        
+        $('#zone_code').val(arr[0]);
+        $('#zone').val(arr[1]);
+      } 
+      else {
         $('#zone_code').val('');
         $('#zone').val('');
       }
@@ -208,18 +189,14 @@ function zoneInit(customer_code, edit)
   });
 
   $('#zone_code').autocomplete({
-    source:BASE_URL + 'auto_complete/get_consign_zone/' + customer_code,
+    source: `${BASE_URL}auto_complete/get_consign_zone/${customer_code}`,
     autoFocus: true,
-    close:function(){
-      var rs = $.trim($(this).val());
-      var arr = rs.split(' | ');
-      if(arr.length == 2)
-      {
-        var code = arr[0];
-        var name = arr[1];
-        $('#zone_code').val(code);
-        $('#zone').val(name);
-      }else{
+    close: function () {      
+      let arr = $(this).val().trim().split(' | ');
+      if (arr.length == 2) {
+        $('#zone_code').val(arr[0]);
+        $('#zone').val(arr[1]);
+      } else {
         $('#zone_code').val('');
         $('#zone').val('');
       }
@@ -227,135 +204,173 @@ function zoneInit(customer_code, edit)
   });
 }
 
+function add() {
+  clearErrorByClass('r');
+  let h = {
+    'date': $('#date').val(),
+    'customer_code': $('#customerCode').val().trim(),
+    'customer_name': $('#customer').val().trim(),
+    'zone_code': $('#zone_code').val().trim(),
+    'zone_name': $('#zone').val().trim(),
+    'remark': $('#remark').val().trim()
+  };
 
-
-
-function add(){
-  var customer_code = $('#customerCode').val();
-  var customer_name = $('#customer').val();
-  var date_add = $('#date').val();
-  var zone_code = $('#zone_code').val();
-  var zone_name = $('#zone').val();
-
-
-  if(customer_code.length == 0 || customer_name.length == 0){
-    swal('ชื่อลูกค้าไม่ถูกต้อง');
+  if( ! isDate(h.date)) {
+    $('#date').hasError();
+    showError('วันที่ไม่ถูกต้อง');
     return false;
   }
 
-  if(!isDate(date_add))
-  {
-    swal('วันที่ไม่ถูกต้อง');
+  if (h.customer_code.length == 0 || h.customer_name.length == 0) {
+    $('#customerCode').hasError();
+    $('#customer').hasError();
+    showError('ชื่อลูกค้าไม่ถูกต้อง');
     return false;
   }
 
-  if(zone_code.length == 0 || zone_name.length == 0)
-  {
-    swal('โซนไม่ถูกต้อง');
-    return false;
-  }
-
-  $('#addForm').submit();
-}
-
-
-var customer;
-var payment;
-var date;
-
-
-function getEdit(){
-  $('.edit').removeAttr('disabled');
-  $('#btn-edit').addClass('hide');
-  $('#btn-update').removeClass('hide');
-}
-
-
-function update() {
-  let code = $('#consign_code').val();
-  let date = $('#date').val();
-  let remark = $('#remark').val();
-  var customer_code = $('#customerCode').val();
-  var customer_name = $('#customer').val();
-  var zone_code = $('#zone_code').val();
-  var zone_name = $('#zone').val();
-
-  if(!isDate(date)){
-    swal('วันที่ไม่ถูกต้อง');
-    return false;
-  }
-
-  if(customer_code.length == 0 || customer_name.length == 0){
-    swal('ชื่อลูกค้าไม่ถูกต้อง');
-    return false;
-  }
-
-  if(zone_code.length == 0 || zone_name.length == 0)
-  {
-    swal('โซนไม่ถูกต้อง');
+  if (h.zone_code.length == 0 || h.zone_name.length == 0) {
+    $('#zone_code').hasError();
+    $('#zone').hasError();
+    showError('โซนไม่ถูกต้อง');
     return false;
   }
 
   load_in();
 
   $.ajax({
-    url: HOME + 'update',
-    type:'POST',
-    cache:false,
-    data:{
-      'code' : code,
-      'date' : date,
-      'remark' : remark
+    url: `${HOME}add`,
+    type: 'POST',
+    cache: false,
+    data: {
+      'data' : JSON.stringify(h)
     },
-    success:function(rs){
+    success: function (rs) {
       load_out();
-      if(rs === 'success'){
-        swal({
-          title:'Updted',
-          type:'success',
-          timer:1000
-        });
+      
+      if(isJson(rs)) {
+        let ds = JSON.parse(rs);
 
-        $('.edit').attr('disabled', 'disabled');
-        $('#btn-edit').removeClass('hide');
-        $('#btn-update').addClass('hide');
+        if(ds.status === 'success') {
+          edit(ds.code);
+        } 
+        else {
+          showError(ds.message);
+        }
       }
+      else {
+        showError(rs);
+      }
+    },
+    error:function(rs) {
+      showError(rs);
     }
   })
 }
 
-
-function deleteRow(id, code){
-  swal({
-		title: "คุณแน่ใจ ?",
-		text: "ต้องการลบ '"+code+"' หรือไม่ ?",
-		type: "warning",
-		showCancelButton: true,
-		confirmButtonColor: "#FA5858",
-		confirmButtonText: 'ใช่, ฉันต้องการลบ',
-		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: false
-		}, function(){
-      deleteDetail(id);
-	});
+function getEdit() {
+  $('.edit').removeAttr('disabled');
+  $('#btn-edit').addClass('hide');
+  $('#btn-update').removeClass('hide');
 }
 
+function update() {
+  clearErrorByClass('edit');
+  let h = {
+    'code': $('#consign_code').val(),
+    'date': $('#date').val(),
+    'remark': $('#remark').val().trim(),
+    'customer_code': $('#customerCode').val().trim(),
+    'customer_name': $('#customer').val().trim(),
+    'zone_code': $('#zone_code').val().trim(),
+    'zone_name': $('#zone').val().trim()
+  };
 
-function deleteDetail(id){
+  if(! isDate(h.date)) {
+    $('#date').hasError();
+    showError('วันที่ไม่ถูกต้อง');
+    return false;
+  }
+
+  if (h.customer_code.length == 0 || h.customer_name.length == 0) {
+    $('#customerCode').hasError();
+    $('#customer').hasError();
+    showError('ชื่อลูกค้าไม่ถูกต้อง');
+    return false;
+  }
+
+  if (h.zone_code.length == 0 || h.zone_name.length == 0) {
+    $('#zone_code').hasError();
+    $('#zone').hasError();
+    showError('โซนไม่ถูกต้อง');
+    return false;
+  }
+
+  load_in();
+
   $.ajax({
-    url: HOME + 'delete_detail/'+id,
-    type:'POST',
-    cache:'false',
-    success:function(rs){
-      var rs = $.trim(rs);
-      if(rs == 'success'){
+    url: `${HOME}update`,
+    type: 'POST',
+    cache: false,
+    data: {
+      'data' : JSON.stringify(h)
+    },
+    success: function (rs) {
+      load_out();
 
+      if(rs.trim() === 'success') {
         swal({
-          title:'Deleted',
-          type:'success',
-          timer:1000
+          title: 'Updated',
+          type: 'success',
+          timer: 1000
         });
-        $('#row-'+id).remove();
+
+        $('.edit').attr('disabled', 'disabled');
+        $('#btn-edit').removeClass('hide');
+        $('#btn-update').addClass('hide');        
+      }
+      else {
+        showError(rs);
+      }
+    },
+    error: function(rs) {
+      load_out();
+      showError(rs);
+    }
+  });
+}
+
+function deleteRow(id, code) {
+  swal({
+    title: "คุณแน่ใจ ?",
+    text: `ต้องการลบ '${code}' หรือไม่ ?`,
+    type: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#FA5858",
+    confirmButtonText: 'ใช่, ฉันต้องการลบ',
+    cancelButtonText: 'ยกเลิก',
+    closeOnConfirm: false
+  }, function () {
+    setTimeout(() => {
+      deleteDetail(id);
+    }, 100);
+  });
+}
+
+function deleteDetail(id) {
+  $.ajax({
+    url: `${HOME}delete_detail/${id}`,
+    type: 'POST',
+    cache: false,
+    success: function (rs) {      
+      if (rs.trim() == 'success') {
+        swal({
+          title: 'Deleted',
+          type: 'success',
+          timer: 1000
+        });
+
+        $(`#row-${id}`).remove();
+
         reIndex();
         updateTotalQty();
         updateTotalAmount();
@@ -364,52 +379,71 @@ function deleteDetail(id){
   });
 }
 
-
-
-function clearAll(){
-  swal({
-		title: "คุณแน่ใจ ?",
-		text: "ต้องการลบรายการทั้งหมด หรือไม่ ?",
-		type: "warning",
-		showCancelButton: true,
-		confirmButtonColor: "#FA5858",
-		confirmButtonText: 'ใช่, ฉันต้องการลบ',
-		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: false
-		}, function(){
-      deleteAllDetails();
-	});
+function toggleCheckAll() {
+  let isChecked = $('#chk-all').is(':checked');
+  $('.chk').prop('checked', isChecked);
 }
 
+function removeChecked() {
+  if ($('.chk:checked').length > 0) {    
+    let ids = [];
+    
+    $('.chk:checked').each(function() {    
+      ids.push($(this).data('id'));    
+    });
 
-function deleteAllDetails(){
-  var code = $('#consign_code').val();
-  $.ajax({
-    url: HOME + 'delete_all_details/'+code,
-    type:'POST',
-    cache:'false',
-    success:function(rs){
-      var rs = $.trim(rs);
-      if(rs == 'success'){
+    swal({
+      title: "คุณแน่ใจ ?",
+      text: `ต้องการลบรายการที่เลือก (${ids.length} รายการ) หรือไม่ ?`,
+      type: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#FA5858",
+      confirmButtonText: 'ใช่, ฉันต้องการลบ',
+      cancelButtonText: 'ยกเลิก',
+      closeOnConfirm: false
+    }, function () {
+      load_in();
+      setTimeout(() => {
+        let code = $('#consign_code').val(); 
 
-        swal({
-          title:'Deleted',
-          type:'success',
-          timer:1000
-        });
+        $.ajax({
+          url: `${HOME}remove_checked`,
+          type: 'POST',
+          cache: false,
+          data: {
+            'code': code,
+            'ids': ids
+          },
+          success: function (rs) {
+            load_out();
+            
+            if (rs == 'success') {
+              swal({
+                title: 'Deleted',
+                type: 'success',
+                timer: 1000
+              });
 
-        setTimeout(function(){
-          window.location.reload();
-        }, 1500);
-      }
-    }
-  });
+              ids.forEach(id => $(`#row-${id}`).remove());
+              reIndex();
+              updateTotalQty();
+              updateTotalAmount();
+            }
+            else {
+              showError(rs);
+            }
+          },
+          error: function (rs) {
+            showError(rs);
+          }
+        })
+      }, 100);      
+    });
+  }
 }
 
-
-
-function unSave(id){
-  msg  = '<center><span style="color:red;">ก่อนยืนยันการทำรายการนี้</span></center>';
+function unSave(id) {
+  msg = '<center><span style="color:red;">ก่อนยืนยันการทำรายการนี้</span></center>';
   msg += '<center><span style="color:red;">คุณต้องแน่ใจว่าได้ลบ เอกสารใบสั่งซื้อ(SO) ใน Formula แล้ว</span></center>';
   msg += '<center><span style="color:red;">ต้องการยกเลิกการเปิดบิลหรือไม่</span></center>';
 
@@ -417,299 +451,231 @@ function unSave(id){
     title: "ยกเลิกการเปิดบิล ?",
     text: msg,
     type: "warning",
-    html:true,
+    html: true,
     showCancelButton: true,
     confirmButtonColor: "#FA5858",
     confirmButtonText: 'ใช่, ฉันต้องการลบ',
     cancelButtonText: 'ยกเลิก',
     closeOnConfirm: true
-    }, function(){
-      load_in();
-      $.ajax({
-        url:'controller/consignController.php?unSaveConsign',
-        type:'POST',
-        cache:'false',
-        data:{
-          'id_consign' : id
-        },
-        success:function(rs){
-          load_out();
-          var rs = $.trim(rs);
-          if(rs == 'success'){
-            swal({
-              title:'Success',
-              type:'success',
-              timer:1000
-            });
+  }, function () {
+    load_in();
 
-            setTimeout(function(){
-              window.location.reload();
-            }, 1500);
+    $.ajax({
+      url: `${HOME}unSaveConsign`,
+      type: 'POST',
+      cache: false,
+      data: {
+        'id_consign': id
+      },
+      success: function (rs) {
+        load_out();
+        
+        if (rs == 'success') {
+          swal({
+            title: 'Success',
+            type: 'success',
+            timer: 1000
+          });
 
-          }else{
-            swal('Error!', rs, 'error');
-          }
+          setTimeout(function () { refresh(); }, 1500);
+
+        } 
+        else {
+          showError(rs);
         }
-      });
+      },
+      error: function (rs) {
+        showError(rs);
+      }
+    });
   });
 }
-
-
 
 //--- ลบรายการนำเข้ายอดต่าง
 function clearImportDetail() {
   let check_code = $('#ref_code').val();
 
-  if(check_code.length == 0) {
+  if (check_code.length == 0) {
     return false;
   }
 
   swal({
-		title: "คุณแน่ใจ ?",
-		text: "ต้องการลบรายการนำเข้าจาก '"+ check_code +"' หรือไม่ ?",
-		type: "warning",
-		showCancelButton: true,
-		confirmButtonColor: "#FA5858",
-		confirmButtonText: 'ใช่, ฉันต้องการลบ',
-		cancelButtonText: 'ยกเลิก',
-    closeOnConfirm:false
-		}, function(){
-      load_in();
-      var code = $('#consign_code').val();
+    title: "คุณแน่ใจ ?",
+    text: `ต้องการลบรายการนำเข้าจาก '${check_code}' หรือไม่ ?`,
+    type: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#FA5858",
+    confirmButtonText: 'ใช่, ฉันต้องการลบ',
+    cancelButtonText: 'ยกเลิก',
+    closeOnConfirm: false
+  }, function () {
+    load_in();
+    let code = $('#consign_code').val();
 
-      $.ajax({
-        url: HOME + 'remove_import_details/'+code,
-        type:'POST',
-        cache:'false',
-        data:{
-          'check_code' : check_code
-        },
-        success:function(rs){
-          load_out();
-          var rs = $.trim(rs);
-          if(rs == 'success'){
-            swal({
-              title:'Success',
-              type:'success',
-              timer:1000
-            });
+    $.ajax({
+      url: `${HOME}remove_import_details`,
+      type: 'POST',
+      cache: false,
+      data: {
+        'code': code,
+        'check_code': check_code
+      },
+      success: function (rs) {
+        load_out();
+        
+        if (rs.trim() == 'success') {
+          swal({
+            title: 'Success',
+            type: 'success',
+            timer: 1000
+          });
 
-            setTimeout(function(){
-              window.location.reload();
-            }, 1500);
-
-          }else{
-            swal('Error!', rs, 'error');
-          }
+          setTimeout(() => { refresh(); }, 1200);
+        } 
+        else {
+          showError(rs);
         }
-      });
-	});
+      },
+      error: function (rs) {
+        showError(rs);
+      }
+    });
+  });
 }
 
-
-function getActiveCheckList(){
-  var zone_code = $('#zone_code').val();
+function getActiveCheckList() {
+  let zone_code = $('#zone_code').val();
   load_in();
+
   $.ajax({
-    url:HOME + 'get_active_check_list/'+zone_code,
-    type:'GET',
-    cache:'false',
-    success:function(rs){
+    url: `${HOME}get_active_check_list/${zone_code}`,
+    type: 'GET',
+    cache: false,
+    success: function (rs) {
       load_out();
-      if(isJson(rs)){
-        var source = $('#check-list-template').html();
-        var data = $.parseJSON(rs);
-        var output = $('#check-list-body');
+
+      if (isJson(rs)) {
+        let source = $('#check-list-template').html();
+        let data = JSON.parse(rs);
+        let output = $('#check-list-body');
         render(source, data, output);
         $('#check-list-modal').modal('show');
-      }else{
-        swal('Error', rs, 'error');
+      } 
+      else {
+        showError(rs);
       }
+    },
+    error: function (rs) {
+      showError(rs);
     }
   });
 }
 
-
-
-function loadCheckDiff(check_code){
+function loadCheckDiff(check_code) {
   $('#check-list-modal').modal('hide');
+
   swal({
     title: "นำเข้ายอดต่าง",
-		text: "ต้องการนำเข้ายอดต่างจากเอกสารกระทบยอด "+check_code+" หรือไม่ ?",
-		type: "warning",
-		showCancelButton: true,
-		confirmButtonText: 'ใช่, ฉันต้องการ',
-		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: false
-  },function(){
-    var code = $('#consign_code').val();
+    text: `ต้องการนำเข้ายอดต่างจากเอกสารกระทบยอด ${check_code} หรือไม่ ?`,
+    type: "warning",
+    showCancelButton: true,
+    confirmButtonText: 'ใช่, ฉันต้องการ',
+    cancelButtonText: 'ยกเลิก',
+    closeOnConfirm: false
+  }, function () {
+    let code = $('#consign_code').val();
     load_in();
+
     $.ajax({
-      url: HOME + 'load_check_diff/'+code,
-      type:'POST',
-      cache:'false',
-      data:{
-        'check_code' : check_code
+      url: `${HOME}load_check_diff/${code}`,
+      type: 'POST',
+      cache: false,
+      data: {
+        'check_code': check_code
       },
-      success:function(rs){
+      success: function (rs) {
         load_out();
-        var rs = $.trim(rs);
-        if(rs == 'success'){
+        
+        if (rs.trim() == 'success') {
           swal({
             title: 'Success',
-            type:'success',
-            timer:1000
+            type: 'success',
+            timer: 1000
           });
 
-          setTimeout(function(){
-            window.location.reload();
-          },1500);
-        }else{
-          swal('Error!', rs, 'error');
+          setTimeout(function () { refresh(); }, 1500);
+        } 
+        else {
+          showError(rs);
         }
+      },
+      error: function (rs) {
+        showError(rs);
       }
     });
-
-  });//--- swal
+  });
 }
 
-
-function getSample(){
-  var token	= new Date().getTime();
-	get_download(token);
-	window.location.href = HOME + 'get_sample_file/'+token;
+function getTemplate() {
+  window.location.href = `${HOME}get_template_file`;
 }
 
-
-
-function getUploadFile(){
-  $('#upload-modal').modal('show');
-}
-
-
-
-function getFile(){
+function getUploadFile() {
   $('#uploadFile').click();
 }
 
+const uploadFile = document.getElementById('uploadFile');
 
-$("#uploadFile").change(function(){
-	if($(this).val() != '')
-	{
-		var file 		= this.files[0];
-		var name		= file.name;
-		var type 		= file.type;
-		var size		= file.size;
+uploadFile.addEventListener('change', async function () {
+  if (this.value != '') {
+    let file = this.files[0];    
+    let size = file.size;
 
-		if( size > 5000000 )
-		{
-			swal("ขนาดไฟล์ใหญ่เกินไป", "ไฟล์แนบต้องมีขนาดไม่เกิน 5 MB", "error");
-			$(this).val('');
-			return false;
-		}
-		//readURL(this);
-    $('#show-file-name').text(name);
-	}
+    if (size > 5000000) {
+      swal("ขนาดไฟล์ใหญ่เกินไป", "ไฟล์แนบต้องมีขนาดไม่เกิน 5 MB", "error");
+      this.value = '';
+      return false;
+    }
+    
+    await uploadfile(file);
+  }
 });
 
+async function uploadfile(file) {
+  const code = $('#consign_code').val();
+  const fd = new FormData();
+  const url = `${HOME}import_excel_file`;
+  fd.append('code', code);
+  fd.append('excel', file);
+  load_in();
 
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: fd
+    });
 
-function uploadfile(){
-  var code = $('#consign_code').val();
-  var excel = $('#uploadFile')[0].files[0];
+    const result = await response.text();
 
-	$("#upload-modal").modal('hide');
+    load_out();
 
-	var fd = new FormData();
+    if (result.trim() === 'success') {
+      swal({
+        title: 'Success',
+        type: 'success',
+        timer: 1000
+      });
 
-	fd.append('excel', $('input[type=file]')[0].files[0]);
-	load_in();
-
-	$.ajax({
-		url:HOME + 'import_excel_file/'+code,
-		type:"POST",
-    cache: "false",
-    data: fd,
-    processData:false,
-    contentType: false,
-		success: function(rs){
-			load_out();
-			var rs = $.trim(rs);
-			if( rs == 'success')
-			{
-        swal({
-          title:'Success',
-          type:'success',
-          timer: 1000
-        });
-
-				setTimeout(function(){
-          window.location.reload();
-        }, 1200);
-			}
-			else
-			{
-				swal({
-          title:"Error!",
-          text:rs,
-          type:"error",
-          html:true
-        });
-			}
-		},
-		error:function(xhr, status, error){
-			load_out();
-			var errorMessage = xhr.status + ': '+xhr.statusText;
-			swal({
-				title:'Error!',
-				text:'Error-'+errorMessage,
-				type:'error'
-			});
-		}
-	});
-}
-
-
-function validateOrder(){
-  var prefix = $('#prefix').val();
-  var runNo = parseInt($('#runNo').val());
-  let code = $('#code').val();
-  if(code.length == 0){
-    add();
-    return false;
-  }
-
-  let arr = code.split('-');
-
-  if(arr.length == 2){
-    if(arr[0] !== prefix){
-      swal('Prefix ต้องเป็น '+prefix);
-      return false;
-    }else if(arr[1].length != (4 + runNo)){
-      swal('Run Number ไม่ถูกต้อง');
-      return false;
-    }else{
-      $.ajax({
-        url: HOME + 'is_exists/'+code,
-        type:'GET',
-        cache:false,
-        success:function(rs){
-          if(rs == 'not_exists'){
-            add();
-          }else{
-            swal({
-              title:'Error!!',
-              text: rs,
-              type: 'error'
-            });
-          }
-        }
-      })
+      setTimeout(function () { refresh(); }, 1200);
     }
-
-  }else{
-    swal('เลขที่เอกสารไม่ถูกต้อง');
-    return false;
+    else {
+      showError(result);
+    }
   }
-
+  catch (error) {
+    load_out();
+    showError("An error occurred while importing the sales order.");
+    console.error('Error importing sales order:', error);
+  }
 }
+

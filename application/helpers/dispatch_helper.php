@@ -1,6 +1,8 @@
 <?php
 function dispatch_status($status = NULL)
 {
+  $status = $status ?? '0';
+
   $ds = array(
     'P' => 'Pending',
     'R' => 'Released',
@@ -11,5 +13,3 @@ function dispatch_status($status = NULL)
 
   return empty($ds[$status]) ? 'Unknow' : $ds[$status];
 }
-
- ?>

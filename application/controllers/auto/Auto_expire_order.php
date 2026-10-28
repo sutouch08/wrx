@@ -1,8 +1,8 @@
 <?php
 class Auto_expire_order extends CI_Controller
 {
-  public $home;
-
+  public $home = '';
+  
   public function __construct()
   {
     parent::__construct();
@@ -12,9 +12,8 @@ class Auto_expire_order extends CI_Controller
 
   public function index()
   {
-    $this->load->view('auto/auto_expire_order');
+    $this->auto_expire_order();
   }
-
 
   public function auto_expire_order()
 	{
@@ -23,6 +22,7 @@ class Auto_expire_order extends CI_Controller
 		//---- ระบบจะไม่นำยอดที่หมดอายุแล้วมาคำนวนยอดจอง ทำให้สต็อกเพิ่มขึ้น
 		$limit = getConfig('ORDER_EXPIRATION');
     $role = getConfig('ORDER_EXPIRATION_ROLE');
+
     if(!empty($role))
     {
       //--- remove space
@@ -38,6 +38,7 @@ class Auto_expire_order extends CI_Controller
 		$end_date = date('Y-m-d H:i:s', strtotime("-{$limit} days"));
 
 		$list = $this->orders_model->get_expire_list($end_date, $role);
+
 		if(!empty($list))
 		{
 			foreach($list as $rs)
@@ -46,9 +47,5 @@ class Auto_expire_order extends CI_Controller
         $this->orders_model->set_expire_order_details($rs->code);
 			}
 		}
-
 	}
-
-
-} //--- end class
- ?>
+} 

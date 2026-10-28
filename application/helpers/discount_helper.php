@@ -1,7 +1,7 @@
 <?php
 
 //--- convert discount text to array
-function parse_discount_text($discText, $price)
+function parse_discount_text($discText = '', $price = 0)
 {
 	$disc = array(
 		'discount1' => 0,
@@ -10,20 +10,20 @@ function parse_discount_text($discText, $price)
 		'discount_amount' => 0
 	);
 
-	if(!empty($discText))
+	if (!empty($discText))
 	{
 		$step = explode('+', $discText);
-
 		$i = 1;
-		foreach($step as $discLabel)
+		
+		foreach ($step as $discLabel)
 		{
-			if($i < 4)
+			if ($i < 4)
 			{
-				$key = 'discount'.$i;
+				$key = 'discount' . $i;
 				$arr = explode('%', $discLabel);
 				$arr[0] = floatval($arr[0]);
 				$discount = count($arr) == 1 ? $arr[0] : ($arr[0] * 0.01) * $price; //--- ส่วนลดต่อชิ้น
-				$disc[$key] = count($arr) == 1 ? $arr[0] : $arr[0].'%'; //--- discount label
+				$disc[$key] = count($arr) == 1 ? $arr[0] : $arr[0] . '%'; //--- discount label
 				$disc['discount_amount'] += $discount;
 				$price -= $discount;
 			}
@@ -35,37 +35,34 @@ function parse_discount_text($discText, $price)
 	return $disc;
 }
 
-
 //--- แสดงป้ายส่วนลด
 function discountLabel($disc = 0, $disc2 = 0, $disc3 = 0)
 {
 	$label = '';
 	$label = $disc == 0 ? 0 : getDiscLabel($disc);
-	$label .= $disc2 == 0 ? '' : '+'.getDiscLabel($disc2);
-	$label .= $disc3 == 0 ? '' : '+'.getDiscLabel($disc3);
+	$label .= $disc2 == 0 ? '' : '+' . getDiscLabel($disc2);
+	$label .= $disc3 == 0 ? '' : '+' . getDiscLabel($disc3);
 	return $label;
 }
-
 
 function getDiscLabel($disc)
 {
 	$arr = explode('%', $disc);
-	if( count($arr) > 1)
+
+	if (count($arr) > 1)
 	{
-		return trim($arr[0]).'%';
+		return trim($arr[0]) . '%';
 	}
+
 	return $arr[0];
 }
 
-
-function discountAmountToPercent($amount, $qty, $price)
+function discountAmountToPercent($amount = 0, $qty = 0, $price = 0)
 {
-	if($amount != 0 && $qty != 0 && $price != 0)
+	if ($amount > 0 && $qty > 0 && $price > 0)
 	{
-		return (($amount/$qty)*100)/$price;
+		return (($amount / $qty) * 100) / $price;
 	}
 
 	return 0;
 }
-
-?>

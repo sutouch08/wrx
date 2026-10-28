@@ -10,7 +10,7 @@ class Auto_send_tracking extends CI_Controller
     parent::__construct();
     $this->load->model('orders/orders_model');
     $this->load->library('wrx_web_api');
-		$this->isApi = getConfig('WRX_WEB_TRACKING_API') == 1 ? TRUE : FALSE;
+		$this->isApi = is_true(getConfig('WRX_WEB_TRACKING_API'));
   }
 
 	public function index($show = 0)
@@ -28,15 +28,11 @@ class Auto_send_tracking extends CI_Controller
 			{
 				$limit = getConfig('WEB_TRACKING_PER_ROUND');
 				$limit = $limit > 0 ? $limit : 10;
-
 				$list = $this->getUnsendTrackingList($id_sender, $limit);
 
 				if( ! empty($list))
 				{
-					if($show == 1)
-					{
-						echo "found ".count($list)." orders <br/>";
-					}
+					if($show) { echo "found ".count($list)." orders <br/>"; }
 
 					foreach($list as $rs)
 					{
@@ -44,45 +40,30 @@ class Auto_send_tracking extends CI_Controller
 						{
 							if( ! $this->wrx_web_api->create_shipment($rs->reference, $rs->tracking))
 							{
-								if($show)
-								{
-									echo "{$rs->code} : Failed <br/>";
-								}
+								if($show) { echo "{$rs->code} : Failed <br/>"; }
 
 								$this->add_logs(['status' => 'failed', 'message' => $this->wrx_web_api->error]);
 								$this->orders_model->update($rs->code, ['send_tracking' => 3, 'send_tracking_error' => $this->wrx_web_api->error]);
 							}
 							else
 							{
-								if($show)
-								{
-									echo "{$rs->code} : Success <br/>";
-								}
+								if($show) { echo "{$rs->code} : Success <br/>"; }
 
-								$this->add_logs(['status' => 'failed', 'message' => $this->wrx_web_api->error]);
+								$this->add_logs(['status' => 'success', 'message' => 'success']);
 								$this->orders_model->update($rs->code, ['send_tracking' => 1, 'send_tracking_error' => NULL]);
 							}
 						}
 						else
 						{
-							if($show)
-							{
-								echo "No tracking on : {$rs->code} <br/>";
-							}
+							if($show) { echo "No tracking on : {$rs->code} <br/>"; }
 						}
 
-						if($show == 1)
-						{
-							echo "END ------------------------------------------------------------ END<br/>";
-						}
+						if($show) { echo "END ------------------------------------------------------------ END<br/>"; }
 					}
 				}
 				else
 				{
-					if($show)
-					{
-						echo "no data to send <br/>";
-					}
+					if($show) { echo "no data to send <br/>"; }
 
 					$this->add_logs(['status' => 'OK', 'message' => "no data to send"]);
 				}

@@ -52,12 +52,12 @@
     </p>
   </div>
 	<div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 padding-5 table-responsive">
-    <table class="table table-striped border-1 dataTable" style="min-width:900px;">
+    <table class="table table-striped table-medium border-1" style="min-width:900px;">
       <thead>
 				<tr class="font-size-11">
 					<th class="fix-width-80"></th>
+          <th class="fix-width-40 text-center">#</th>
 					<th class="fix-width-60 text-center">สถานะ</th>
-          <th class="fix-width-40 text-center">ลำดับ</th>
           <th class="fix-width-100 text-center">วันที่</th>
           <th class="fix-width-150">เลขที่เอกสาร </th>
           <th class="fix-width-150">เข้าถังกลาง</th>
@@ -69,12 +69,18 @@
 <?php if(!empty($orders))  : ?>
 <?php $no = $this->uri->segment(4) + 1; ?>
 <?php   foreach($orders as $rs)  : ?>
-        <tr class="font-size-11">
+        <tr class="font-size-11" id="row-<?php echo $no; ?>">
 					<td>
 						<button type="button" class="btn btn-minier btn-info" onclick="get_detail(<?php echo $rs->DocEntry; ?>)">
 							<i class="fa fa-eye"></i>
 						</button>
+						<?php if($rs->F_Sap === NULL || $rs->F_Sap == 'N') : ?>
+							<button type="button" class="btn btn-minier btn-danger" onclick="deleteTemp(<?php echo $rs->DocEntry; ?>, '<?php echo $rs->U_ECOMNO; ?>', <?php echo $no; ?>)">
+								<i class="fa fa-trash"></i>
+							</button>
+						<?php endif; ?>
 					</td>
+					<td class="text-center no"><?php echo $no; ?></td>
 					<td class="text-center">
             <?php if($rs->F_Sap === NULL) : ?>
               <span class="blue">NC</span>
@@ -84,7 +90,6 @@
 							<span class="green">สำเร็จ</span>
             <?php endif; ?>
           </td>
-					<td class="text-center"><?php echo $no; ?></td>
           <td class="text-center"><?php echo thai_date($rs->DocDate); ?></td>
           <td><?php echo $rs->U_ECOMNO; ?></td>
           <td><?php echo empty($rs->F_E_CommerceDate) ? NULL : thai_date($rs->F_E_CommerceDate, TRUE); ?></td>

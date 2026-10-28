@@ -2,9 +2,9 @@
 function select_profile($id = '')
 {
   $sc = '';
-  $CI =& get_instance();
-  $CI->load->model('users/profile_model');
-  $profile = $CI->profile_model->get_profiles();
+  $ci =& get_instance();
+  $ci->load->model('users/profile_model');
+  $profile = $ci->profile_model->get_profiles();
 
   if(!empty($profile))
   {
@@ -17,6 +17,3 @@ function select_profile($id = '')
   return $sc;
 
 }
-
-
- ?>

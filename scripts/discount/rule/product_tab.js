@@ -99,8 +99,10 @@ function saveProduct(){
 
   //--- เก็บข้อมูลชื่อสินค้า
   if(product_style == 'Y'){
+    let i = 0;
     $('.styleId').each(function(index, el) {
-      ds.push({'name':$(this).attr('name'), 'value':$(this).val()});
+      ds.push({'name':`styleId[${i}]`, 'value':$(this).val()});
+      i++;
     });
   }
 
@@ -109,7 +111,7 @@ function saveProduct(){
     i = 0;
     $('.chk-pd-group').each(function(index, el) {
       if($(this).is(':checked')){
-        name = 'productGroup['+i+']';
+        let name = 'productGroup['+i+']';
         ds.push({'name':name, 'value':$(this).val()});
         i++;
       }
@@ -122,7 +124,7 @@ function saveProduct(){
     i = 0;
     $('.chk-pd-sub').each(function(index, el) {
       if($(this).is(':checked')){
-        name = 'productSubGroup['+i+']';
+        let name = 'productSubGroup['+i+']';
         ds.push({'name':name, 'value':$(this).val()});
         i++;
       }
@@ -135,7 +137,7 @@ function saveProduct(){
     i = 0;
     $('.chk-pd-cat').each(function(index, el) {
       if($(this).is(':checked')){
-        name = 'productCategory['+i+']';
+        let name = 'productCategory['+i+']';
         ds.push({'name':name, 'value':$(this).val()});
         i++;
       }
@@ -148,7 +150,7 @@ function saveProduct(){
     i = 0;
     $('.chk-pd-type').each(function(index, el) {
       if($(this).is(':checked')){
-        name = 'productType['+i+']';
+        let name = 'productType['+i+']';
         ds.push({'name':name, 'value':$(this).val()});
         i++;
       }
@@ -160,7 +162,7 @@ function saveProduct(){
     i = 0;
     $('.chk-pd-kind').each(function(index, el){
       if($(this).is(':checked')){
-        name = 'productKind['+i+']';
+        let name = 'productKind['+i+']';
         ds.push({'name':name, 'value':$(this).val()});
         i++;
       }
@@ -172,7 +174,7 @@ function saveProduct(){
     i = 0;
     $('.chk-pd-brand').each(function(index, el){
       if($(this).is(':checked')){
-        name = 'productBrand['+i+']';
+        let name = 'productBrand['+i+']';
         ds.push({'name':name, 'value':$(this).val()});
         i++;
       }
@@ -185,7 +187,7 @@ function saveProduct(){
     i = 0;
     $('.chk-pd-year').each(function(index, el){
       if($(this).is(':checked')){
-        name = 'productYear['+i+']';
+        let name = 'productYear['+i+']';
         ds.push({'name':name, 'value':$(this).val()});
         i++;
       }
@@ -781,124 +783,59 @@ $(document).ready(function() {
   toggleStyleId(styleId);
 });
 
+const uploadFile = document.getElementById('uploadFile');
 
+uploadFile.addEventListener('change', async function() {
+  if(this.files.length > 0) {
+    const file = this.files[0];
+    const size = file.size;
 
-function getUploadFile(){
-	$('#upload-modal').modal('show');
-}
+    if(size > 5000000) {
+      swal("ขนาดไฟล์ใหญ่เกินไป", "ไฟล์แนบต้องมีขนาดไม่เกิน 5 MB", "error");
+      this.value = '';
+      return false;
+    }
 
-
-
-function getFile(){
-	$('#uploadFile').click();
-}
-
-
-
-
-
-
-
-
-$("#uploadFile").change(function(){
-	if($(this).val() != '')
-	{
-		var file 		= this.files[0];
-		var name		= file.name;
-		var type 		= file.type;
-		var size		= file.size;
-
-		if( size > 5000000 )
-		{
-			swal("ขนาดไฟล์ใหญ่เกินไป", "ไฟล์แนบต้องมีขนาดไม่เกิน 5 MB", "error");
-			$(this).val('');
-			return false;
-		}
-		//readURL(this);
-		$('#show-file-name').text(name);
-	}
+    await readExcelFile(file);
+  }
 });
 
+function getUploadFile(){
+	$('#uploadFile').click();
+}
+  
+async function readExcelFile(file) {
+  if(!file) {    
+    return false;
+  }
 
-function readExcelFile() {
-		$('#upload-modal').modal('hide');
-		var regex = /^([a-zA-Z0-9\s_\\.\-:])+(.xlsx|.xls)$/;
-	 /*Checks whether the file is a valid excel file*/
-	 if (regex.test($("#uploadFile").val().toLowerCase())) {
-			 var xlsxflag = false; /*Flag for checking whether excel is .xls format or .xlsx format*/
-			 if ($("#uploadFile").val().toLowerCase().indexOf(".xlsx") > 0) {
-					 xlsxflag = true;
-			 }
-			 /*Checks whether the browser supports HTML5*/
-			 if (typeof (FileReader) != "undefined") {
-					 var reader = new FileReader();
-					 reader.onload = function (e) {
-							 var data = e.target.result;
-							 /*Converts the excel data in to object*/
-							 if (xlsxflag) {
-									 var workbook = XLSX.read(data, { type: 'binary' });
-							 }
-							 else {
-									 var workbook = XLS.read(data, { type: 'binary' });
-							 }
-							 /*Gets all the sheetnames of excel in to a variable*/
-							 var sheet_name_list = workbook.SheetNames;
+  const url = `${BASE_URL}discount/discount_rule/read_product_file`;
+  const fd = new FormData();
+  fd.append('uploadFile', file);
+  load_in();
 
-							 var cnt = 0; /*This is used for restricting the script to consider only first sheet of excel*/
-							 sheet_name_list.forEach(function (y) { /*Iterate through all sheets*/
-									 /*Convert the cell value to Json*/
-									 if (xlsxflag) {
-											 var exceljson = XLSX.utils.sheet_to_json(workbook.Sheets[y]);
-									 }
-									 else {
-											 var exceljson = XLS.utils.sheet_to_row_object_array(workbook.Sheets[y]);
-									 }
+  const response = await fetch(url, {
+    method: 'POST',
+    body: fd
+  });
 
-									 if (exceljson.length > 0 && cnt == 0) {
-											 addToList(exceljson);
-											 cnt++;
-									 }
-							 });
-					 }
-
-					 if (xlsxflag) {/*If excel file is .xlsx extension than creates a Array Buffer from excel*/
-							 reader.readAsArrayBuffer($("#uploadFile")[0].files[0]);
-					 }
-					 else {
-							 reader.readAsBinaryString($("#uploadFile")[0].files[0]);
-					 }
-			 }
-			 else {
-					 swal({
-						 title:'Error!',
-						 text:"Sorry! Your browser does not support HTML5!",
-						 type:'error'
-					 });
-			 }
-	 }
-	 else {
-			 swal({
-				 title:'Error!',
-				 text:"Please upload a valid Excel file!",
-				 type:'error'
-			 });
-	 }
+  load_out();
+  const result = await response.json();
+  
+  if(result.status === 'success')
+  {
+    addToList(result.data);
+  }
+  else
+  {
+    showError(result.message);
+  }
 }
 
-
-function addToList(jsondata) {
-	console.log(jsondata);
-	if(jsondata.length) {
-		//--- clear current li in style-list
-		$('#style-list li').remove();
-		//--- clear current hidden input list
-		$('.styleId').remove();
-		$('#psCount').text('0');
-
-		for (var i = 0; i < jsondata.length; i++) {
-			console.log(jsondata[i]);
-			var code = $.trim(jsondata[i].Model);
-			addStyle(code);
-		}
-	}
+function addToList(ds) {
+  if(ds.length) {
+    ds.forEach(function(code) {
+      addStyle(code);
+    });
+  }
 }

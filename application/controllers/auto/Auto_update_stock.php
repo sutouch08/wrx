@@ -3,11 +3,7 @@ class Auto_update_stock extends CI_Controller
 {
   public $home;
   public $ms;
-  public $title = "Auto Cancel orders";
-  public $isViewer = FALSE;
-  public $notibars = FALSE;
-  public $menu_code = NULL;
-  public $menu_group_code = NULL;
+  public $title = "Auto Cancel orders"; 
   public $pm;
   public $error;
   public $sync_api_stock = FALSE;
@@ -17,35 +13,26 @@ class Auto_update_stock extends CI_Controller
   {
     parent::__construct();
     $this->home = base_url().'auto/auto_update_stock';
-
     $this->load->model('masters/products_model');
-
     $this->ms = $this->load->database('ms', TRUE);
     $this->sync_api_stock = is_true(getConfig('SYNC_IX_STOCK'));
-    $this->ix_warehouse = getConfig('IX_WAREHOUSE');
-
-    $this->pm = new stdClass();
-    $this->pm->can_view = 1;
+    $this->ix_warehouse = getConfig('IX_WAREHOUSE');    
   }
 
 
   public function index()
   {
+    $this->pm = (object) array('can_view' => 1);
     $limit = getConfig('AUTO_SEND_STOCK_LIMIT');
-
     $limit = empty($limit) ? 50 : $limit;
-
     $ds['data'] = NULL;
     $all = $this->db->where('status', 0)->count_all_results('auto_send_stock');
     $rs = $this->db->where('status', 0)->limit($limit)->get('auto_send_stock');
-
     $ds['count'] = $rs->num_rows();
     $ds['all'] = $all;
     $ds['data'] = $rs->result();
-
     $this->load->view('auto/auto_send_stock', $ds);
   }
-
 
   public function send_stock()
   {
@@ -55,10 +42,7 @@ class Auto_update_stock extends CI_Controller
     {
       $limit = getConfig('AUTO_SEND_STOCK_LIMIT');
       $limit = empty($limit) ? 50 : $limit;
-      $syncList = $this->get_sync_list($limit);
-
-    //  print_r($syncList);
-
+      $syncList = $this->get_sync_list($limit);    
       $sync_stock = [];
 
       if( ! empty($syncList))

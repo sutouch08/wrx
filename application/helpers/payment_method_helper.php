@@ -2,9 +2,10 @@
 function select_payment_method($code = '')
 {
   $sc = '';
-  $CI =& get_instance();
-  $CI->load->model('masters/payment_methods_model');
-  $payments = $CI->payment_methods_model->get_data();
+  $ci =& get_instance();
+  $ci->load->model('masters/payment_methods_model');
+  $payments = $ci->payment_methods_model->get_data();
+
   if(!empty($payments))
   {
     foreach($payments as $rs)
@@ -27,8 +28,7 @@ function select_payment_role($role = NULL)
   return $ds;
 }
 
-
-function payment_name_array($code)
+function payment_name_array()
 {
   $ds = [];
   $ci =& get_instance();
@@ -46,7 +46,7 @@ function payment_name_array($code)
   return $ds;
 }
 
-function payment_role_name($role)
+function payment_role_name($role = 1)
 {
   $ds = array(
     '1' => 'เงินสด',
@@ -59,13 +59,9 @@ function payment_role_name($role)
   return isset($ds[$role]) ? $ds[$role] : 'Unknow';
 }
 
-
 function payment_name($code = NULL)
 {
   $ci =& get_instance();
   $ci->load->model('masters/payment_methods_model');
-
   return $ci->payment_methods_model->get_name($code);
 }
-
- ?>

@@ -1,21 +1,23 @@
 <?php
 function _check_login()
 {
-  $CI =& get_instance();
+  $ci =& get_instance();
   $uid = get_cookie('uid');
-  if($uid === NULL OR $CI->user_model->verify_uid($uid) === FALSE)
+
+  if(empty($uid) OR !$ci->user_model->verify_uid($uid))
   {
     redirect(base_url().'users/authentication');
   }
 }
 
 
-function get_permission($menu, $uid = NULL, $id_profile = NULL)
+function get_permission(?string $menu = '', ?string $uid = NULL)
 {
-  $CI =& get_instance();
+  $ci =& get_instance();
+  $uid = $uid ?? get_cookie('uid');
+  $menu = $menu ?? ''; 
+  $user = $ci->user_model->get_user_by_uid($uid);
 
-  $uid = $uid === NULL ? get_cookie('uid') : $uid;
-  $user = $CI->user_model->get_user_by_uid($uid);
   if(empty($user))
   {
     return reject_permission();
@@ -24,78 +26,59 @@ function get_permission($menu, $uid = NULL, $id_profile = NULL)
   //--- If super admin
   if($user->id_profile == -987654321)
   {
-    $pm = new stdClass();
-    $pm->can_view = 1;
-    $pm->can_add = 1;
-    $pm->can_edit = 1;
-    $pm->can_delete = 1;
-    $pm->can_approve = 1;
+    return (object)[
+      'can_view' => 1,
+      'can_add' => 1,
+      'can_edit' => 1,
+      'can_delete' => 1,
+      'can_approve' => 1
+    ];    
   }
-  else
+
+  $pm = $ci->user_model->get_permission($menu, $uid, $user->id_profile);
+
+  if (empty($pm))
   {
-    $pm = $CI->user_model->get_permission($menu, $uid, $user->id_profile);
-    if(empty($pm))
-    {
-      return reject_permission();
-    }
-    else
-    {
-      if(getConfig('CLOSE_SYSTEM') == 2)
-      {
-        $pm->can_add = 0;
-        $pm->can_edit = 0;
-        $pm->can_delete = 0;
-        $pm->can_approve = 0;
-      }
-    }
+    return reject_permission();
+  }
+
+  if (getConfig('CLOSE_SYSTEM') == 2)
+  {
+    $pm->can_add = 0;
+    $pm->can_edit = 0;
+    $pm->can_delete = 0;
+    $pm->can_approve = 0;
   }
 
   return $pm;
 }
-
 
 function reject_permission()
 {
-  $pm = new stdClass();
-  $pm->can_view = 0;
-  $pm->can_add = 0;
-  $pm->can_edit = 0;
-  $pm->can_delete = 0;
-  $pm->can_approve = 0;
-
-  return $pm;
+  return (object) [
+    'can_view' => 0,
+    'can_add' => 0,
+    'can_edit' => 0,
+    'can_delete' => 0,
+    'can_approve' => 0
+  ];
 }
 
-
-function _can_view_page($can_view)
+function _can_view_page($can_view = 0)
 {
   if( ! $can_view)
   {
-    $CI =& get_instance();
-    $CI->load->view('deny_page');
-    //redirect('deny_page');
+    $ci =& get_instance();
+    $ci->load->view('deny_page');    
   }
 }
 
-
-function profile_name_in($text)
+function user_in(?string $txt = '')
 {
-  if($text !== '')
-  {
-    $CI =& get_instance();
-    $CI->db->select('id');
-  }
-}
-
-
-
-
-function user_in($txt)
-{
-  $sc = array('0');
-  $CI =& get_instance();
-  $CI->load->model('users/user_model');
-  $users = $CI->user_model->search($txt);
+  $sc = ['0'];
+  $ci =& get_instance();
+  $ci->load->model('users/user_model');
+  $users = $ci->user_model->search($txt ?? '');
 
   if(!empty($users))
   {
@@ -107,7 +90,6 @@ function user_in($txt)
 
   return $sc;
 }
-
 
 function select_user_id($user_id = NULL)
 {
@@ -162,13 +144,9 @@ function select_user($uname = NULL)
 }
 
 
-function display_name($uname)
+function display_name($uname = '')
 {
   $ci =& get_instance();
   $ci->load->model('users/user_model');
-  $name = $ci->user_model->get_name($uname);
-
-  return $name;
+  return $ci->user_model->get_name($uname);  
 }
-
- ?>

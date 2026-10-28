@@ -11,9 +11,7 @@ function get_address_form($adds, $sds, $ds, $dd, $lang = 'th')
     //--- มีที่อยู่ แต่ ไม่มีผู้จัดส่ง
     else if( $adds >= 1 && $sds < 1 )
     {
-
       $sc  = 'no_sender';
-
     }
     //--- มีที่อยู่มากกว่า 1 หรือ ผู้จัดส่งมากกว่า 1
     else
@@ -73,7 +71,6 @@ function get_address_form($adds, $sds, $ds, $dd, $lang = 'th')
           $dds .=   '</td>';
           $dds .= '</tr>';
 
-
           //--- รายที่ 2
           if(!empty($dd->second_sender))
           {
@@ -86,7 +83,6 @@ function get_address_form($adds, $sds, $ds, $dd, $lang = 'th')
             $dds .=   '</td>';
             $dds .= '</tr>';
           }
-
 
           //--- รายที่ 3
           if(!empty($dd->third_sender))
@@ -114,10 +110,8 @@ function get_address_form($adds, $sds, $ds, $dd, $lang = 'th')
       }
     }
 
-
   return $sc;
 }
-
 
 function parse_address($ds = NULL, $with_name = FALSE)
 {
@@ -141,4 +135,3 @@ function parse_address($ds = NULL, $with_name = FALSE)
   return NULL;
 }
 
- ?>

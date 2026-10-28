@@ -30,8 +30,11 @@
     <div class="col-lg-2 col-md-2 col-sm-2-harf col-xs-6 padding-5">
       <label>ช่วงข้อมูล</label>
       <select class="form-control input-sm filter" name="range" id="range">
-        <option value="top" <?php echo is_selected('top', $range); ?>><?php echo number(getConfig('FILTER_RESULT_LIMIT')); ?> รายการล่าสุด</option>
-        <option value="all" <?php echo is_selected('all', $range); ?>>ทั้งหมด</option>
+        <option value="500000" <?php echo is_selected('500000', $range); ?>>500,000 รายการล่าสุด</option>
+        <option value="1000000" <?php echo is_selected('1000000', $range); ?>>1,000,000 รายการล่าสุด</option>
+        <option value="2000000" <?php echo is_selected('2000000', $range); ?>>2,000,000 รายการล่าสุด</option>
+        <option value="5000000" <?php echo is_selected('5000000', $range); ?>>5,000,000 รายการล่าสุด</option>        
+        <option value="0" <?php echo is_selected('0', $range); ?>>ทั้งหมด</option>
       </select>
     </div>
     
@@ -44,6 +47,7 @@
       <button type="button" class="btn btn-xs btn-warning btn-block" onclick="clearFilter()"><i class="fa fa-retweet"></i> Reset</button>
     </div>
   </div>
+  <input type="hidden" name="search" value="1" />
 </form>
 <hr class="margin-top-15">
 <?php echo $this->pagination->create_links(); ?>

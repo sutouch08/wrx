@@ -61,7 +61,7 @@
 				</button>
 				<?php endif; ?>
 				<div class="navbar-header pull-left">
-					<a href="<?php echo ((empty($approve_view) && !isset($_GET['nomenu']) && !$this->isViewer) ? base_url() : '#'); ?>" class="navbar-brand">
+					<a href="<?php echo ((empty($approve_view) && !isset($_GET['nomenu']) && empty($this->isViewer)) ? base_url() : '#'); ?>" class="navbar-brand">
 						<small>
 							<?php echo getConfig('COMPANY_NAME'); ?>
 						</small>
@@ -70,7 +70,7 @@
 				<?php if(! isset($_GET['nomenu'])) : ?>
 					<?php
 
-					if(!$this->isViewer)
+					if(empty($this->isViewer))
 					{
 						$this->load->view('include/approve_form');
 						$this->load->view('include/top_menu');
@@ -98,7 +98,7 @@
 										Clear cache
 									</a>
 								</li>
-								<?php if(!$this->isViewer) : ?>
+								<?php if(empty($this->isViewer)) : ?>
 								<li>
 									<a href="JavaScript:void(0)" onclick="changeUserPwd('<?php echo get_cookie('uname'); ?>')">
 										<i class="ace-icon fa fa-keys"></i>
@@ -135,7 +135,7 @@
 					try{ace.settings.check('sidebar' , 'fixed')}catch(e){}
 				</script>
 						<!--- side menu  ------>
-				<?php if($this->isViewer === FALSE) : ?>
+				<?php if(empty($this->isViewer)) : ?>
 				<?php $this->load->view("include/side_menu"); ?>
 				<?php endif; ?>
 

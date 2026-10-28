@@ -1,14 +1,7 @@
 <?php
 class Auto_check_lazada_status extends CI_Controller
 {
-  public $home;
-  public $mc;
-  public $ms;
-  public $isViewer = FALSE;
-  public $notibars = FALSE;
-  public $menu_code = NULL;
-  public $menu_group_code = NULL;
-  public $pm;
+  public $home;    
   public $error;
   public $default_shop_id = "TH10ZE1";
 
@@ -16,12 +9,10 @@ class Auto_check_lazada_status extends CI_Controller
   {
     parent::__construct();
     $this->home = base_url().'auto/auto_check_lazada_status';
-    $this->load->model('orders/orders_model');
-    $this->pm = new stdClass();
-    $this->pm->can_view = 1;
+    $this->load->model('orders/orders_model');      
   }
 
-  public function index($show = NULL)
+  public function index($show = FALSE)
   {
     if($show) { echo "start : " . now() . "<br/>";}
 
@@ -34,7 +25,6 @@ class Auto_check_lazada_status extends CI_Controller
       foreach($list as $rs)
       {
         $shop_id = empty($rs->shop_id) ? $this->default_shop_id : $rs->shop_id;
-
         $order_status = $this->wrx_lazada_api->get_order_status($rs->reference, $shop_id);
 
         if($show) { echo "{$rs->code} : {$order_status} <br/>"; }
@@ -53,8 +43,7 @@ class Auto_check_lazada_status extends CI_Controller
     if($show) { echo "end : " . now(); }
   }
 
-
-  public function pick($show = NULL)
+  public function pick($show = FALSE)
   {
     if($show) { echo "start : " . now() . "<br/>";}
     $list = $this->get_orders_list([3, 4]);
@@ -85,8 +74,7 @@ class Auto_check_lazada_status extends CI_Controller
     if($show) { echo "end : " . now(); }
   }
 
-
-  public function pack($show = NULL)
+  public function pack($show = FALSE)
   {
     if($show) { echo "start : " . now() . "<br/>";}
 
@@ -118,7 +106,6 @@ class Auto_check_lazada_status extends CI_Controller
     if($show) { echo "end : " . now(); }
   }
 
-
   public function get_max_order_id()
   {
     $rs = $this->db->select_max('id')->get('orders');
@@ -128,15 +115,13 @@ class Auto_check_lazada_status extends CI_Controller
       return $rs->row()->id;
     }
 
-    return 1000000;
+    return 100000;
   }
-
 
   public function get_orders_list(array $state = array())
   {
-    $max_id = $this->get_max_order_id();
-
-    $id = $max_id > 100000 ? $max_id - 10000 : $id;
+    $max_id = $this->get_max_order_id();    
+    $id = $max_id > 100000 ? $max_id - 100000 : 0; //--- get only 100,000 latest orders
 
     $rs = $this->db
     ->select('code, reference, shop_id')
@@ -157,6 +142,4 @@ class Auto_check_lazada_status extends CI_Controller
 
     return NULL;
   }
-
-} //--- end class
- ?>
+}

@@ -1,9 +1,9 @@
 <?php
-function select_product_brand($code = '')
+function select_product_brand(?string $code = '')
 {
-  $CI =& get_instance();
-  $CI->load->model('masters/product_brand_model');
-  $result = $CI->product_brand_model->get_data();
+  $ci =& get_instance();
+  $ci->load->model('masters/product_brand_model');
+  $result = $ci->product_brand_model->get_data();
   $ds = '';
   if(!empty($result))
   {
@@ -15,6 +15,3 @@ function select_product_brand($code = '')
 
   return $ds;
 }
-
-
- ?>

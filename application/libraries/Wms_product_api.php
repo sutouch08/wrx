@@ -3,8 +3,8 @@ class Wms_product_api
 {
 
   private $url;
-  private $WH_NO; //--- Wharehouse no from WMS
-	private $CUS_CODE; //---- Customer No from WMS
+  private $WH_NO; //--- Warehouse no from WMS
+	private $CUST_CODE; //---- Customer No from WMS
   public $home;
 	public $wms;
 	protected $ci;

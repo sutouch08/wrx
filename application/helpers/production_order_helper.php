@@ -1,6 +1,8 @@
 <?php
 function production_order_status_text($status = 'P')
 {
+  $status = $status ?? 'P';
+
   $txt = [
     'P' => 'Planned',
     'R' => 'Released',
@@ -14,6 +16,8 @@ function production_order_status_text($status = 'P')
 
 function production_order_status_color($status = 'P')
 {
+  $status = $status ?? 'P';
+  
   $color = [
     'P' => '', //-- draft
     'R' => 'background-color:#fbe4ff;', //-- released
@@ -27,6 +31,8 @@ function production_order_status_color($status = 'P')
 
 function production_order_sap_status_text($status = 'P')
 {
+  $status = $status ?? 'P';
+
   $txt = [
     'P' => 'Planned',
     'R' => 'Released',
@@ -40,6 +46,8 @@ function production_order_sap_status_text($status = 'P')
 
 function originTypeName($type = 'M')
 {
+  $type = $type ?? 'M';
+  
   $txt = [
     'M' => 'Manual',
     'S' => 'Sales Order',
@@ -53,7 +61,7 @@ function originTypeName($type = 'M')
 
 function itemTypeName($type = '4')
 {
-  $type = empty($type) ? '4' : strval($type);
+  $type = strval($type ?? '4');  
 
   $txt = [
     '4' => 'Item',
@@ -67,6 +75,8 @@ function itemTypeName($type = '4')
 
 function status_type_text($type = 'S')
 {
+  $type = $type ?? 'S';
+
   $txt = [
     'S' => 'Standard',
     'P' => 'Special',
@@ -77,12 +87,9 @@ function status_type_text($type = 'S')
 }
 
 
-function get_ratio($Qty = 1)
+function get_ratio(int|float $Qty = 1)
 {
   $ratio = $Qty > 0 ? (round(1 / $Qty, 2)) : 1;
   $ratio = $ratio > 1 ? "1/{$ratio}" : "1";
-
   return $ratio;
 }
-
- ?>

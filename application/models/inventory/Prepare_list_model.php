@@ -13,10 +13,7 @@ class Prepare_list_model extends CI_Model
 
   public function get_list(array $ds = array(), $perpage = 20, $offset = 0)
   {
-    if (isset($ds['range']) && $ds['range'] != 'all')
-    {
-      $this->db->where('id >', $this->get_max_id());
-    }
+    $this->db->where('id >', $ds['max_id'] ?? 0);
 
     if (! empty($ds['from_date']))
     {
@@ -51,27 +48,17 @@ class Prepare_list_model extends CI_Model
     if( isset($ds['user']) && $ds['user'] != 'all')
     {
       $this->db->where('user', $ds['user']);
-    }    
+    }        
 
-    $this->db->order_by('date_upd', 'DESC');
+    $rs = $this->db->order_by('id', 'DESC')->limit($perpage, $offset)->get($this->tb);
 
-    $rs = $this->db->limit($perpage, $offset)->get($this->tb);
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
   public function count_rows(array $ds = array())
   {
-    if (isset($ds['range']) && $ds['range'] != 'all')
-    {
-      $this->db->where('id >', $this->get_max_id());
-    }
+    $this->db->where('id >', $ds['max_id'] ?? 0);
 
     if (! empty($ds['from_date']))
     {
@@ -111,59 +98,54 @@ class Prepare_list_model extends CI_Model
     return $this->db->count_all_results($this->tb);
   }
 
-
-  public function get_export_data(array $ds = array())
+  public function get_export_data(array $ds = array(), $limit = 1000)
   {
-    if (isset($ds['range']) && $ds['range'] != 'all')
-    {
-      $this->db->where('id >', $this->get_max_id());
-    }
+    $this->db
+    ->select('p.*')
+    ->select('o.date_add AS order_date, o.reference AS reference, o.channels_code AS channels_code, o.state AS state')
+    ->from($this->tb.' AS p')
+    ->join('orders AS o', 'p.order_code = o.code', 'left');
+
+    $this->db->where('p.id >', $ds['max_id'] ?? 0);
 
     if (! empty($ds['from_date']))
     {
-      $this->db->where('date_upd >=', from_date($ds['from_date']));
+      $this->db->where('p.date_upd >=', from_date($ds['from_date']));
     }
 
     if (! empty($ds['to_date']))
     {
-      $this->db->where('date_upd <=', to_date($ds['to_date']));
+      $this->db->where('p.date_upd <=', to_date($ds['to_date']));
     }
 
-    if( ! empty($ds['order_code']))
+    if (! empty($ds['order_code']))
     {
-      $this->db->where('order_code', $ds['order_code']);
+      $this->db->where('p.order_code', $ds['order_code']);
     }
 
-    if( ! empty($ds['pd_code']))
+    if (! empty($ds['pd_code']))
     {
-      $this->db->where('product_code', $ds['pd_code']);
+      $this->db->where('p.product_code', $ds['pd_code']);
     }
 
-    if( isset($ds['warehouse_code']) && $ds['warehouse_code'] != 'all')
+    if (isset($ds['warehouse_code']) && $ds['warehouse_code'] != 'all')
     {
-      $this->db->where('warehouse_code', $ds['warehouse_code']);
+      $this->db->where('p.warehouse_code', $ds['warehouse_code']);
     }
 
-    if( ! empty($ds['zone_code']))
+    if (! empty($ds['zone_code']))
     {
-      $this->db->where('zone_code', $ds['zone_code']);
+      $this->db->where('p.zone_code', $ds['zone_code']);
     }
 
-    if( isset($ds['user']) && $ds['user'] != 'all')
+    if (isset($ds['user']) && $ds['user'] != 'all')
     {
-      $this->db->where('user', $ds['user']);
-    }    
-
-    $this->db->order_by('date_upd', 'DESC');
-
-    $rs = $this->db->get($this->tb);
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
+      $this->db->where('p.user', $ds['user']);
     }
 
-    return NULL;
+    $rs = $this->db->order_by('id', 'ASC')->limit($limit)->get();    
+
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
@@ -176,7 +158,7 @@ class Prepare_list_model extends CI_Model
       return $rs->row()->state;
     }
 
-    return NULL;
+    return 0;
   }
 
 
@@ -229,30 +211,16 @@ class Prepare_list_model extends CI_Model
     return NULL;
   }
 
-  public function get_max_id()
+  public function get_max_id($range = 0)
   {
-    $limit = $this->get_limit_rows();
-    $rs = $this->db->query("SELECT MAX(id) AS id FROM prepare");
+    $range = intval($range);
 
-    if ($rs->num_rows() === 1)
+    if($range === 0)
     {
-      return $rs->row()->id - $limit;
+      return $range;
     }
 
-    return $limit;
-  }
-
-  public function get_limit_rows()
-  {
-    $rs = $this->db->query("SELECT value FROM config WHERE code = 'FILTER_RESULT_LIMIT'");
-
-    if ($rs->num_rows() === 1)
-    {
-      return intval($rs->row()->value);
-    }
-
-    return 0;
-  }
-} //-- end class
-
-?>
+    $max_id = $this->db->select('MAX(id) AS id')->get($this->tb)->row()->id;
+    return $max_id > $range ? $max_id - $range : 0;
+  }  
+}

@@ -1,6 +1,7 @@
 <?php
-function receive_po_status_label($status, $is_expire = 0)
+function receive_po_status_label($status = 0, $is_expire = 0)
 {
+  $status = $status ?? 0;
   $label = array(
     '0' => '<span class="blue"><strong>DF</strong></span>',
     '1' => '<span class="green"><strong>OK</strong></span>',
@@ -17,9 +18,9 @@ function receive_po_status_label($status, $is_expire = 0)
   return empty($label[$status]) ? '' : $label[$status];
 }
 
-
-function receive_po_status_text($status, $is_expire = 0)
+function receive_po_status_text($status = 0, $is_expire = 0)
 {
+  $status = $status ?? 0;
   $label = array(
     '0' => 'Draft',
     '1' => 'Closed',
@@ -35,4 +36,3 @@ function receive_po_status_text($status, $is_expire = 0)
 
   return empty($label[$status]) ? '' : $label[$status];
 }
-?>

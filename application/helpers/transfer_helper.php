@@ -1,6 +1,7 @@
 <?php
   function transfer_action_text($is_wms = 0)
   {
+    $is_wms = intval($is_wms ?? 0);
     $action = [
       '-1' => 'ย้ายคลัง',
       '0' => 'ปกติ',
@@ -25,5 +26,3 @@
 
     return empty($list[$status]) ? 'Unknow' : $list[$status];    
   }
-
- ?>

@@ -1,13 +1,14 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use OpenSpout\Writer\XLSX\Writer;
+use OpenSpout\Common\Entity\Row;
 
 class Movement extends PS_Controller
 {
   public $menu_code = 'ICCKMV';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'CHECK';
-	public $title = 'ตรวจสอบ Movement';
-  public $filter;
+	public $title = 'ตรวจสอบ Movement';  
   public $error;
   public $segment = 4;
 
@@ -19,9 +20,8 @@ class Movement extends PS_Controller
     $this->load->helper('warehouse');
   }
 
-
   public function index()
-  {
+  {    
     $filter = array(
       'reference' => get_filter('reference', 'mv_reference', ''),
       'warehouse_code' => get_filter('warehouse_code', 'mv_warehouse_code', 'all'),
@@ -29,21 +29,22 @@ class Movement extends PS_Controller
       'product_code' => get_filter('product_code', 'mv_product_code', ''),
       'from_date' => get_filter('from_date', 'mv_from_date', ''),
       'to_date' => get_filter('to_date', 'mv_to_date', ''),
-      'range' => get_filter('range', 'mv_range', 'all')
+      'range' => get_filter('range', 'mv_range', '500000')
     );
 
     if ($this->input->post('search'))
     {
-      redirect($this->home . '/index/0');
+      redirect($this->home);
+      exit;
     }
     else
     {
-      $filter['id'] = $filter['range'] == 'all' ? NULL : $this->movement_model->get_max_id($filter['range']);
       $perpage = get_rows();
+      $filter['id'] = $this->movement_model->get_max_id($filter['range']);
       $rows = $this->movement_model->count_rows($filter);
+      $filter['data'] = $this->movement_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
       $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
       $this->pagination->initialize($init);
-      $filter['data'] = $this->movement_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
       $this->load->view('inventory/movement/movement_list', $filter);
     }    
   }
@@ -53,71 +54,84 @@ class Movement extends PS_Controller
   {
     // This also needs to be increased in some cases. Can be changed to a higher value as per need)
     ini_set('memory_limit','2048M');
+    
+    $ds = json_decode($this->input->post('export-filter'), true);
+    $token = $ds['token'];    
+    $max_id = $this->movement_model->get_max_id($ds['range']);
 
-    $token = $this->input->post('token');
-    $range = $this->input->post('range');
-
-    $id = $range == 'all' ? NULL : $this->movement_model->get_max_id($range);
-
-    $ds = array(
-      'reference' => $this->input->post('reference'),
-      'product_code' => $this->input->post('product_code'),
-      'warehouse_code' => $this->input->post('warehouse_code'),
-      'zone_code' => $this->input->post('zone_code'),
-      'from_date' => $this->input->post('from_date'),
-      'to_date' => $this->input->post('to_date'),
-      'id' => $id
+    $filter = array(
+      'reference' => $ds['reference'],
+      'product_code' => $ds['product_code'],
+      'warehouse_code' => $ds['warehouse_code'],
+      'zone_code' => $ds['zone_code'],
+      'from_date' => $ds['from_date'],
+      'to_date' => $ds['to_date'],
+      'id' => $max_id
     );
 
+    $tempFile = tempnam(sys_get_temp_dir(), 'mv_');
+    $fileName = "Stock-movement-".date('Y-m-d_H-i-s').".xlsx";
+    $header = ['Reference', 'Item', 'BatchNumber', 'Warehouse', 'Zone', 'Move In', 'Move Out', 'Move Date'];
 
-    $header = array(
-      'Reference', 'Item', 'Warehouse', 'Zone', 'Move In', 'Move Out', 'Move Date'
-    );
-
-    $list = $this->movement_model->get_export_data($ds);
-
-    // Create a file pointer
-    $f = fopen('php://memory', 'w');
-    $delimiter = ",";
-    fputs($f, $bom = ( chr(0xEF) . chr(0xBB) . chr(0xBF) ));
-    fputcsv($f, $header, $delimiter);
-
-    if( ! empty($list))
+    try
     {
-      foreach($list as $rs)
-      {
-        $arr = array(
-          $rs->reference,
-          $rs->product_code,
-          $rs->warehouse_code,
-          $rs->zone_code,
-          $rs->move_in,
-          $rs->move_out,
-          thai_date($rs->date_upd, TRUE)
-        );
+      $writer = new Writer();
+      $writer->openToFile($tempFile);
+      $writer->addRow(ROW::fromValues($header));
+      
+      $limit = 10000;      
+      $max_loop = 10000; // Maximum number of loops to prevent infinite loop
+      $rows = $this->movement_model->count_rows($filter);
 
-        fputcsv($f, $arr, $delimiter);
+      if($rows > 0)
+      {
+        while($rows > 0 && $max_loop > 0)
+        {
+          $list = $this->movement_model->get_export_data($filter, $limit);          
+          $rows -= count($list ?? []);
+
+          if(!empty($list))
+          {
+            foreach($list as $rs)
+            {
+              $writer->addRow(ROW::fromValues(array(
+                $rs->reference,
+                $rs->product_code,
+                $rs->batchNum,
+                $rs->warehouse_code,
+                $rs->zone_code,
+                (float) $rs->move_in,
+                (float) $rs->move_out,
+                thai_date($rs->date_upd, TRUE)
+              )));
+
+              $filter['id'] = $rs->id; // move  curcor to next id
+            }
+          }
+          
+          $max_loop--;
+        }
       }
-      // $memuse = (memory_get_usage() / 1024) / 1024;
-      // $arr = array('memory usage', round($memuse, 2).' MB');
-      // fputcsv($f, $arr, $delimiter);
+
+      $writer->close();
+      setToken($token);
+      while(ob_get_level()) ob_end_clean(); // Clear output buffer if any
+
+      header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      header('Content-Disposition: attachment;filename="'.$fileName.'"');
+      header('Cache-Control: max-age=0');
+      readfile($tempFile);      
+    }
+    finally
+    {
+      if(file_exists($tempFile))
+      {
+        unlink($tempFile);
+      }
     }
 
-    //--- Move to begin of file
-    fseek($f, 0);
-
-    setToken($token);
-
-    $file_name = "Stock_movement.csv";
-    header('Content-Type: text/csv');
-    header('Content-Disposition: attachment;filename="'.$file_name.'"');
-
-    //output all remaining data on a file pointer
-    fpassthru($f); ;
-
-    exit();
+    exit;    
   }
-
 
 
   public function clear_filter()

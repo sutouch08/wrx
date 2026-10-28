@@ -1,4 +1,4 @@
-<?php if($this->notibars == 1) : ?>
+<?php if(!empty($this->notibars)) : ?>
   <?php if($this->WT->can_approve) : ?>
   <form id="receive-form" method="post" target="_blank" action="<?php echo base_url(); ?>inventory/invoice">
     <input type="hidden" name="role" value="N">

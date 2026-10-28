@@ -509,7 +509,7 @@ class Customers_model extends CI_Model
       return $rs->result();
     }
 
-    return FALSE;
+    return NULL;
   }
 
 
@@ -527,7 +527,7 @@ class Customers_model extends CI_Model
       return $rs->result();
     }
 
-    return FALSE;
+    return NULL;
   }
 
 
@@ -543,7 +543,7 @@ class Customers_model extends CI_Model
       return $rs->result();
     }
 
-    return FALSE;
+    return NULL;      
   }
 
 
@@ -560,7 +560,7 @@ class Customers_model extends CI_Model
       return $rs->result();
     }
 
-    return FALSE;
+    return NULL;
   }
 
 

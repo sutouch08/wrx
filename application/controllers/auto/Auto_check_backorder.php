@@ -2,13 +2,7 @@
 class Auto_check_backorder extends CI_Controller
 {
   public $home;
-  public $ms;
-  public $title = "Auto check backorder";
-  public $isViewer = FALSE;
-  public $notibars = FALSE;
-  public $menu_code = NULL;
-  public $menu_group_code = NULL;
-  public $pm;
+  public $ms;     
   public $error;
   public $limit = 1000;
 
@@ -20,9 +14,7 @@ class Auto_check_backorder extends CI_Controller
     $this->load->model('orders/orders_model');
     $this->load->model('orders/reserv_stock_model');
     $this->load->model('stock/stock_model');
-    $this->load->model('sync_data_model');
-    $this->pm = new stdClass();
-    $this->pm->can_view = 1;
+    $this->load->model('sync_data_model');    
   }
 
   public function index()
@@ -34,7 +26,6 @@ class Auto_check_backorder extends CI_Controller
     $count = 0;
     $update = 0;
     $start = now();
-
     $orders = $this->get_backorder_list($this->limit);
 
     if( ! empty($orders))
@@ -98,11 +89,9 @@ class Auto_check_backorder extends CI_Controller
       'process_start' => $start,
       'process_end' => $end
     );
-
-    //--- add logs
+    
     $this->sync_data_model->add_logs($logs);
   }
-
 
   public function get_details($code)
   {
@@ -121,8 +110,7 @@ class Auto_check_backorder extends CI_Controller
 
 
   public function get_backorder_list($limit = 100)
-  {
-    $max_id = $this->orders_model->get_max_id();
+  {    
     $days = 30; // เช็คย้อนหลังไม่เกิน 60 วัน
     $from_date = date('Y-m-d 00:00:00', strtotime("-$days days"));
 
@@ -143,7 +131,6 @@ class Auto_check_backorder extends CI_Controller
     return NULL;
   }
 
-
   public function get_available_stock($item_code, $warehouse_code)
   {
     //---- สต็อกคงเหลือในคลัง
@@ -160,5 +147,4 @@ class Auto_check_backorder extends CI_Controller
     return $available < 0 ? 0 : $available;
   }
 
-} //--- end class
- ?>
+}

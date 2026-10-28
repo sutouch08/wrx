@@ -84,7 +84,7 @@ $stateName = array(
 ?>
 <div class="row" id="result">
   <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 padding-5 table-responsive">
-    <table class="table table-striped border-1" style="min-width:500px;">
+    <table class="table table-striped table-medium border-1" style="min-width:500px;">
       <thead>
         <tr>
           <th class="fix-width-40 text-center">#</th>
@@ -98,7 +98,7 @@ $stateName = array(
         <?php if (! empty($data)) : ?>
           <?php $no = 1; ?>
           <?php foreach ($data as $rs) : ?>
-            <tr>
+            <tr id="row-<?php echo $rs->id; ?>">
               <td class="text-center"><?php echo $no; ?></td>
               <td>
                 <?php echo $rs->code; ?>
@@ -121,44 +121,13 @@ $stateName = array(
   </div>
 </div>
 
-
-<div class="modal fade" id="upload-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-  <div class="modal-dialog" style="width:600px; max-width:95vw;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-        <h4 class="modal-title">Import File</h4>
-      </div>
-      <div class="modal-body">
-        <form id="upload-form" name="upload-form" method="post" enctype="multipart/form-data">
-          <div class="row">
-            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-              <div class="input-group width-100">
-                <input type="text" class="form-control" id="show-file-name" placeholder="กรุณาเลือกไฟล์ Excel" readonly />
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-white btn-default" onclick="getFile()">เลือกไฟล์</button>
-                </span>
-              </div>
-            </div>
-          </div>
-          <input type="file" class="hide" name="uploadFile" id="uploadFile" accept=".xlsx" />
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-sm btn-default btn-100" onclick="closeModal('upload-modal')">ยกเลิก</button>
-        <button type="button" class="btn btn-sm btn-primary btn-100" onclick="uploadfile()">นำเข้า</button>
-      </div>
-    </div>
-  </div>
-</div>
+<input type="file" class="hide" name="uploadFile" id="uploadFile" accept=".xlsx" />
 
 <script>
-  var HOME = BASE_URL + 'auto/auto_change_state/';
-
-  var finished = false;
-  var max = 0;
-  var orders = [];
-  var state = 7;
+  let finished = false;
+  let max = 0;
+  let orders = [];
+  let state = 7;
 
   function startExport() {
     let stateSelected = $('#state').val();
@@ -166,13 +135,11 @@ $stateName = array(
     if (stateSelected == "") {
       swal("กรุณาเลือกสถานะ");
       return false;
-    } else {
-      state = stateSelected;
     }
 
-    load_in();
-
+    state = stateSelected;
     max = parseDefault(parseInt($('#count').val()), 0);
+    load_in();
 
     $('.order').each(function() {
       let code = $(this).val();
@@ -186,9 +153,7 @@ $stateName = array(
     if (orders.length > 0 && max > 0) {
       do_export(0);
     }
-
   }
-
 
   function do_export(no) {
     let order = orders[no];
@@ -198,7 +163,7 @@ $stateName = array(
     if (finished == false) {
       if (code != null && code != "" && code != undefined) {
         $.ajax({
-          url: BASE_URL + 'orders/orders/order_state_change',
+          url: `${BASE_URL}orders/orders/order_state_change`,
           type: 'POST',
           cache: false,
           data: {
@@ -208,7 +173,8 @@ $stateName = array(
           success: function(rs) {
 
             if (rs == 'success') {
-              $('#status-' + id).text('Success');
+              $(`#status-${id}`).text('Success');
+              $(`#row-${id}`).addClass('text-success');
               no++;
               if (no == max) {
                 update_status(code, 1, rs);
@@ -220,8 +186,9 @@ $stateName = array(
                 do_export(no);
               }
             } else {
-              $('#status-' + id).text('Error');
-              $('#msg-' + id).text(rs);
+              $(`#status-${id}`).text('Error');
+              $(`#msg-${id}`).text(rs);
+              $(`#row-${id}`).addClass('text-error');
               no++;
               if (no == max) {
                 update_status(code, 3, rs);
@@ -238,10 +205,9 @@ $stateName = array(
     }
   }
 
-
   function update_status(code, status, message) {
     $.ajax({
-      url: BASE_URL + 'auto/auto_change_state/update_status',
+      url: `${BASE_URL}auto/auto_change_state/update_status`,
       type: 'POST',
       cache: false,
       data: {
@@ -251,80 +217,65 @@ $stateName = array(
       },
       success: function(rs) {
         console.log(rs);
+      },
+      error: function(rs) {
+        console.error(rs);
       }
-    })
+    });
   }
-
 
   function getUploadFile() {
-    $('#upload-modal').modal('show');
-  }
-
-
-  function getFile() {
     $('#uploadFile').click();
   }
 
+  const uploadFile = document.getElementById('uploadFile');
 
-  $("#uploadFile").change(function() {
-    if ($(this).val() != '') {
+  uploadFile.addEventListener('change', async function() {
+    if (this.files && this.files[0]) {
       var file = this.files[0];
-      var name = file.name;
-      var type = file.type;
       var size = file.size;
 
       if (size > 5000000) {
         swal("ขนาดไฟล์ใหญ่เกินไป", "ไฟล์แนบต้องมีขนาดไม่เกิน 5 MB", "error");
-        $(this).val('');
+        this.value = '';
         return false;
       }
-      //readURL(this);
-      $('#show-file-name').val(name);
+
+      await uploadfile(file);
     }
   });
 
+  async function uploadfile(file) {
+    const url = `${HOME}/import_order`;
+    const fd = new FormData();
+    fd.append('uploadFile', file);
 
-  function uploadfile() {
-    $('#upload-modal').modal('hide');
+    load_in();
 
-    var file = $("#uploadFile")[0].files[0];
-    var fd = new FormData();
-    fd.append('uploadFile', $('input[type=file]')[0].files[0]);
-    if (file !== '') {
-      load_in();
+    const response = await fetch(url, {
+      method: 'POST',
+      body: fd
+    });
 
-      $.ajax({
-        url: BASE_URL + 'auto/auto_change_state/import_order',
-        type: "POST",
-        cache: false,
-        data: fd,
-        processData: false,
-        contentType: false,
-        success: function(rs) {
-          load_out();
+    load_out();
 
-          if (rs.trim() === 'success') {
-            swal({
-              title: 'นำเข้าเรียบร้อยแล้ว',
-              type: 'success',
-              html: true,
-              timer: 1000
-            });
+    const result = await response.text();
 
-            setTimeout(() => {
-              refresh();
-            }, 1200);
-          } else {
-            showError(rs);
-          }
-        },
-        error: function(rs) {
-          showError(rs);
-        }
+    if (result.trim() === 'success') {
+      swal({
+        title: 'นำเข้าเรียบร้อยแล้ว',
+        type: 'success',
+        html: true,
+        timer: 1000
       });
+
+      setTimeout(() => {
+        refresh();
+      }, 1200);
+    } else {
+      showError(result);
     }
   }
-
 
   function clearAllData() {
     swal({
@@ -339,34 +290,34 @@ $stateName = array(
     }, function() {
       load_in();
 
-      $.ajax({
-        url: HOME + 'clear_data',
-        type: 'GET',
-        cache: false,
-        success: function(rs) {
-          load_out();
+      setTimeout(() => {
+        $.ajax({
+          url: `${HOME}clear_data`,
+          type: 'GET',
+          cache: false,
+          success: function(rs) {
+            load_out();
 
-          if (rs.trim() === 'success') {
-            swal({
-              title: 'success',
-              type: 'success',
-              timer: 1000,
-            });
+            if (rs.trim() === 'success') {
+              swal({
+                title: 'success',
+                type: 'success',
+                timer: 1000,
+              });
 
-            setTimeout(() => {
-              refresh();
-            }, 1200);
-          } else {
+              setTimeout(() => { refresh(); }, 1200);
+            } 
+            else {
+              showError(rs);
+            }
+          },
+          error: function(rs) {
             showError(rs);
           }
-        },
-        error: function(rs) {
-          showError(rs);
-        }
-      })
+        });
+      }, 100);
     })
   }
-
 
   function changeOrderLimit() {
     let limit = parseDefault(parseInt($('#order-limit').val()), 0);
@@ -377,7 +328,7 @@ $stateName = array(
     }
 
     $.ajax({
-      url: HOME + 'change_order_limit',
+      url: `${HOME}change_order_limit`,
       type: 'POST',
       cache: false,
       data: {
@@ -386,7 +337,8 @@ $stateName = array(
       success: function(rs) {
         if (rs.trim() === 'success') {
           refresh();
-        } else {
+        } 
+        else {
           showError(rs);
         }
       },

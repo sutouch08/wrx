@@ -1,15 +1,13 @@
 <?php
 function is_api($is_wms = 0, $wmsApi = FALSE, $sokoApi = FALSE)
 {
-	$is_api = $is_wms == 0 ? FALSE : ($is_wms == 1 && $wmsApi ? TRUE : ($is_wms == 2 && $sokoApi ? TRUE : FALSE));
-
-	return $is_api;
+	return $is_wms == 0 ? FALSE : ($is_wms == 1 && $wmsApi ? TRUE : ($is_wms == 2 && $sokoApi ? TRUE : FALSE));	
 }
-
 
 function setToken($token)
 {
 	$ci =& get_instance();
+
 	$cookie = array(
 		'name' => 'file_download_token',
 		'value' => $token,
@@ -20,26 +18,23 @@ function setToken($token)
 	return $ci->input->set_cookie($cookie);
 }
 
-
-function parseFloat($number)
+function parseFloat($number = NULL)
 {
+	$number = strval($number);
 	$number = empty($number) ? 0 : $number;
 	$number = str_replace(",", "", $number);
-
 	return floatval($number);
 }
 
-
-function parseInt($number)
+function parseInt($number = NULL)
 {
+	$number = strval($number);
 	$number = empty($number) ? 0 : $number;
-	$number = str_replace(",", "", $number);
-	
+	$number = str_replace(",", "", $number);	
 	return intval($number);
 }
 
-
-function parsePhoneNumber($phone, $length = 10)
+function parsePhoneNumber($phone = '', $length = 10)
 {
 	$find = [" ", "-", "+"];
   $rep = ["", "", ""];
@@ -50,15 +45,13 @@ function parsePhoneNumber($phone, $length = 10)
     $phone = trim($phone);
     $phone = str_replace($find, $rep, $phone);
     $phone = substr($phone, $length);
-
     return $phone;
   }
 
-  return NULL;
+  return '';
 }
 
-
-function parseSubDistrict($ad, $province)
+function parseSubDistrict($ad = '', $province = '')
 {
 	if(! empty($ad))
 	{
@@ -76,14 +69,12 @@ function parseSubDistrict($ad, $province)
 			$ad = str_replace($find, $rep, $ad);
 			return substr_replace($ad, 'ตำบล', 0, 0);
 		}
-
 	}
 
-	return NULL;
+	return '';
 }
 
-
-function parseDistrict($ad, $province)
+function parseDistrict($ad = '', $province = '')
 {
 	if(! empty($ad))
 	{
@@ -103,11 +94,10 @@ function parseDistrict($ad, $province)
 		}
 	}
 
-	return NULL;
+	return '';
 }
 
-
-function parseProvince($ad)
+function parseProvince($ad = '')
 {
 	if(! empty($ad))
 	{
@@ -124,12 +114,13 @@ function parseProvince($ad)
 		return $ad;
 	}
 
-	return NULL;
+	return '';
 }
 
-
-function isBangkok($province)
+function isBangkok($province = '')
 {
+	$province = trim($province ?? '');
+
 	$list = array(
 		'จังหวัดกรุงเทพมหานคร',
 		'จังหวัดกรุงเทพ',
@@ -143,64 +134,45 @@ function isBangkok($province)
 		'กทม',
 		'กทม.',
 		'ก.ท.ม.'
-	);
+	);	
 
-	if( ! empty($province))
-	{
-		foreach($list as $val)
-		{
-			if($province == $val)
-			{
-				return TRUE;
-			}
-		}
-	}
-
-	return FALSE;
+	return in_array($province, $list);
 }
-
 
 //---	ตัดข้อความแล้วเติม ... ข้างหลัง
-function limitText($str, $length)
+function limitText($str = '', $length = 100)
 {
+	$str = $str ?? '';
 	$txt = '...';
-	if( strlen($str) >= $length)
-	{
-		return mb_substr($str, 0, $length).$txt;
-	}
-	else
-	{
-		return $str;
-	}
+	$length = $length ?? 100;
+	return strlen($str) >= $length ? mb_substr($str, 0, $length).$txt : $str;
 }
 
-
-function is_selected($val, $select)
+function is_selected($val = '', $select = '')
 {
-  return $val === $select ? 'selected' : '';
+  return strval($val) === strval($select) ? 'selected' : '';
 }
 
-
-function is_checked($val1, $val2)
+function is_checked($val1 = '', $val2 = '')
 {
-  return $val1 == $val2 ? 'checked' : '';
+  return strval($val1) === strval($val2) ? 'checked' : '';
 }
 
-
-function is_active($val, $showX = TRUE)
+function is_active($val = '', $showX = TRUE)
 {
-	if($val === 1 OR $val === '1' OR $val === 'Y' OR $val === 'y' OR $val === TRUE)
+	$val = strtolower(strval($val));
+
+	if($val === '1' OR $val === 'y' OR $val === TRUE)
 	{
 		return '<i class="fa fa-check green"></i>';
 	}
 	else
 	{
-		return $showX ? '<i class="fa fa-times red"></i>' : NULL;
+		return $showX ? '<i class="fa fa-times red"></i>' : '';
 	}
 }
 
-
-function get_filter($postName, $cookieName, $defaultValue = "")
+function get_filter($postName = NULL, $cookieName = NULL, $defaultValue = "")
 {
   $ci =& get_instance();
   $sc = '';
@@ -222,7 +194,6 @@ function get_filter($postName, $cookieName, $defaultValue = "")
 	return $sc;
 }
 
-
 function clear_filter($cookies)
 {
   if(is_array($cookies))
@@ -238,7 +209,6 @@ function clear_filter($cookies)
   }
 }
 
-
 function set_rows($value = 20)
 {
   $value = $value > 300 ? 300 : $value;
@@ -253,71 +223,63 @@ function set_rows($value = 20)
   return set_cookie($arr);
 }
 
-
 function get_rows()
 {
   $rows = get_cookie('rows');
-
 	return $rows <= 0 ? 20 : ($rows > 300 ? 300 : $rows);
 }
 
-
 function number($val, $digit = 0)
 {
-  return number_format($val, $digit);
+  return number_format($val ?? 0, $digit);
 }
-
 
 function ac_format($val, $digit = 0)
 {
-	return $val == 0 ? '-' : number_format($val, $digit);
+	return ($val == 0 || $val === NULL) ? '-' : number_format($val, $digit);
 }
-
 
 function getConfig($code)
 {
   $ci =& get_instance();
   $rs = $ci->db->select('value')->where('code', $code)->get('config');
+
   if($rs->num_rows() == 1)
   {
     return $rs->row()->value;
   }
 
-	return NULL;
+	return '';
 }
 
-
-function setConfig($code, $value)
+function setConfig($code, $value = NULL)
 {
 	$ci =& get_instance();
 	return $ci->db->where('code', $code)->update('config', ['value' => $value]);
 }
 
-
 function getWrxApiConfig()
 {
+	$ds = [];
 	$fields = ['WRX_API', 'WRX_API_HOST', 'WRX_API_CREDENTIAL', 'WRX_API_TEST', 'WRX_LOG_JSON'];
 	$ci =& get_instance();
 	$rs = $ci->db->select('code, value')->where_in('code', $fields)->get('config');
 
 	if($rs->num_rows() >  0)
 	{
-		$ds = [];
-
 		foreach($rs->result() as $ro)
 		{
 			$ds[$ro->code] = $ro->value;
-		}
-
-		return $ds;
+		}		
 	}
 
-	return NULL;
+	return $ds;
 }
-
 
 function getPorlorApiConfig()
 {
+	$ds = [];
+
 	$fields = [
 		'PORLOR_API',
 		'PORLOR_API_ENDPOINT',
@@ -334,9 +296,7 @@ function getPorlorApiConfig()
 	$rs = $ci->db->select('code, value')->where_in('code', $fields)->get('config');
 
 	if($rs->num_rows() >  0)
-	{
-		$ds = [];
-
+	{		
 		foreach($rs->result() as $ro)
 		{
 			$ds[$ro->code] = $ro->value;
@@ -345,9 +305,8 @@ function getPorlorApiConfig()
 		return $ds;
 	}
 
-	return NULL;
+	return $ds;
 }
-
 
 function get_vat_amount($amount, $vat = NULL, $type = 'I')
 {
@@ -374,7 +333,6 @@ function get_vat_amount($amount, $vat = NULL, $type = 'I')
 	return round($re_vat,6);
 }
 
-
 function remove_vat($amount, $vat = NULL)
 {
 	if($vat === NULL)
@@ -391,7 +349,6 @@ function remove_vat($amount, $vat = NULL)
 	return round($amount, 6);
 }
 
-
 //---- remove discount percent return price after discount
 function get_price_after_discount($price, $disc = 0)
 {
@@ -407,46 +364,27 @@ function get_price_after_discount($price, $disc = 0)
 	return $price;
 }
 
-
 //--- return discount amount calculate from price and discount percentage
 function get_discount_amount($price, $disc = 0)
 {
+	$price = floatval($price);
 	$find = array('%', ' ');
 	$replace = array('', '');
-	$disc = str_replace($find, $replace, $disc);
-
-	if($disc > 0 && $disc <= 100)
-	{
-		$amount = $price * ($disc * 0.01);
-	}
-	else
-	{
-		$amount = 0;
-	}
-
-	return $amount;
+	$disc = floatval(str_replace($find, $replace, $disc));
+	return ($disc > 0 && $disc <= 100) ? $price * ($disc * 0.01) : 0;	
 }
-
 
 function add_vat($amount, $vat = NULL)
 {
-	if($vat === NULL)
-	{
-		$vat = getConfig('SALE_VAT_RATE'); //-- 7
-	}
-
-	if( $vat != 0 )
-	{
-		$re_vat = $vat * 0.01;
-		return round(($amount * $re_vat) + $amount, 6);
-	}
-
-	return round($amount, 6);
+	$amount = floatval($amount);
+	$vat = $vat === NULL ? floatval(getConfig('SALE_VAT_RATE')) : floatval($vat);
+	return $vat > 0 ? round(($amount * ($vat * 0.01)) + $amount, 6) : round($amount, 6);
 }
-
 
 function set_error($key, $name = "data")
 {
+	$key = $key ?? 'x';
+
 	$error = array(
 		'insert' => "Insert {$name} failed.",
 		'update' => "Update {$name} failed.",
@@ -460,10 +398,8 @@ function set_error($key, $name = "data")
 	);
 
 	$ci =& get_instance();
-
-	$ci->error = (!empty($error[$key]) ? $error[$key] : "Unknow error.");
+	$ci->error = ! empty($error[$key]) ? $error[$key] : ($key === 'x' ? "Unknown error." : $key);
 }
-
 
 function set_message($message)
 {
@@ -471,45 +407,31 @@ function set_message($message)
   $ci->session->set_flashdata('success', $message);
 }
 
-
 //--- return null if blank value
 function get_null($value)
 {
-	return $value === '' ? NULL : $value;
+	return (is_null($value) || trim($value) === '') ? NULL : $value;
 }
-
 
 //--- return TRUE if value ==  1 else return FALSE;
-function is_true($value)
+function is_true($value = 0)
 {
-	if($value === 1 OR $value === '1' OR $value === 'Y' OR $value === TRUE OR $value === 'TRUE' OR $value === 'true')
-	{
-		return TRUE;
-	}
-
-	return FALSE;
+	$value = strtolower(strval($value));
+	return ($value === '1' OR $value === 'y' OR $value === 'true');	
 }
-
 
 //---- check permission for add edit delete
 function can_do($pm)
 {
-	if( ! empty($pm))
-	{
-		return ($pm->can_add OR $pm->can_edit OR $pm->can_delete OR $pm->can_approve) ? TRUE : FALSE;
-	}
-
-	return FALSE;
+	return ($pm->can_add OR $pm->can_edit OR $pm->can_delete OR $pm->can_approve) ? TRUE : FALSE;	
 }
 
-
-function get_zero($value)
+function get_zero($value = 0)
 {
-	return $value === NULL ? 0 : $value;
+	return (is_null($value) || trim($value) === '') ? 0 : $value;
 }
 
-
-function pagination_config( $base_url, $total_rows = 0, $perpage = 20, $segment = 3)
+function pagination_config($base_url = '', $total_rows = 0, $perpage = 20, $segment = 3)
 {
 	$rows = get_rows();
 	$input_rows  = '<p class="pull-right pagination">';
@@ -519,28 +441,28 @@ function pagination_config( $base_url, $total_rows = 0, $perpage = 20, $segment 
 	$input_rows .= '<buton class="btn btn-success btn-xs" type="button" onClick="set_rows()">แสดง</button>';
 	$input_rows .= '</p>';
 
-	$config['full_tag_open'] 		= '<nav><ul class="pagination">';
-	$config['full_tag_close'] 		= '</ul>'.$input_rows.'</nav><hr class="hidden-xs">';
-	$config['first_link'] 				= 'First';
-	$config['first_tag_open'] 		= '<li>';
-	$config['first_tag_close'] 		= '</li>';
-	$config['next_link'] 				= 'Next';
-	$config['next_tag_open'] 		= '<li>';
-	$config['next_tag_close'] 	= '</li>';
-	$config['prev_link'] 			= 'prev';
-	$config['prev_tag_open'] 	= '<li>';
-	$config['prev_tag_close'] 	= '</li>';
-	$config['last_link'] 				= 'Last';
-	$config['last_tag_open'] 		= '<li>';
-	$config['last_tag_close'] 		= '</li>';
-	$config['cur_tag_open'] 		= '<li class="active"><a href="#">';
-	$config['cur_tag_close'] 		= '</a></li>';
-	$config['num_tag_open'] 		= '<li>';
-	$config['num_tag_close'] 		= '</li>';
-	$config['uri_segment'] 		= $segment;
-	$config['per_page']			= $perpage;
-	$config['total_rows']			= $total_rows != false ? $total_rows : 0 ;
-	$config['base_url']				= $base_url;
+	$config['full_tag_open'] = '<nav><ul class="pagination">';
+	$config['full_tag_close'] = '</ul>'.$input_rows.'</nav><hr class="hidden-xs">';
+	$config['first_link'] = 'First';
+	$config['first_tag_open'] = '<li>';
+	$config['first_tag_close'] = '</li>';
+	$config['next_link'] = 'Next';
+	$config['next_tag_open'] = '<li>';
+	$config['next_tag_close'] = '</li>';
+	$config['prev_link'] = 'prev';
+	$config['prev_tag_open'] = '<li>';
+	$config['prev_tag_close'] = '</li>';
+	$config['last_link'] = 'Last';
+	$config['last_tag_open'] = '<li>';
+	$config['last_tag_close'] = '</li>';
+	$config['cur_tag_open'] = '<li class="active"><a href="#">';
+	$config['cur_tag_close'] = '</a></li>';
+	$config['num_tag_open'] = '<li>';
+	$config['num_tag_close'] = '</li>';
+	$config['uri_segment'] = $segment;
+	$config['per_page'] = $perpage;
+	$config['total_rows'] = $total_rows != false ? $total_rows : 0 ;
+	$config['base_url'] = $base_url;
 
 	return $config;
 }
@@ -553,7 +475,7 @@ function convert($txt)
 }
 
 
-function statusBackgroundColor($is_expire, $status, $is_approve = 1)
+function statusBackgroundColor($is_expire = 0, $status = 0, $is_approve = 1)
 {
 	$bk_color = "";
 
@@ -601,10 +523,8 @@ function textStatusColor($status = 'P')
 	];
 
 	$bk_color = empty($arr[$status]) ? "" : $arr[$status];
-
 	return "background-color:{$bk_color};";
 }
-
 
 function genUid($lenght = 13)
 {
@@ -627,14 +547,13 @@ function genUid($lenght = 13)
 
 function is_wms_text($is_wms = 0)
 {
+	$is_wms = $is_wms ?? 0;
+
 	$text = array(
 		'0' => 'Warrix',
 		'1' => 'Pioneer',
 		'2' => 'Sokochan'
 	);
 
-	return empty($text[$is_wms]) ? 'Unknow' : $text[$is_wms];
+	return empty($text[$is_wms]) ? 'Unknown' : $text[$is_wms];
 }
-
-
- ?>

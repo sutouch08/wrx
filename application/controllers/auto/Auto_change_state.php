@@ -1,22 +1,16 @@
 <?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+use OpenSpout\Reader\XLSX\Reader;
+
 class Auto_change_state extends PS_Controller
-{
-  public $home;
-  public $mc;
-  public $ms;
-  public $title = "Change State";
-  public $isViewer = FALSE;
-  public $notibars = FALSE;
+{   
+  public $title = "Change State";  
   public $menu_code = 'SOATCS';
   public $menu_group_code = 'SO';
-  public $pm;
-  public $error;
-
+  
   public function __construct()
   {
-    parent::__construct();
-    //$this->ms = $this->load->database('ms', TRUE); //--- SAP database
-    //$this->mc = $this->load->database('mc', TRUE); //--- Temp Database
+    parent::__construct();  
     $this->home = base_url().'auto/auto_change_state';
     $this->load->model('inventory/delivery_order_model');
     $this->load->model('orders/orders_model');
@@ -24,11 +18,9 @@ class Auto_change_state extends PS_Controller
     $this->load->library('export');
   }
 
-
   public function index()
   {
-    $limit = getConfig('AUTO_CHANGE_STATE_LIMIT');
-    $limit = empty($limit) ? 100 : $limit;
+    $limit = getConfig('AUTO_CHANGE_STATE_LIMIT') ?? 100;
 
     $filter = array(
       'code' => get_filter('code', 'auto_code', ''),
@@ -42,10 +34,8 @@ class Auto_change_state extends PS_Controller
     $filter['all'] = $rows;
     $filter['limit'] = $limit;
     $filter['data'] = $data;
-
     $this->load->view('auto/auto_change_state', $filter);
   }
-
 
   public function get_all($filter = array(), $limit = 100)
   {
@@ -78,7 +68,6 @@ class Auto_change_state extends PS_Controller
     return NULL;
   }
 
-
   public function count_all(array $filter = array())
   {
     if (!empty($filter['code']))
@@ -95,7 +84,6 @@ class Auto_change_state extends PS_Controller
 
     return $count;
   }
-
 
   public function update_status()
 	{
@@ -118,18 +106,13 @@ class Auto_change_state extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
 	}
 
-
   public function import_order()
   {
-    ini_set('max_execution_time', 1200);
-    ini_set('memory_limit','1000M');
-
     $sc = TRUE;
-
     $file = isset( $_FILES['uploadFile'] ) ? $_FILES['uploadFile'] : FALSE;
     $path = $this->config->item('upload_path').'import_files/';
-    $file	= 'uploadFile';
-    $config = array(   // initial config for upload class
+    $file = 'uploadFile';
+    $config = array(
       "allowed_types" => "xlsx",
       "upload_path" => $path,
       "file_name"	=> "import_file",
@@ -144,92 +127,81 @@ class Auto_change_state extends PS_Controller
       $sc = FALSE;
       $this->error = $this->upload->display_errors();
     }
-    else
+    else 
     {
       $info = $this->upload->data();
-      $this->load->library('excel');
-      /// read file
-      $excel = PHPExcel_IOFactory::load($info['full_path']);
-      //get only the Cell Collection
-      $collection	= $excel->getActiveSheet()->toArray(NULL, TRUE, TRUE, TRUE);
+      $file_path = $info['full_path'];
+      $reader = new Reader();
+      $reader->open($file_path);
+      $sheet = $reader->getSheetIterator()->current();
 
-      if( ! empty($collection))
+      $isFirstRow = TRUE;
+      $j = 0;
+      $ds = [];
+      $ro = [];
+      
+      foreach ($sheet->getRowIterator() as $row) 
       {
-        $i = 1;
-        $j = 0;
-        $ds = [];
-        $ro = [];
-
-        foreach($collection as $rs)
+        if($isFirstRow)
         {
-          if($i > 1)
-          {
-            $j++;
-            $ro[] = array('code' => trim($rs['A']));
-
-            if($j == 1000)
-            {
-              $j = 0;
-              $ds[] = $ro;
-              $ro = [];
-            }
-          }
-
-          $i++;
+          $isFirstRow = FALSE;
+          continue;
         }
 
-        $ds[] = $ro;
+        $cells = $row->getCells();
+        $code = isset($cells[0]) ? trim($cells[0]->getValue()) : '';
 
-        if( ! empty($ds))
+        if(! empty($code))
         {
-          foreach($ds as $rows)
+          $j++;
+          $ro[] = array('code' => $code);
+        }        
+
+        if($j == 1000)
+        {
+          $j = 0;
+          $ds[] = $ro;
+          $ro = [];
+        }
+      }
+
+      if(!empty($ro))
+      {
+        $ds[] = $ro;
+      }
+     
+      $reader->close();
+
+      if( ! empty($ds))
+      {
+        foreach($ds as $rows)
+        {
+          if( ! $this->insert($rows))
           {
-            if( ! $this->insert($rows))
-            {
-              $sc = FALSE;
-              $this->error = "Cannot insert data";
-            }
+            $sc = FALSE;
+            $this->error = "Cannot insert data";
           }
         }
       }
-      else
+      else 
       {
         $sc = FALSE;
-        $this->error = "Cannot get data from import file : empty data collection";
+        $this->error = "Cannot get data from import file : empty data set";
       }
     }
 
     $this->_response($sc);
   }
-
-
 
   public function insert(array $ds = array())
   {
-    if( ! empty($ds))
-    {
-      return $this->db->insert_batch('auto_send_to_sap_order', $ds);
-    }
-
-    return FALSE;
+    return !empty($ds) ? $this->db->insert_batch('auto_send_to_sap_order', $ds) : FALSE;
   }
-
 
   public function clear_data()
   {
-    $sc = TRUE;
-
-    $qr = "TRUNCATE TABLE auto_send_to_sap_order";
-
-    if( ! $this->db->query($qr))
-    {
-      $sc = FALSE;
-      $this->error = "Failed to clear data";
-    }
-
-    $this->_response($sc);
+    echo $this->db->query("TRUNCATE TABLE auto_send_to_sap_order") ? 'success' : 'Failed to clear data';    
   }
-
 
   public function change_order_limit()
   {
@@ -255,5 +227,4 @@ class Auto_change_state extends PS_Controller
     $this->_response($sc);
   }
 
-} //--- end class
- ?>
+}

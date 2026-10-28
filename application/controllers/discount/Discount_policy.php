@@ -6,6 +6,7 @@ class Discount_policy extends PS_Controller
   public $menu_code = 'SCPOLI';
 	public $menu_group_code = 'SC';
 	public $title = 'นโยบายส่วนลด';
+  public $segment = 4;
 
   public function __construct()
   {
@@ -15,180 +16,294 @@ class Discount_policy extends PS_Controller
     $this->load->model('discount/discount_rule_model');
   }
 
-
   public function index()
   {
-		$code = get_filter('policy_code', 'policy_code', '');
-    $name = get_filter('policy_name', 'policy_name', '');
-    $active = get_filter('active', 'active', 2); //-- 0 = not active , 1 = active , 2 = all
-    $start_date = get_filter('start_date', 'start_date', '');
-    $end_date = get_filter('end_date', 'end_date', '');
-
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_filter('set_rows', 'rows', 20);
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = get_filter('rows', 'rows', 300);
-		}
-
-		$segment = 4; //-- url segment
-		$rows = $this->discount_policy_model->count_rows($code, $name, $active, $start_date, $end_date);
-
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-
-		$result = $this->discount_policy_model->get_data($code, $name, $active, $start_date, $end_date, $perpage, $this->uri->segment($segment));
-
-    $ds = array(
-      'code' => $code,
-      'name' => $name,
-      'active' => $active,
-      'start_date' => $start_date,
-      'end_date' => $end_date,
-			'data' => $result
+    $filter = array(
+      'code' => get_filter('code', 'policy_code', ''),
+      'name' => get_filter('name', 'policy_name', ''),
+      'active' => get_filter('active', 'active', 'all'),
+      'start_date' => get_filter('start_date', 'start_date', ''),
+      'end_date' => get_filter('end_date', 'end_date', '')
     );
 
+    if($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+    
+		$perpage = get_rows();
+    $rows = $this->discount_policy_model->count_rows($filter);					
+    $filter['data'] = $this->discount_policy_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);		    
 		$this->pagination->initialize($init);
-
-    $this->load->view('discount/policy/policy_view', $ds);
+    $this->load->view('discount/policy/policy_list', $filter);
   }
-
-
-
 
   public function add_new()
   {
-    if($this->pm->can_add)
+    if(! $this->pm->can_add)
     {
-      $this->load->view('discount/policy/policy_add_view');
+      $this->deny_page(TRUE);
+      exit;
     }
-    else
-    {
-      redirect($this->home);
-    }
+
+    $this->load->view('discount/policy/policy_add');
   }
 
-
-
-  public function add_policy()
+  public function add()
   {
-    if($this->input->post('policy_name'))
+    $sc = TRUE;
+    $ds = json_decode($this->input->post('data') ?? '{}');
+
+    if(empty($ds) || !isset($ds->name) || !isset($ds->start_date) || !isset($ds->end_date))
+    {
+      $sc = FALSE;
+      set_error('required');
+    }
+
+    if($sc === TRUE && ! $this->pm->can_add)
+    {
+      $sc = FALSE;
+      set_error('permission');
+    }
+
+    if($sc === TRUE)
     {
       $code = $this->get_new_code();
+
       $arr = array(
         'code' => $code,
-        'name' => $this->input->post('policy_name'),
-        'start_date' => db_date($this->input->post('start_date')),
-        'end_date' => db_date($this->input->post('end_date')),
-        'user' => get_cookie('uname')
+        'name' => $ds->name,
+        'start_date' => db_date($ds->start_date),
+        'end_date' => db_date($ds->end_date),
+        'user' => $this->_user->uname
       );
 
-      if($this->discount_policy_model->add($arr))
+      if( ! $this->discount_policy_model->add($arr))
       {
-        redirect($this->home.'/edit_policy/'. $code);
-      }
-      else
-      {
-        set_error('เพิ่มข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
-        redirect($this->home.'/add_new');
+        $sc = FALSE;
+        set_error('insert');
       }
     }
-    else
-    {
-      set_error('เพิ่มข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
-      redirect($this->home.'/add_new');
-    }
 
-  }
-
-
-  public function edit_policy($code)
-  {
-    $this->load->helper('discount_rule');
-    $rs = $this->discount_policy_model->get_policy_by_code($code);
-    $data['policy'] = $rs;
-    $data['rules']  = $this->discount_rule_model->get_policy_rules($rs->id);
-    $this->load->view('discount/policy/policy_edit_view', $data);
-  }
-
-
-  public function view_policy_detail($code)
-  {
-    $this->load->helper('discount_rule');
-    $rs = $this->discount_policy_model->get_policy_by_code($code);
-    $data['policy'] = $rs;
-    $data['rules']  = $this->discount_rule_model->get_policy_rules($rs->id);
-    $this->load->view('discount/policy/policy_view_detail', $data);
-  }
-
-
-
-  public function update_policy()
-  {
-    $id = $this->input->post('id');
-    $code = $this->input->post('policy_code');
-    $ds = array(
-      'name' => $this->input->post('policy_name'),
-      'start_date' => db_date($this->input->post('start_date')),
-      'end_date' => db_date($this->input->post('end_date')),
-      'active' => $this->input->post('active'),
-      'update_user' => get_cookie('uname')
+    $arr = array(
+      'status' => $sc === TRUE ? 'success' : 'error',
+      'message' => $sc === TRUE ? 'success' : $this->error,
+      'code' => isset($code) ? $code : ''
     );
 
-    $rs = $this->discount_policy_model->update($id, $ds);
-    if($rs === TRUE)
+    echo json_encode($arr);
+  } 
+
+  public function edit($code)
+  {    
+    if(! $this->pm->can_add && ! $this->pm->can_edit)
     {
-      set_message('Updated');
-      redirect($this->home.'/edit_policy/'.$code);
+      $this->deny_page(TRUE);
+      exit;
     }
-    else
-    {
-      set_error('ปรับปรุงข้อมูลไม่สำเร็จ');
-      redirect($this->home.'/edit_policy/'.$code);
-    }
+
+    $this->load->helper('discount_rule');    
+    $policy = $this->discount_policy_model->get_policy_by_code($code);
+    $rules = $this->discount_rule_model->get_policy_rules($policy->id);
+    $ds = array(
+      'policy' => $policy,
+      'rules' => $rules
+    );
+
+    $this->load->view('discount/policy/policy_edit', $ds);
   }
 
+  public function update()
+  {
+    $sc = TRUE;
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
+    if(empty($ds) || !isset($ds->id) || !isset($ds->name) || !isset($ds->start_date) || !isset($ds->end_date) || !isset($ds->active))
+    {
+      $sc = FALSE;
+      set_error('required');
+    }
+
+    if($sc === TRUE && ! $this->pm->can_edit)
+    {
+      $sc = FALSE;
+      set_error('permission');
+    }
+
+    if($sc === TRUE)
+    {
+      $arr = array(
+        'name' => $ds->name,
+        'start_date' => db_date($ds->start_date),
+        'end_date' => db_date($ds->end_date),
+        'active' => $ds->active,
+        'update_user' => $this->_user->uname
+      );
+
+      if(! $this->discount_policy_model->update($ds->id, $arr))
+      {
+        $sc = FALSE;
+        set_error('update');
+      }
+    }
+
+    $this->_response($sc);
+  }
+
+  public function set_active()
+  {
+    $sc = TRUE;
+    $id = $this->input->post('id');
+    $active = $this->input->post('active');
+
+    if(empty($id) || ($active === NULL || ($active != 0 && $active != 1)))
+    {
+      $sc = FALSE;
+      set_error('required');
+    }
+
+    if($sc === TRUE && ! $this->pm->can_edit)
+    {
+      $sc = FALSE;
+      set_error('permission');
+    }
+
+    if($sc === TRUE)
+    {
+      $arr = array(
+        'active' => $active,
+        'update_user' => $this->_user->uname
+      );
+      
+      if(! $this->discount_policy_model->update($id, $arr))
+      {
+        $sc = FALSE;
+        set_error('update');
+      }
+    }
+
+    $this->_response($sc);
+  }
+
+  public function add_rule() 
+  {
+    $sc = TRUE;
+    $id = $this->input->post('id_policy');
+    $rules = $this->input->post('rules');
+
+    if(empty($id) || empty($rules) || !is_array($rules))
+    {
+      $sc = FALSE;
+      set_error('required');
+    }
+
+    if($sc === TRUE)
+    {      
+      $arr = array(
+        'id_policy' => $id,
+        'update_user' => $this->_user->uname
+      );
+
+      if( ! $this->discount_rule_model->update_batch($arr, $rules))
+      {
+        $sc = FALSE;
+        set_error('update');
+      }      
+    }
+
+    $this->_response($sc);
+  }
+
+  public function view_detail($code)
+  {
+    $this->load->helper('discount_rule');
+    $rs = $this->discount_policy_model->get_policy_by_code($code);
+    $ds['policy'] = $rs;
+    $ds['rules']  = $this->discount_rule_model->get_policy_rules($rs->id);
+    $this->load->view('discount/policy/policy_view_detail', $ds);
+  }
 
   public function get_active_rule()
   {
-  	$rules = $this->discount_rule_model->get_active_rule();
-  	$ds = array();
+  	$rules = $this->discount_rule_model->get_active_rule();    
+  	$ds = [];
+
     if(!empty($rules))
     {
       foreach($rules as $rs)
       {
-        $arr = array(
+        $ds[] = array(
           'id_rule' => $rs->id,
           'ruleCode' => $rs->code,
           'ruleName' => $rs->name,
           'date_upd' => thai_date($rs->date_upd)
         );
-
-        array_push($ds, $arr);
       }
     }
     else
     {
-      $arr = array('nodata' => 'nodata');
-      array_push($ds, $arr);
+      $ds[] = array('nodata' => 'nodata');
     }
 
     echo json_encode($ds);
   }
 
 
-
-
-  public function delete_policy($id)
+  public function delete()
   {
-    $rs = $this->discount_policy_model->delete($id);
+    $sc = TRUE;
+    $id = $this->input->post('id');
 
-    echo $rs->status === TRUE ? 'success' : $rs->message;
+    if(! $this->pm->can_delete)
+    {
+      $sc = FALSE;
+      set_error('permission');
+    }
+    
+    if($sc === TRUE && $this->discount_policy_model->has_transection($id))
+    {
+      $sc = FALSE;
+      set_error('transaction');
+    }
+
+    if($sc === TRUE)
+    {
+      $this->db->trans_begin();
+      
+      $arr = array(
+        'id_policy' => NULL,
+        'update_user' => $this->_user->uname
+      );
+
+      if(! $this->discount_rule_model->update_by_policy($id, $arr))
+      {
+        $sc = FALSE;
+        $this->error = "Failed to unlink policy from rules";
+      }
+
+      if($sc === TRUE)
+      {
+        if(! $this->discount_policy_model->delete($id))
+        {
+          $sc = FALSE;
+          $this->error = "Failed to delete policy";
+        }
+      }
+
+      if($sc === TRUE)
+      {
+        $this->db->trans_commit();
+      }
+      else
+      {
+        $this->db->trans_rollback();
+      }
+    }
+
+    $this->_response($sc);
   }
-
-
 
   public function get_new_code()
   {

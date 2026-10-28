@@ -4,9 +4,8 @@ function select_active_package($id = NULL)
   $ds = "";
   $ci =& get_instance();
   $ci->load->model('masters/package_model');
-  $active = 1;
   $id = empty($id) ? getConfig('DEFAULT_PACKAGE') : $id;
-
+  $active = 1;
   $options = $ci->package_model->get_all($active);
 
   if( ! empty($options))
@@ -19,5 +18,3 @@ function select_active_package($id = NULL)
 
   return $ds;
 }
-
- ?>

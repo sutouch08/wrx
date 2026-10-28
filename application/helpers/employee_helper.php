@@ -1,10 +1,10 @@
 <?php
 function employee_in($txt)
 {
-  $sc = array('0');
-  $CI =& get_instance();
-  $CI->load->model('masters/employee_model');
-  $rs = $CI->employee_model->search($txt);
+  $sc = ['0'];
+  $ci =& get_instance();
+  $ci->load->model('masters/employee_model');
+  $rs = $ci->employee_model->search($txt);
 
   if(!empty($rs))
   {
@@ -20,10 +20,8 @@ function employee_in($txt)
 function select_employee($id = NULL)
 {
   $ds = "";
-
   $ci =& get_instance();
   $ci->load->model('masters/employee_model');
-
   $list = $ci->employee_model->get_all();
 
   if( ! empty($list))
@@ -37,14 +35,11 @@ function select_employee($id = NULL)
   return $ds;
 }
 
-
 function select_active_employee($id = NULL)
 {
   $ds = "";
-
   $ci =& get_instance();
   $ci->load->model('masters/employee_model');
-
   $list = $ci->employee_model->get_all(1);
 
   if( ! empty($list))
@@ -52,7 +47,6 @@ function select_active_employee($id = NULL)
     foreach($list as $rs)
     {
       $rs->name = $rs->firstName.' '.$rs->lastName;
-
       $ds .= '<option value="'.$rs->empID.'" data-name="'.$rs->name.'" data-active="'.$rs->Active.'" '.is_selected($id, $rs->empID).'>'.$rs->name.'</option>';
     }
   }
@@ -60,13 +54,9 @@ function select_active_employee($id = NULL)
   return $ds;
 }
 
-
-function employee_name($id)
+function employee_name($id = NULL)
 {
   $ci =& get_instance();
   $ci->load->model('masters/employee_model');
-
   return $ci->employee_model->get_name($id);
 }
-
-?>

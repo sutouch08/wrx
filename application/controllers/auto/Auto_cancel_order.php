@@ -34,9 +34,7 @@ class Auto_cancel_order extends CI_Controller
       foreach($order_list as $rs)
       {
         $sc = TRUE;
-
         $code = $rs->code;
-
         $this->db->trans_begin();
 
         //--- 1. เคลียร์ buffer
@@ -135,51 +133,49 @@ class Auto_cancel_order extends CI_Controller
 
         if($sc === TRUE)
         {
-          $this->db->trans_commit();
-
-          if($this->sync_api_stock)
-          {
-            $order = $this->orders_model->get($code);
-            $warehouse_code = empty($order) ? "" : $order->warehouse_code;
-
-            if($this->ix_warehouse == $warehouse_code && ! $order->is_pre_order)
-            {
-              $details = $this->orders_model->get_order_details($code);
-
-              if( ! empty($details))
-              {
-                $sync_stock = array();
-
-                foreach($details as $detail)
-                {
-                  if($detail->is_count == 1)
-                  {
-                    $item = $this->products_model->get($detail->product_code);
-
-                    if( ! empty($item) && $item->is_api)
-                    {
-                      $sync_stock[] = (object) array('code' => $item->code, 'rate' => $item->api_rate);
-                    }
-                  }
-                }
-
-                if( ! empty($sync_stock))
-                {
-                  $this->update_api_stock($sync_stock);
-                }
-              }
-            }
-          }
+          $this->db->trans_commit();          
         }
         else
         {
           $this->db->trans_rollback();
         }
-      }
-      // end foreach
+
+        if ($sc === TRUE && $this->sync_api_stock)
+        {
+          $order = $this->orders_model->get($code);
+          $warehouse_code = empty($order) ? "" : $order->warehouse_code;
+
+          if ($this->ix_warehouse == $warehouse_code && ! $order->is_pre_order)
+          {
+            $details = $this->orders_model->get_order_details($code);
+
+            if (! empty($details))
+            {
+              $sync_stock = array();
+
+              foreach ($details as $detail)
+              {
+                if ($detail->is_count == 1)
+                {
+                  $item = $this->products_model->get($detail->product_code);
+
+                  if (! empty($item) && $item->is_api)
+                  {
+                    $sync_stock[] = (object) array('code' => $item->code, 'rate' => $item->api_rate);
+                  }
+                }
+              }
+
+              if (! empty($sync_stock))
+              {
+                $this->update_api_stock($sync_stock);
+              }
+            }
+          }
+        }
+      }      
     }
   }
-
 
   //---- send calcurated stock to marketplace
   private function update_api_stock(array $ds = array())
@@ -191,7 +187,6 @@ class Auto_cancel_order extends CI_Controller
 
       $i = 0;
       $j = 0;
-
       $items = [];
 
       foreach($ds as $rs)
@@ -215,7 +210,6 @@ class Auto_cancel_order extends CI_Controller
     }
   }
 
-
   private function get_cancel_list($limit = 100)
   {
     $rs = $this->db
@@ -235,5 +229,4 @@ class Auto_cancel_order extends CI_Controller
     return NULL;
   }
 
-} //--- end class
- ?>
+}

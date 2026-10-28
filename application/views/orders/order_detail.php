@@ -161,7 +161,9 @@
     <div class="form-group">
       <label class="col-lg-2 col-md-4 col-sm-4 col-xs-12 control-label no-padding-right">Remark</label>
       <div class="col-lg-9 col-md-8 col-sm-8 col-xs-12">
-        <textarea id="remark" maxlength="254" rows="3" class="form-control" onchange="updateRemark()" <?php echo $disabled; ?>><?php echo str_replace('"', '&quot;',$order->remark); ?></textarea>
+        <textarea id="remark" maxlength="254" rows="3" class="form-control" onchange="updateRemark()" <?php echo $disabled; ?>>
+					<?php echo empty($order->remark) ? '' : str_replace('"', '&quot;',$order->remark); ?>
+				</textarea>
       </div>
     </div>
 
@@ -212,7 +214,7 @@
 					<td class="middle text-center">
 					<?php if( ( $order->is_paid == 0 && $order->state != 2 && $order->is_expired == 0 ) && ($edit OR $add)) : ?>
 						<?php if($order->state == 1 OR ($rs->is_count == 0 && $order->state != 8)) : ?>
-								<button type="button" class="btn btn-minier btn-danger" onclick="removeDetail({{id}}, '{{productCode}}')">
+								<button type="button" class="btn btn-minier btn-danger" onclick="removeDetail('{{id}}', '{{productCode}}')">
 									<i class="fa fa-trash"></i>
 								</button>
 						<?php endif; ?>
@@ -236,7 +238,7 @@
 								value="{{price}}"
 								data-price="{{price}}"
 								data-count="{{is_count}}"
-								onchange="recalItem({{id}}, '{{#if is_count}}N{{else}}Y{{/if}}')"/>
+								onchange="recalItem('{{id}}', '{{#if is_count}}N{{else}}Y{{/if}}')"/>
 						<?php endif; ?>
 						{{#if is_count}}
 						<span class="price-label" id="price-label-{{id}}">	{{price}}</span>
@@ -252,7 +254,7 @@
 								value="{{qty}}"
 								data-qty="{{qty}}"
 								data-count="{{is_count}}"
-								onchange="updateItem({{id}})"
+								onchange="updateItem('{{id}}')"
 							/>
 						<?php else : ?>
 							{{qty}}
@@ -267,7 +269,7 @@
 							name="disc[{{id}}]"
 							value="{{discount}}"
 							data-disc="{{discount}}"
-							onchange="recalItem({{id}})"
+							onchange="recalItem('{{id}}')"
 							/>
 					<?php endif; ?>
 					<span class="discount-label" id="disc_label_{{id}}">{{discount}}</span>
@@ -279,7 +281,7 @@
 							class="form-control input-sm line-total text-right e"
 							id="line_total_{{id}}"
 							data-id="{{id}}"
-							onkeyup="recalDiscount({{id}})"
+							onkeyup="recalDiscount('{{id}}')"
 							value="{{amount}}"
 							data-total="{{amount}}"
 							readonly

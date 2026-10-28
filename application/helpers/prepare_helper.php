@@ -1,23 +1,19 @@
 <?php
 
-function stockInZone($stockZone)
+function stockInZone(?array $stockZone)
 {
-	$sc = "ไม่มีสินค้า";
+	$sc = "";
+
 	if(!empty($stockZone))
-	{
-		$sc = "";
+	{		
 		foreach( $stockZone as $rs)
 		{
 			$sc .= $rs->name .' : '. number($rs->qty).' <br/>';
 		}
 	}
 
-	return $sc;
+	return empty($sc) ? "ไม่มีสินค้า" : $sc;
 }
-
-
-
-
 
 function prepareFromZone($id_order, $id_pd)
 {

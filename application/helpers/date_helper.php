@@ -1,8 +1,9 @@
 <?php
-function thai_date($date, $time = FALSE, $sp = '-')
+function thai_date($date = '', $time = FALSE, $sp = '-')
 {
   $sp = $sp === '' ? '-' : $sp;
   $format = $time === TRUE ? 'd'.$sp.'m'.$sp.'Y'.' H:i:s' : 'd'.$sp.'m'.$sp.'Y';
+
   if(empty($date))
   {
     $date = date('d-m-Y');
@@ -11,16 +12,14 @@ function thai_date($date, $time = FALSE, $sp = '-')
   return date($format, strtotime($date));
 }
 
-
-
-function thai_short_text_date($date, $time = FALSE)
+function thai_short_text_date($date = '', $time = FALSE)
 {
-	$Y 	= date('Y', strtotime($date));
-	$m 	= date('m', strtotime($date));
-	$d 	= date('d', strtotime($date));
-
-	$Y 	= $Y < 2200 ? $Y+543 : $Y+0;  //----- เปลี่ยน ค.ศ. เป็น พ.ศ. ---//
-	$t 		= date('H:i', strtotime($date));
+  $date = empty($date) ? date('Y-m-d') : $date;
+	$Y = date('Y', strtotime($date));
+	$m = date('m', strtotime($date));
+	$d = date('d', strtotime($date));
+	$Y = $Y < 2200 ? $Y+543 : $Y+0;  //----- เปลี่ยน ค.ศ. เป็น พ.ศ. ---//
+	$t = date('H:i', strtotime($date));
 
 	switch( $m )
 	{
@@ -37,11 +36,10 @@ function thai_short_text_date($date, $time = FALSE)
 		case "11": $m 	= "พ.ย."; break;
 		case "12": $m 	= "ธ.ค."; break;
 	}
-	$newDate 	= $time === TRUE ? $d.' '.$m.' '.$Y.' '.$t : $d.' '.$m.' '.$Y;
+
+	$newDate = $time === TRUE ? $d.' '.$m.' '.$Y.' '.$t : $d.' '.$m.' '.$Y;
 	return $newDate;
 }
-
-
 
 function now($millisec = FALSE)
 {
@@ -49,19 +47,16 @@ function now($millisec = FALSE)
   return $millisec === TRUE ? $date->format('Y-m-d H:i:s.u') : $date->format('Y-m-d H:i:s');
 }
 
-
-
 function today()
 {
   return date('Y-m-d');
 }
 
-
-function db_date($date, $time = FALSE, $sp = '-')
+function db_date($date = '', $time = FALSE)
 {
   if(empty($date))
   {
-    $date = date('Y-m-d');
+    return $time === TRUE ? date('Y-m-d H:i:s') : date('Y-m-d');
   }
 
   if($time === TRUE)
@@ -72,15 +67,15 @@ function db_date($date, $time = FALSE, $sp = '-')
     return $date .' '.$c_time;
   }
 
-
   return date('Y-m-d', strtotime($date));
 }
 
-
-
-function sap_date($date="", $time = FALSE)
+function sap_date($date = '', $time = FALSE)
 {
-  //$date = empty($date) ? date('Y-m-d H:i:s') : $date;
+  if(empty($date))
+  {
+    return $time === TRUE ? date('Y-m-d H:i:s') : date('Y-m-d');
+  }  
 
   if($time === TRUE)
   {
@@ -90,114 +85,76 @@ function sap_date($date="", $time = FALSE)
     return $date .' '.$c_time;
   }
 
-
   return date('Y-m-d', strtotime($date));
 }
-
 
 function from_date($date = '')
 {
-  if($date === '')
-  {
-    return date('Y-m-d 00:00:00');
-  }
-  else
-  {
-    return date('Y-m-d 00:00:00', strtotime($date));
-  }
+  return empty($date) ? date('Y-m-d 00:00:00') : date('Y-m-d 00:00:00', strtotime($date));  
 }
-
-
 
 function to_date($date = '')
 {
-  if($date === '')
-  {
-    return date('Y-m-d 23:59:59');
-  }
-  else
-  {
-    return date('Y-m-d 23:59:59', strtotime($date));
-  }
+  return empty($date) ? date('Y-m-d 23:59:59') : date('Y-m-d 23:59:59', strtotime($date));
 }
 
-
-// function select_years($se = '')
-// {
-// 	$sc 		= '';
-// 	$length	= 5;
-// 	$startYear = getConfig('START_YEAR');
-// 	//$se 		= ($se == '') ? $startYear : $se;
-// 	$year = ($se - $length) < $startYear ? $startYear : $se - $length;
-// 	$lastYear = date('Y') + $length;
-// 	while( $year <= $lastYear )
-// 	{
-// 		$sc .= '<option value="'.$year.'" '.is_selected($year, $se).'>'.$year.'</option>';
-// 		$year++;
-// 	}
-//
-// 	return $sc;
-// }
-
-
-function select_years($se = '')
+function select_years(string $selected = '')
 {
-	$sc 		= '';
+	$options = "";  
 	$length	= 5;
 	$startYear = getConfig('START_YEAR');
-  $y = ($se === '' OR $sc === NULL) ? $startYear : $se;
+  $startYear = empty($startYear) ? intval(date('Y')) - $length : intval($startYear);
+  $y = $selected === ''  ? $startYear : intval($selected);
 	$year = ($y - $length) < $startYear ? $startYear : $y - $length;
 	$lastYear = date('Y') + $length;
+
 	while( $year <= $lastYear )
 	{
-    $is_select = ($year == $se) ? 'selected' : '';
-		$sc .= '<option value="'.$year.'" '.$is_select.'>'.$year.'</option>';
+    $is_select = ($year == $selected) ? 'selected' : '';
+		$options .= '<option value="'.$year.'" '.$is_select.'>'.$year.'</option>';
 		$year++;
 	}
 
-	return $sc;
+	return $options;
 }
-
-
 
 function selectHour($se = '')
 {
 	$sc	= '';
 	$hour = array('00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23');
+
 	foreach($hour as $rs)
 	{
 		$sc .= '<option value="'.$rs.'" '.is_selected($rs, $se).'>'.$rs.'</option>';
 	}
+
 	return $sc;
 }
-
-
-
 
 function selectMin($se = '' )
 {
 	$sc = '<option value="00">00</option>';
 	$m = 59;
 	$i 	= 1;
+
 	while( $i <= $m )
 	{
 		$ix = $i < 10 ? '0'.$i : $i;
 		$sc .= '<option value="'.$ix.'" '.is_selected($se, $ix).'>'.$ix.'</option>';
 		$i++;
 	}
+
 	return $sc;
 }
 
-
-
-function selectTime($time='')
+function selectTime($time = '')
 {
 	$sc = '';
 	$times = array('00:00','00:30','01:00','01:30','02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00',
 						'09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30',
 						'20:00','20:30','21:00','21:30','22:00','22:30','23:00','23:30');
 
-  if($time != '')
+  if($time !== '' && $time !== NULL)
   {
     $time = date('H:i:s', strtotime($time));
   }
@@ -207,12 +164,17 @@ function selectTime($time='')
     $val = date('H:i:s', strtotime($hrs));
 		$sc .= '<option value="'.$val.'" '.is_selected($time, $val).'>'.$hrs.'</option>';
 	}
+
 	return $sc;
 }
 
-
-function is_valid_date($date)
+function is_valid_date(string $date)
 {
+  if(empty($date))
+  {
+    return FALSE;
+  }
+  
   //--- check date is valid format Y-m-d
   $Y = intval(date('Y', strtotime($date)));
   $M = intval(date('m', strtotime($date)));
@@ -250,4 +212,4 @@ function is_valid_date($date)
 
   return TRUE;
 }
- ?>
+

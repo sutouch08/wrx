@@ -1,7 +1,6 @@
 <?php
 class Auto_expire_transfer extends CI_Controller
 {
-
   public function __construct()
   {
     parent::__construct();
@@ -12,7 +11,6 @@ class Auto_expire_transfer extends CI_Controller
 	{
 		$limit = getConfig('TRANSFER_EXPIRATION');
     $eom = getConfig('TRANSFER_EXPIRE_EOM');
-
     $today = date('Y-m-d');
     $endOfMonth = date('Y-m-t');
     $end_date = date('Y-m-d 23:59:59', strtotime("-{$limit} days"));
@@ -34,7 +32,4 @@ class Auto_expire_transfer extends CI_Controller
       $this->exp_model->expire_sm($exp_date);
     }
 	}
-
-
-} //--- end class
- ?>
+}

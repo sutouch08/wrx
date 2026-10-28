@@ -62,7 +62,7 @@ class PS_Controller extends CI_Controller
 
       $this->ms = $this->load->database('ms', TRUE); //--- SAP database
       $this->mc = $this->load->database('mc', TRUE); //--- Temp Database
-      $this->cn = $this->load->database('cn', TRUE); //--- consign Database
+      //$this->cn = $this->load->database('cn', TRUE); //--- consign Database
 
       $dataDate = getConfig('DATA_DATE');
 
@@ -97,9 +97,9 @@ class PS_Controller extends CI_Controller
   }
 
 
-  public function deny_page()
+  public function deny_page($home = FALSE)
   {
-    return $this->load->view('deny_page');
+    return $this->load->view('deny_page', array('home' => $home));
   }
 
 

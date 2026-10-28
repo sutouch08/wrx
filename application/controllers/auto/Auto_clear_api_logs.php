@@ -29,7 +29,6 @@ class Auto_clear_api_logs extends CI_Controller
     $this->clear_sap_logs($date);
   }
 
-
   public function clear_wrx_logs($date)
   {
     return $this->wms->where('date_upd <', $date)->delete('wrx_api_logs');
@@ -50,5 +49,4 @@ class Auto_clear_api_logs extends CI_Controller
     return $this->wms->where('date_upd <', $date)->delete('sap_api_logs');
   }
 
-} //--- end class
- ?>
+}

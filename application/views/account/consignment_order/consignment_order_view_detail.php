@@ -4,14 +4,14 @@
     <h3 class="title"><?php echo $this->title; ?></h3>
   </div>
   <div class="col-lg-6 col-md-6 col-sm-8 col-xs-12 padding-5 text-right">
-    <button type="button" class="btn btn-xs btn-warning top-btn" onclick="goBack()"><i class="fa fa-arrow-left"></i> กลับ</button>
+    <button type="button" class="btn btn-white btn-default top-btn" onclick="goBack()"><i class="fa fa-arrow-left"></i> กลับ</button>
     <?php if ($doc->status == 1) : ?>
       <?php if ($this->pm->can_delete) : ?>
-        <button type="button" class="btn btn-xs btn-danger top-btn" onclick="unSaveConsign()"><i class="fa fa-refresh"></i> ยกเลิกการบันทึก</button>
+        <button type="button" class="btn btn-white btn-danger top-btn" onclick="unSaveConsign()"><i class="fa fa-refresh"></i> ยกเลิกการบันทึก</button>
       <?php endif; ?>
-      <button type="button" class="btn btn-xs btn-primary top-btn" onclick="doExport()"><i class="fa fa-send"></i> ส่งข้อมูลไป SAP</button>
+      <button type="button" class="btn btn-white btn-primary top-btn" onclick="doExport()"><i class="fa fa-send"></i> ส่งข้อมูลไป SAP</button>
     <?php endif; ?>
-    <button type="button" class="btn btn-xs btn-info hidden-xs top-btn" onclick="printConsignOrder()"><i class="fa fa-print"></i> พิมพ์</button>
+    <button type="button" class="btn btn-white btn-info hidden-xs top-btn" onclick="printConsignOrder()"><i class="fa fa-print"></i> พิมพ์</button>
   </div>
 </div><!-- End Row -->
 <hr class="" />

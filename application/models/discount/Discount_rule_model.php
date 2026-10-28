@@ -1,36 +1,33 @@
 <?php
 class Discount_rule_model extends CI_Model
 {
+  private $tb = "discount_rule";
+
   public function __construct()
   {
     parent::__construct();
   }
 
-
   public function add(array $ds = array())
   {
-    $rs = $this->db->insert('discount_rule', $ds);
-    if($rs)
-    {
-      return $this->db->insert_id();
-    }
-
-    return FALSE;
+    $rs = $this->db->insert($this->tb, $ds);
+    return $rs ? $this->db->insert_id() : FALSE;
   }
-
-
 
   public function update($id, array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->db->where('id', $id)->update('discount_rule', $ds);
-    }
-
-    return FALSE;
+    return !empty($ds) ? $this->db->where('id', $id)->update($this->tb, $ds) : FALSE;
   }
 
+  public function update_batch(array $ds = array(), $ids = array())
+  {
+    return (!empty($ds) && !empty($ids)) ? $this->db->where_in('id', $ids)->update($this->tb, $ds) : FALSE;    
+  }
 
+  public function update_by_policy($id_policy, array $ds = array())
+  {
+    return (!empty($ds)) ? $this->db->where('id_policy', $id_policy)->update($this->tb, $ds) : FALSE;
+  }
 
   public function get($id)
   {
@@ -41,25 +38,16 @@ class Discount_rule_model extends CI_Model
     ->where('r.id', $id)
     ->get();
 
-    if($rs->num_rows() == 1)
-    {
-      return $rs->row();
-    }
-
-    return NULL;
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
   }
 
 
 	public function get_policy_id($id)
 	{
-		$rs = $this->db->select('id_policy')->where('id', $id)->get('discount_rule');
-		if($rs->num_rows() === 1)
-		{
-			return $rs->row()->id_policy;
-		}
-
-		return NULL;
+		$rs = $this->db->select('id_policy')->where('id', $id)->get($this->tb);
+    return $rs->num_rows() === 1 ? $rs->row()->id_policy : NULL;
 	}
+
   /*
   |----------------------------------
   | BEGIN ใช้สำหรับแสดงรายละเอียดในหน้าพิมพ์
@@ -67,10 +55,10 @@ class Discount_rule_model extends CI_Model
   */
 
   public function getCustomerRuleList($id)
-  {
+  {    
     $qr  = "SELECT cs.code, cs.name FROM discount_rule_customer AS cr ";
     $qr .= "JOIN customers AS cs ON cr.customer_code = cs.code ";
-    $qr .= "WHERE cr.id_rule = ".$id;
+    $qr .= "WHERE cr.id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -79,17 +67,16 @@ class Discount_rule_model extends CI_Model
   {
     $qr  = "SELECT cs.code, cs.name FROM discount_rule_customer_group AS cr ";
     $qr .= "JOIN customer_group AS cs ON cr.group_code = cs.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
-
 
   public function getCustomerTypeRule($id)
   {
     $qr  = "SELECT cs.code, cs.code, cs.name FROM discount_rule_customer_type AS cr ";
     $qr .= "JOIN customer_type AS cs ON cr.type_code = cs.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -99,7 +86,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr  = "SELECT cs.code, cs.code, cs.name FROM discount_rule_customer_kind AS cr ";
     $qr .= "JOIN customer_kind AS cs ON cr.kind_code = cs.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -108,7 +95,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr  = "SELECT cs.code, cs.code, cs.name FROM discount_rule_customer_area AS cr ";
     $qr .= "JOIN customer_area AS cs ON cr.area_code = cs.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -117,7 +104,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr  = "SELECT cs.code, cs.code, cs.name FROM discount_rule_customer_class AS cr ";
     $qr .= "JOIN customer_class AS cs ON cr.class_code = cs.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -127,7 +114,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr = "SELECT ps.code FROM discount_rule_product_style AS sr ";
     $qr .= "JOIN product_style AS ps ON sr.style_code = ps.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -137,7 +124,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr = "SELECT ps.code, ps.name FROM discount_rule_product_group AS sr ";
     $qr .= "JOIN product_group AS ps ON sr.group_code = ps.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -147,7 +134,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr = "SELECT ps.code, ps.name FROM discount_rule_product_sub_group AS sr ";
     $qr .= "JOIN product_sub_group AS ps ON sr.sub_group_code = ps.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -156,7 +143,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr = "SELECT ps.code, ps.name FROM discount_rule_product_type AS sr ";
     $qr .= "JOIN product_type AS ps ON sr.type_code = ps.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -165,7 +152,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr = "SELECT ps.code, ps.name FROM discount_rule_product_kind AS sr ";
     $qr .= "JOIN product_kind AS ps ON sr.kind_code = ps.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -174,7 +161,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr = "SELECT ps.code, ps.name FROM discount_rule_product_category AS sr ";
     $qr .= "JOIN product_category AS ps ON sr.category_code = ps.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -184,7 +171,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr = "SELECT ps.code, ps.name FROM discount_rule_product_brand AS sr ";
     $qr .= "JOIN product_brand AS ps ON sr.brand_code = ps.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -192,7 +179,7 @@ class Discount_rule_model extends CI_Model
 
   public function getProductYearRule($id)
   {
-    $qr = "SELECT year FROM discount_rule_product_year WHERE id_rule = ".$id;
+    $qr = "SELECT year FROM discount_rule_product_year WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -202,7 +189,7 @@ class Discount_rule_model extends CI_Model
   {
     $qr = "SELECT cn.name FROM discount_rule_channels AS cr ";
     $qr .= "JOIN channels AS cn ON cr.channels_code = cn.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
@@ -212,11 +199,10 @@ class Discount_rule_model extends CI_Model
   {
     $qr = "SELECT cn.name FROM discount_rule_payment AS cr ";
     $qr .= "JOIN payment_method AS cn ON cr.payment_code = cn.code ";
-    $qr .= "WHERE id_rule = ".$id;
+    $qr .= "WHERE id_rule = {$id}";
 
     return $this->db->query($qr);
   }
-
 
   /*
   |----------------------------------
@@ -235,6 +221,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_customer');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -247,11 +234,11 @@ class Discount_rule_model extends CI_Model
   }
 
 
-
   public function getRuleCustomerGroup($id)
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_customer_group');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -259,6 +246,7 @@ class Discount_rule_model extends CI_Model
         $sc[$rd->group_code] = $rd->group_code;
       }
     }
+
     return $sc;
   }
 
@@ -267,6 +255,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_customer_type');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -274,6 +263,7 @@ class Discount_rule_model extends CI_Model
         $sc[$rd->type_code] = $rd->type_code;
       }
     }
+
     return $sc;
   }
 
@@ -282,6 +272,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_customer_kind');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -289,6 +280,7 @@ class Discount_rule_model extends CI_Model
         $sc[$rd->kind_code] = $rd->kind_code;
       }
     }
+
     return $sc;
   }
 
@@ -298,6 +290,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_customer_area');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -315,6 +308,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_customer_class');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -332,6 +326,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_product_style');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -350,6 +345,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_product_group');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -367,6 +363,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_product_sub_group');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -385,6 +382,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_product_type');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -404,6 +402,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_product_kind');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -421,6 +420,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_product_category');
+    
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -439,6 +439,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_product_year');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -456,6 +457,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_product_brand');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -474,6 +476,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_channels');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -490,6 +493,7 @@ class Discount_rule_model extends CI_Model
   {
     $sc = array();
     $rs = $this->db->where('id_rule', $id)->get('discount_rule_payment');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -526,25 +530,25 @@ class Discount_rule_model extends CI_Model
       $this->db->trans_start();
 
       //--- 1
-      $this->db->query("UPDATE discount_rule SET all_customer = 1 WHERE id = $id");
+      $this->db->query("UPDATE discount_rule SET all_customer = 1 WHERE id = {$id}");
 
       //--- 2
-      $this->db->query("DELETE FROM discount_rule_customer WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_customer WHERE id_rule = {$id}");
 
       //--- 3
-      $this->db->query("DELETE FROM discount_rule_customer_group WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_customer_group WHERE id_rule = {$id}");
 
       //--- 4
-      $this->db->query("DELETE FROM discount_rule_customer_type WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_customer_type WHERE id_rule = {$id}");
 
       //--- 5
-      $this->db->query("DELETE FROM discount_rule_customer_kind WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_customer_kind WHERE id_rule = {$id}");
 
       //--- 6
-      $this->db->query("DELETE FROM discount_rule_customer_area WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_customer_area WHERE id_rule = {$id}");
 
       //--- 7
-      $this->db->query("DELETE FROM discount_rule_customer_class WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_customer_class WHERE id_rule = {$id}");
 
       //--- end transection
       $this->db->trans_complete();
@@ -557,14 +561,14 @@ class Discount_rule_model extends CI_Model
     }
     else
     {
-      $rs = $this->db->query("UPDATE discount_rule SET all_customer = 0 WHERE id = $id");
+      $rs = $this->db->query("UPDATE discount_rule SET all_customer = 0 WHERE id = {$id}");
+
       if($rs === FALSE)
       {
         $result->status = FALSE;
         $result->message = 'กำหนดลูกค้าทั้งหมดไม่สำเร็จ';
       }
     }
-
 
     return $result;
   }
@@ -595,33 +599,33 @@ class Discount_rule_model extends CI_Model
     $this->db->trans_start();
 
     //--- 1.
-    $this->db->query("UPDATE discount_rule SET all_customer = 0 WHERE id = $id");
+    $this->db->query("UPDATE discount_rule SET all_customer = 0 WHERE id = {$id}");
 
     //--- 2.
-    $this->db->query("DELETE FROM discount_rule_customer WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer WHERE id_rule = {$id}");
 
     if(!empty($cust_list))
     {
       foreach($cust_list as $code)
       {
-        $this->db->query("INSERT INTO discount_rule_customer (id_rule, customer_code) VALUES ($id, '$code')");
+        $this->db->query("INSERT INTO discount_rule_customer (id_rule, customer_code) VALUES ({$id}, '{$code}')");
       }
     }
 
     //--- 3
-    $this->db->query("DELETE FROM discount_rule_customer_group WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer_group WHERE id_rule = {$id}");
 
     //--- 4
-    $this->db->query("DELETE FROM discount_rule_customer_type WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer_type WHERE id_rule = {$id}");
 
     //--- 5
-    $this->db->query("DELETE FROM discount_rule_customer_kind WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer_kind WHERE id_rule = {$id}");
 
     //--- 6
-    $this->db->query("DELETE FROM discount_rule_customer_area WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer_area WHERE id_rule = {$id}");
 
     //--- 7
-    $this->db->query("DELETE FROM discount_rule_customer_class WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer_class WHERE id_rule = {$id}");
 
     //--- end transection
     $this->db->trans_complete();
@@ -648,55 +652,56 @@ class Discount_rule_model extends CI_Model
     $this->db->trans_start();
 
     //--- 1.
-    $this->db->query("DELETE FROM discount_rule_customer WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer WHERE id_rule = {$id}");
 
     //--- 2
-    $this->db->query("DELETE FROM discount_rule_customer_group WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer_group WHERE id_rule = {$id}");
+
     if(!empty($group))
     {
       foreach($group as $code)
       {
-        $this->db->query("INSERT INTO discount_rule_customer_group (id_rule, group_code) VALUES ($id, '$code')");
+        $this->db->query("INSERT INTO discount_rule_customer_group (id_rule, group_code) VALUES ({$id}, '{$code}')");
       }
     }
 
     //--- 3
-    $this->db->query("DELETE FROM discount_rule_customer_type WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer_type WHERE id_rule = {$id}");
     if(!empty($type))
     {
       foreach($type as $code)
       {
-        $this->db->query("INSERT INTO discount_rule_customer_type (id_rule, type_code) VALUES ($id, '$code')");
+        $this->db->query("INSERT INTO discount_rule_customer_type (id_rule, type_code) VALUES ({$id}, '{$code}')");
       }
     }
 
     //--- 4
-    $this->db->query("DELETE FROM discount_rule_customer_kind WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer_kind WHERE id_rule = {$id}");
     if(!empty($kind))
     {
       foreach($kind as $code)
       {
-        $this->db->query("INSERT INTO discount_rule_customer_kind (id_rule, kind_code) VALUES ($id, '$code')");
+        $this->db->query("INSERT INTO discount_rule_customer_kind (id_rule, kind_code) VALUES ({$id}, '{$code}')");
       }
     }
 
     //--- 5
-    $this->db->query("DELETE FROM discount_rule_customer_area WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer_area WHERE id_rule = {$id}");
     if(!empty($area))
     {
       foreach($area as $code)
       {
-        $this->db->query("INSERT INTO discount_rule_customer_area (id_rule, area_code) VALUES ($id, '$code')");
+        $this->db->query("INSERT INTO discount_rule_customer_area (id_rule, area_code) VALUES ({$id}, '{$code}')");
       }
     }
 
     //--- 6
-    $this->db->query("DELETE FROM discount_rule_customer_class WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_customer_class WHERE id_rule = {$id}");
     if(!empty($class))
     {
       foreach($class as $code)
       {
-        $this->db->query("INSERT INTO discount_rule_customer_class (id_rule, class_code) VALUES ($id, '$code')");
+        $this->db->query("INSERT INTO discount_rule_customer_class (id_rule, class_code) VALUES ({$id}, '{$code}')");
       }
     }
 
@@ -729,31 +734,31 @@ class Discount_rule_model extends CI_Model
       $this->db->trans_start();
 
       //--- 1.
-      $this->db->query("UPDATE discount_rule SET all_product = 1 WHERE id = $id");
+      $this->db->query("UPDATE discount_rule SET all_product = 1 WHERE id = {$id}");
 
       //--- 2.
-      $this->db->query("DELETE FROM discount_rule_product_style WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_product_style WHERE id_rule = {$id}");
 
       //--- 3
-      $this->db->query("DELETE FROM discount_rule_product_group WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_product_group WHERE id_rule = {$id}");
 
       //--- 4
-      $this->db->query("DELETE FROM discount_rule_product_sub_group WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_product_sub_group WHERE id_rule = {$id}");
 
       //--- 5
-      $this->db->query("DELETE FROM discount_rule_product_category WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_product_category WHERE id_rule = {$id}");
 
       //--- 6
-      $this->db->query("DELETE FROM discount_rule_product_type WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_product_type WHERE id_rule = {$id}");
 
       //--- 7
-      $this->db->query("DELETE FROM discount_rule_product_kind WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_product_kind WHERE id_rule = {$id}");
 
       //--- 8
-      $this->db->query("DELETE FROM discount_rule_product_brand WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_product_brand WHERE id_rule = {$id}");
 
       //--- 9
-      $this->db->query("DELETE FROM discount_rule_product_year WHERE id_rule = $id");
+      $this->db->query("DELETE FROM discount_rule_product_year WHERE id_rule = {$id}");
 
       //--- end transection
       $this->db->trans_complete();
@@ -768,7 +773,7 @@ class Discount_rule_model extends CI_Model
     else
     {
       //--- 1.
-      $this->db->query("UPDATE discount_rule SET all_product = 0 WHERE id = $id");
+      $this->db->query("UPDATE discount_rule SET all_product = 0 WHERE id = {$id}");
     }
 
     return $result;
@@ -787,38 +792,39 @@ class Discount_rule_model extends CI_Model
     $this->db->trans_start();
 
     //--- 1.
-    $this->db->query("UPDATE discount_rule SET all_product = 0 WHERE id = $id");
+    $this->db->query("UPDATE discount_rule SET all_product = 0 WHERE id = {$id}");
 
     //--- 2 ลบข้อมูลเก่าก่อน
-    $this->db->query("DELETE FROM discount_rule_product_style WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_product_style WHERE id_rule = {$id}");
+    
     if(!empty($style))
     {
       foreach($style as $code)
       {
-        $this->db->query("INSERT INTO discount_rule_product_style (id_rule, style_code) VALUES ($id, '$code')");
+        $this->db->query("INSERT INTO discount_rule_product_style (id_rule, style_code) VALUES ({$id}, '{$code}')");
       }
     }
 
     //--- 3
-    $this->db->query("DELETE FROM discount_rule_product_group WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_product_group WHERE id_rule = {$id}");
 
     //--- 4
-    $this->db->query("DELETE FROM discount_rule_product_sub_group WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_product_sub_group WHERE id_rule = {$id}");
 
     //--- 5
-    $this->db->query("DELETE FROM discount_rule_product_category WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_product_category WHERE id_rule = {$id}");
 
     //--- 6
-    $this->db->query("DELETE FROM discount_rule_product_type WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_product_type WHERE id_rule = {$id}");
 
     //--- 7
-    $this->db->query("DELETE FROM discount_rule_product_kind WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_product_kind WHERE id_rule = {$id}");
 
     //--- 8
-    $this->db->query("DELETE FROM discount_rule_product_brand WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_product_brand WHERE id_rule = {$id}");
 
     //--- 9
-    $this->db->query("DELETE FROM discount_rule_product_year WHERE id_rule = $id");
+    $this->db->query("DELETE FROM discount_rule_product_year WHERE id_rule = {$id}");
 
     //--- end transection
     $this->db->trans_complete();

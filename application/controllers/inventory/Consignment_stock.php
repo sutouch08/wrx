@@ -1,21 +1,26 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
+
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Writer\XLSX\Writer;
 
 class Consignment_stock extends PS_Controller
 {
   public $menu_code = 'ICCMST';
-	public $menu_group_code = 'IC';
+  public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'CHECK';
-	public $title = 'ตรวจสอบสต็อกฝากขาย(เทียม)';
-  public $filter;
+  public $title = 'ตรวจสอบสต็อกฝากขาย(เทียม)';
   public $error;
+  public $segment = 4;
+  public $cn;
+
   public function __construct()
   {
     parent::__construct();
-    $this->home = base_url().'inventory/consignment_stock';
+    $this->home = base_url() . 'inventory/consignment_stock';
     $this->load->model('inventory/sap_consignment_stock_model');
+    $this->cn = $this->load->database('cn', TRUE); //--- consign Database
   }
-
 
   public function index()
   {
@@ -25,89 +30,105 @@ class Consignment_stock extends PS_Controller
       'show_system' => get_filter('show_system', 'show_system', 'no')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
+    if ($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
 
-		$segment  = 4; //-- url segment
-		$rows     = $this->sap_consignment_stock_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$ds   = $this->sap_consignment_stock_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
-    $filter['data'] = $ds;
-
-		$this->pagination->initialize($init);
+    $perpage = get_rows();
+    $filter['whs'] = $this->sap_consignment_stock_model->consignment_warehouse_in();
+    $rows = $this->sap_consignment_stock_model->count_rows($filter);
+    $filter['data'] = $this->sap_consignment_stock_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $this->pagination->initialize($init);
     $this->load->view('inventory/stock/consignment_stock_view', $filter);
   }
-
-
 
   public function export()
   {
     $arr = array(
       'item_code' => $this->input->post('item'),
       'zone_code' => $this->input->post('zone'),
-      'show_system' => $this->input->post('system')
+      'show_system' => $this->input->post('system'),
+      'whs' => $this->sap_consignment_stock_model->consignment_warehouse_in()
     );
 
+    $header = ['No.', 'ItemCode', 'OldCode', 'Description', 'BinCode', 'Bin Description', 'Qty'];
     $token = $this->input->post('token');
+    $tempFile = tempnam(sys_get_temp_dir(), 'consignment_stock_');
+    $fileName = 'Consignment-stock-' . date('YmdHis') . '.xlsx';
 
-    $data = $this->sap_stock_model->get_list($arr);
-    if(!empty($data))
+    try
     {
-      //--- load excel library
-      $this->load->library('excel');
+      $writer = new Writer();
+      $writer->openToFile($tempFile);
+      $writer->addRow(Row::fromValues($header));
 
-      $this->excel->setActiveSheetIndex(0);
-      $this->excel->getActiveSheet()->setTitle('Stock Zone (SAP)');
-
-      $this->excel->getActiveSheet()->setCellValue('A1', 'No.');
-      $this->excel->getActiveSheet()->setCellValue('B1', 'ItemCode');
-      $this->excel->getActiveSheet()->setCellValue('C1', 'OldCode');
-      $this->excel->getActiveSheet()->setCellValue('D1', 'Description');
-      $this->excel->getActiveSheet()->setCellValue('E1', 'BinCode');
-      $this->excel->getActiveSheet()->setCellValue('F1', 'Bin Description');
-      $this->excel->getActiveSheet()->setCellValue('G1', 'Qty');
-
+      $limit = 1000;
+      $offset = 0;
+      $max_loop = 10000; //--safty limit to prevent infinite loop      
+      $rows = $this->sap_consignment_stock_model->count_rows($arr);
       $no = 1;
-      $row = 2;
-      foreach($data as $rs)
-      {
-        $this->excel->getActiveSheet()->setCellValue('A'.$row, $no);
-        $this->excel->getActiveSheet()->setCellValue('B'.$row, $rs->ItemCode);
-        if(!empty($rs->U_OLDCODE))
-        {
-          $this->excel->getActiveSheet()->setCellValue('C'.$row, $rs->U_OLDCODE);
-        }
 
-        $this->excel->getActiveSheet()->setCellValue('D'.$row, $rs->ItemName);
-        $this->excel->getActiveSheet()->setCellValue('E'.$row, $rs->BinCode);
-        $this->excel->getActiveSheet()->setCellValue('F'.$row, $rs->Descr);
-        $this->excel->getActiveSheet()->setCellValue('G'.$row, $rs->OnHandQty);
-        $no++;
-        $row++;
+      if ($rows > 0)
+      {
+        while ($rows > 0 && $max_loop > 0)
+        {
+          $data = $this->sap_consignment_stock_model->get_data($arr, $limit, $offset);
+          $count = count($data ?? []);
+          $offset += $count;
+          $rows -= $count;
+
+          if (!empty($data))
+          {
+            foreach ($data as $rs)
+            {
+              $row = [
+                $no,
+                $rs->ItemCode,
+                !empty($rs->U_OLDCODE) ? $rs->U_OLDCODE : '',
+                $rs->ItemName,
+                $rs->BinCode,
+                $rs->Descr,
+                $rs->OnHandQty
+              ];
+
+              $writer->addRow(Row::fromValues($row));
+              $no++;
+            }
+          }
+
+          $max_loop--;
+        }
+      }
+
+      $writer->close();
+      setToken($token);
+      while (ob_get_level())
+      {
+        ob_end_clean();
+      }
+
+      header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      header('Content-Disposition: attachment;filename="' . $fileName . '"');
+      header('Content-Length: ' . filesize($tempFile));
+      header('Cache-Control: max-age=0');
+      readfile($tempFile);
+    }
+    finally
+    {
+      if (file_exists($tempFile))
+      {
+        unlink($tempFile);
       }
     }
 
-    setToken($token);
-    $file_name = "ConsignStock(SAP).xlsx";
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
-    header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
-    $writer->save('php://output');
+    exit;
   }
 
-
-  function clear_filter(){
-    $filter = array('item_code', 'zone_code', 'show_system');
-    clear_filter($filter);
-    echo 'done';
+  function clear_filter()
+  {
+    return clear_filter(['item_code', 'zone_code', 'show_system']);
   }
-
-} //--- end class
-?>
+}

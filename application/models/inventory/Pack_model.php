@@ -8,11 +8,8 @@ class Pack_model extends CI_Model
 
   public function get_list(array $ds = array(), $perpage = 20, $offset = 0)
   {
-    if (isset($ds['range']) && $ds['range'] != 'all')
-    {
-      $this->db->where('id >', $this->get_max_id());
-    }
-
+    $this->db->where('id >', $ds['max_id'] ?? 0);
+    
     if(!empty($ds['order_code']))
     {
       $this->db->where('order_code', $ds['order_code']);
@@ -35,22 +32,14 @@ class Pack_model extends CI_Model
     
     $rs = $this->db->order_by('date_upd', 'DESC')->limit($perpage, $offset)->get('qc');
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
   public function count_rows(array $ds = array())
   {
-    if (isset($ds['range']) && $ds['range'] != 'all')
-    {
-      $this->db->where('id >', $this->get_max_id());
-    }
-
+    $this->db->where('id >', $ds['max_id'] ?? 0);
+    
     if(!empty($ds['order_code']))
     {
       $this->db->where('order_code', $ds['order_code']);
@@ -104,29 +93,17 @@ class Pack_model extends CI_Model
     return NULL;
   }
 
-  public function get_max_id()
+  public function get_max_id($range = 0)
   {
-    $limit = $this->get_limit_rows();
-    $rs = $this->db->query("SELECT MAX(id) AS id FROM qc");
+    $range = intval($range);
 
-    if ($rs->num_rows() === 1)
+    if($range === 0)
     {
-      return $rs->row()->id - $limit;
+      return $range;
     }
 
-    return $limit;
-  }
-
-  public function get_limit_rows()
-  {
-    $rs = $this->db->query("SELECT value FROM config WHERE code = 'FILTER_RESULT_LIMIT'");
-
-    if ($rs->num_rows() === 1)
-    {
-      return intval($rs->row()->value);
-    }
-
-    return 0;
+    $max_id = intval($this->db->select_max('id')->get('qc')->row()->id);
+    return $max_id > $range ? $max_id - $range : 0;    
   }
 }
- ?>
+

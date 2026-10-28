@@ -466,19 +466,12 @@ class Product_style_model extends CI_Model
 
   public function is_exists($code, $old_code = '')
   {
-    if($old_code != '')
+    if(!empty($old_code))
     {
       $this->db->where('code !=', $old_code);
     }
 
-    $rs = $this->db->where('code', $code)->get($this->tb);
-
-    if($rs->num_rows() > 0)
-    {
-      return TRUE;
-    }
-
-    return FALSE;
+    return $this->db->where('code', $code)->count_all_results($this->tb) > 0;    
   }
 
 

@@ -11,15 +11,12 @@ class Auto_renew_sap_token extends CI_Controller
   public function index()
   {
     $this->load->library('sap_api');
-
     return $this->sap_api->renewToken();
   }
-
 
   public function renewToken()
   {
     $sc = TRUE;
-
     $this->load->library('sap_api');
 
     if( ! $this->sap_api->renewToken())
@@ -36,6 +33,4 @@ class Auto_renew_sap_token extends CI_Controller
 
     echo json_encode($arr);
   }
-
-} //--- end class
- ?>
+}

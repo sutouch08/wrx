@@ -51,7 +51,7 @@ $product_year = ($pdYearNo > 0 && $allProduct == 'N' && $product_style == 'N') ?
 $pdBrand = $this->discount_rule_model->getRuleProductBrand($id);
 $pdBrandNo = count($pdBrand);
 $product_brand = ($pdBrandNo > 0 && $allProduct == 'N' && $product_style == 'N') ? 'Y' : 'N';
- ?>
+?>
 <div class="tab-pane fade" id="product">
   <div class="row">
     <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
@@ -98,7 +98,7 @@ $product_brand = ($pdBrandNo > 0 && $allProduct == 'N' && $product_style == 'N')
     <div class="divider-hidden visible-sm"></div>
     <div class="col-sm-3 col-xs-4 visible-sm">&nbsp;</div>
     <div class="col-lg-2 col-md-2 col-sm-3 col-xs-3-harf padding-5">
-      <span class="form-control input-sm text-center"><span id="psCount"><?php echo $pdStyleNo; ?></span>  รายการ</span>
+      <span class="form-control input-sm text-center"><span id="psCount"><?php echo $pdStyleNo; ?></span> รายการ</span>
       <input type="hidden" id="style-no" value="<?php echo $pdStyleNo; ?>" />
     </div>
     <div class="col-lg-1 col-md-1 col-sm-1-harf col-xs-2 padding-5">
@@ -239,45 +239,19 @@ $product_brand = ($pdBrandNo > 0 && $allProduct == 'N' && $product_style == 'N')
   </div>
 
 
-		<input type="hidden" id="all_product" value="<?php echo $allProduct; ?>" />
-		<!-- <input type="hidden" id="product_id" value="<?php //echo $product_id; ?>" /> -->
-    <input type="hidden" id="product_style" value="<?php echo $product_style; ?>" />
-		<input type="hidden" id="product_group" value="<?php echo $product_group; ?>" />
-    <input type="hidden" id="product_sub" value="<?php echo $product_sub_group; ?>" />
-		<input type="hidden" id="product_type" value="<?php echo $product_type; ?>" />
-		<input type="hidden" id="product_kind" value="<?php echo $product_kind; ?>" />
-		<input type="hidden" id="product_category" value="<?php echo $product_category; ?>" />
-		<input type="hidden" id="product_brand" value="<?php echo $product_brand; ?>" />
-    <input type="hidden" id="product_year" value="<?php echo $product_year; ?>" />
+  <input type="hidden" id="all_product" value="<?php echo $allProduct; ?>" />
+  <!-- <input type="hidden" id="product_id" value="<?php //echo $product_id; 
+                                                    ?>" /> -->
+  <input type="hidden" id="product_style" value="<?php echo $product_style; ?>" />
+  <input type="hidden" id="product_group" value="<?php echo $product_group; ?>" />
+  <input type="hidden" id="product_sub" value="<?php echo $product_sub_group; ?>" />
+  <input type="hidden" id="product_type" value="<?php echo $product_type; ?>" />
+  <input type="hidden" id="product_kind" value="<?php echo $product_kind; ?>" />
+  <input type="hidden" id="product_category" value="<?php echo $product_category; ?>" />
+  <input type="hidden" id="product_brand" value="<?php echo $product_brand; ?>" />
+  <input type="hidden" id="product_year" value="<?php echo $product_year; ?>" />
 
-		<div class="modal fade" id="upload-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-		 <div class="modal-dialog" style="width:500px; max-width:95vw;">
-		   <div class="modal-content">
-		       <div class="modal-header">
-		       <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-		       <h4 class="modal-title">Import Product Model</h4>
-		      </div>
-		      <div class="modal-body">
-		        <form id="upload-form" name="upload-form" method="post" enctype="multipart/form-data">
-		        <div class="row">
-		          <div class="col-sm-9">
-		            <button type="button" class="btn btn-sm btn-primary btn-block" id="show-file-name" onclick="getFile()">กรุณาเลือกไฟล์ Excel</button>
-		          </div>
-
-		          <div class="col-sm-3">
-		            <button type="button" class="btn btn-sm btn-info" onclick="readExcelFile()"><i class="fa fa-cloud-upload"></i> นำเข้า</button>
-		          </div>
-		        </div>
-		        <input type="file" class="hide" name="uploadFile" id="uploadFile" accept=".xlsx" />
-		        </form>
-		       </div>
-		      <div class="modal-footer">
-
-		      </div>
-		   </div>
-		 </div>
-		</div>
-
+  <input type="file" class="hide" name="uploadFile" id="uploadFile" accept=".xlsx" />  
 
 </div><!--- Tab-pane --->
 <?php $this->load->view('discount/rule/product_rule_modal'); ?>

@@ -2,9 +2,9 @@
 function select_item_group($code = NULL)
 {
   $sc = '';
-  $CI =& get_instance();
-  $CI->load->model('masters/item_group_model');
-  $options = $CI->item_group_model->get_data(); //--- OUOM
+  $ci =& get_instance();
+  $ci->load->model('masters/item_group_model');
+  $options = $ci->item_group_model->get_data(); //--- OUOM
 
   if(!empty($options))
   {
@@ -35,6 +35,3 @@ function item_group_array()
 
   return $ds;
 }
-
-
- ?>

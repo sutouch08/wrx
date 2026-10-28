@@ -1,12 +1,13 @@
 <?php
 function bankLogoUrl($code)
 {
-  $CI =& get_instance();
+  $ci =& get_instance();
   $img  = $code.'.png';
-  $path	= base_url().$CI->config->item('image_path').'banks/';
+  $path	= base_url().$ci->config->item('image_path').'banks/';
   $image_path = $path.$img;
   $noimg = $path.'noimg.png';
- 	$file = $CI->config->item('image_file_path').'banks/'.$img;
+ 	$file = $ci->config->item('image_file_path').'banks/'.$img;
+
  	if( ! file_exists($file) )
  	{
  		return $noimg;
@@ -15,13 +16,13 @@ function bankLogoUrl($code)
  	return $image_path;
 }
 
-
 function select_bank_account($id = '')
 {
   $sc = '';
-  $CI =& get_instance();
-  $CI->load->model('masters/bank_model');
-  $banks = $CI->bank_model->get_data();
+  $ci =& get_instance();
+  $ci->load->model('masters/bank_model');
+  $banks = $ci->bank_model->get_data();
+
   if(!empty($banks))
   {
     foreach($banks as $rs)
@@ -33,27 +34,20 @@ function select_bank_account($id = '')
   return $sc;
 }
 
-
 function select_bank($code = NULL)
 {
   $sc = "";
-  $CI =& get_instance();
-  $CI->load->model('masters/bank_model');
-
-  $bank = $CI->bank_model->get_banks();
+  $ci =& get_instance();
+  $ci->load->model('masters/bank_model');
+  $bank = $ci->bank_model->get_banks();
 
   if(!empty($bank))
   {
     foreach($bank as $rs)
-    {
-      $selected = is_selected($rs->code, $code);
-
-      $sc .= "<option value='{$rs->code}' {$selected}>{$rs->name}</option>";
+    {      
+      $sc .= "<option value=\"{$rs->code}\" " . is_selected($rs->code, $code) . ">{$rs->name}</option>";
     }
-
   }
 
   return $sc;
 }
-
- ?>

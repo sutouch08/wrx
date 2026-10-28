@@ -1,5 +1,5 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 class Sap_stock_model extends CI_Model
 {
@@ -8,107 +8,119 @@ class Sap_stock_model extends CI_Model
     parent::__construct();
   }
 
-
-  public function get_list(array $ds = array(), $perpage = NULL, $offset = NULL)
+  public function get_list($ds = [], $perpage = 20, $offset = 0)
   {
-    if(!empty($ds['item_code']) OR !empty($ds['zone_code']))
+    if (!empty($ds['item_code']) or !empty($ds['zone_code']))
     {
-      $itemCode = $ds['item_code'];
-      $zoneCode = $ds['zone_code'];
+      $this->ms
+        ->select('OITM.ItemCode, OITM.ItemName, OITM.U_OLDCODE, OBIN.BinCode, OBIN.Descr, OIBQ.OnHandQty')
+        ->from('OIBQ')
+        ->join('OBIN', 'OIBQ.BinAbs = OBIN.AbsEntry', 'left')
+        ->join('OITM', 'OIBQ.ItemCode = OITM.ItemCode', 'left')
+        ->where('OIBQ.OnHandQty !=', 0);
 
-      $qr  = "SELECT OITM.ItemCode, OITM.ItemName, OITM.U_OLDCODE, ";
-      $qr .= "OBIN.BinCode, OBIN.Descr, OIBQ.OnHandQty ";
-      $qr .= "FROM OIBQ ";
-      $qr .= "LEFT JOIN OBIN ON OIBQ.BinAbs = OBIN.AbsEntry ";
-      $qr .= "LEFT JOIN OITM ON OIBQ.ItemCode = OITM.ItemCode ";
-      $qr .= "WHERE OIBQ.OnHandQty != 0 ";
-
-      if(!empty($ds['show_system']))
+      if (!empty($ds['show_system']))
       {
-        if($ds['show_system'] == 'no')
+        if ($ds['show_system'] == 'no')
         {
-          $qr .= "AND OBIN.SysBin = 'N' ";
+          $this->ms->where('OBIN.SysBin', 'N');
         }
       }
 
-      if(!empty($ds['item_code']))
+      if (!empty($ds['item_code']))
       {
-        $qr .= "AND (OITM.ItemCode LIKE N'%{$itemCode}%' OR OITM.U_OLDCODE LIKE N'%{$itemCode}%') ";
+        $this->ms->like('OITM.ItemCode', trim($ds['item_code']));
       }
 
-      if(!empty($ds['zone_code']))
+      if (!empty($ds['zone_code']))
       {
-        $qr .= "AND (OBIN.BinCode LIKE N'%{$this->ms->escape_str($zoneCode)}%' OR OBIN.Descr LIKE N'%{$this->ms->escape_str($zoneCode)}%') ";
+        $this->ms->like('OBIN.BinCode', trim($ds['zone_code']));
       }
 
-      $qr .= "ORDER BY OIBQ.ItemCode ASC, OBIN.BinCode ASC ";
+      $rs = $this->ms
+        ->order_by('OIBQ.ItemCode', 'ASC')
+        ->order_by('OBIN.BinCode', 'ASC')
+        ->limit($perpage, $offset)
+        ->get();
 
-      if(!empty($perpage))
-      {
-        if(!empty($offset))
-        {
-          $qr .= "OFFSET {$offset} ROWS FETCH NEXT {$perpage} ROWS ONLY";
-        }
-        else
-        {
-          $qr .= "OFFSET 0 ROWS FETCH FIRST {$perpage} ROWS ONLY";
-        }
-      }
-
-      $rs = $this->ms->query($qr);
-
-      if($rs->num_rows() > 0)
-      {
-        return $rs->result();
-      }
+      return $rs->num_rows() > 0 ? $rs->result() : NULL;
     }
 
     return NULL;
   }
 
-
   public function count_rows(array $ds = array())
   {
-    if(!empty($ds['item_code']) OR !empty($ds['zone_code']))
+    if (!empty($ds['item_code']) or !empty($ds['zone_code']))
     {
-      $itemCode = $ds['item_code'];
-      $zoneCode = $ds['zone_code'];
+      $this->ms
+        ->from('OIBQ')
+        ->join('OBIN', 'OIBQ.BinAbs = OBIN.AbsEntry', 'left')
+        ->join('OITM', 'OIBQ.ItemCode = OITM.ItemCode', 'left')
+        ->where('OIBQ.OnHandQty !=', 0);
 
-      $qr  = "SELECT COUNT(*) AS numrows ";
-      $qr .= "FROM OIBQ ";
-      $qr .= "LEFT JOIN OBIN ON OIBQ.BinAbs = OBIN.AbsEntry ";
-      $qr .= "LEFT JOIN OITM ON OIBQ.ItemCode = OITM.ItemCode ";
-      $qr .= "WHERE OIBQ.OnHandQty != 0 ";
-
-      if(!empty($ds['show_system']))
+      if (!empty($ds['show_system']))
       {
-        if($ds['show_system'] == 'no')
+        if ($ds['show_system'] == 'no')
         {
-          $qr .= "AND OBIN.SysBin = 'N' ";
+          $this->ms->where('OBIN.SysBin', 'N');
         }
       }
 
-      if(!empty($ds['item_code']))
+      if (!empty($ds['item_code']))
       {
-        $qr .= "AND (OITM.ItemCode LIKE N'%{$itemCode}%' OR OITM.U_OLDCODE LIKE N'%{$itemCode}%') ";
+        $this->ms->like('OITM.ItemCode', trim($ds['item_code']));
       }
 
-      if(!empty($ds['zone_code']))
+      if (!empty($ds['zone_code']))
       {
-        $qr .= "AND (OBIN.BinCode LIKE N'%{$this->ms->escape_str($zoneCode)}%' OR OBIN.Descr LIKE N'%{$this->ms->escape_str($zoneCode)}%') ";
+        $this->ms->like('OBIN.BinCode', trim($ds['zone_code']));
       }
 
-      $rs = $this->ms->query($qr);
-
-      return $rs->row()->numrows;
+      return $this->ms->count_all_results();
     }
 
     return 0;
   }
 
+  public function get_data(array $ds = array(), $limit = 1000, $offset = 0)
+  {
+    if (!empty($ds['item_code']) or !empty($ds['zone_code']))
+    {
+      $this->ms
+        ->select('OITM.ItemCode, OITM.ItemName, OITM.U_OLDCODE, OBIN.BinCode, OBIN.Descr, OIBQ.OnHandQty')
+        ->from('OIBQ')
+        ->join('OBIN', 'OIBQ.BinAbs = OBIN.AbsEntry', 'left')
+        ->join('OITM', 'OIBQ.ItemCode = OITM.ItemCode', 'left')
+        ->where('OIBQ.OnHandQty !=', 0);
 
+      if (!empty($ds['show_system']))
+      {
+        if ($ds['show_system'] == 'no')
+        {
+          $this->ms->where('OBIN.SysBin', 'N');
+        }
+      }
 
+      if (!empty($ds['item_code']))
+      {
+        $this->ms->like('OITM.ItemCode', trim($ds['item_code']));
+      }
 
-} //--- end class
+      if (!empty($ds['zone_code']))
+      {
+        $this->ms->like('OBIN.BinCode', trim($ds['zone_code']));
+      }
 
-?>
+      $rs = $this->ms
+        ->order_by('OIBQ.ItemCode', 'ASC')
+        ->order_by('OBIN.BinCode', 'ASC')
+        ->limit($limit, $offset)
+        ->get();
+
+      return $rs->num_rows() > 0 ? $rs->result() : NULL;
+    }
+
+    return NULL;
+  }
+}

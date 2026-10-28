@@ -1,9 +1,8 @@
-
-<div class='row'>
-  <div class="col-sm-4 col-sm-offset-4">
-    <div class="alert alert-danger">
-      <h4 class="text-center padding-top-20 padding-bottom-20"><?php echo "คุณไม่ได้รับอนุญาติให้ใช้งานหน้านี้"; ?></h4>
-    </div>
+<?php if ($home){  $this->load->view('include/header'); } ?>
+<div class="row">
+  <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+    <h1 class="display-block width-100 text-center red"><i class="fa fa-exclamation-triangle"></i></h1>    
+    <h4 class="display-block width-100 text-center red">You are not authorized to access this page</h4>    
   </div>
 </div>
 <?php $this->load->view('include/footer'); ?>

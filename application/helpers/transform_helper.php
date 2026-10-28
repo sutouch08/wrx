@@ -1,7 +1,8 @@
 <?php
-function getTransformProducts($transform_product, $state = 1, $is_expired = 0, $is_approved = 0, $can_approve = 0)
+function getTransformProducts(?array $transform_product = [], $state = 1, $is_expired = 0, $is_approved = 0, $can_approve = 0)
 {
 	$sc = '';
+	$transform_product = $transform_product ?? [];
 
 	if(!empty($transform_product))
 	{
@@ -26,5 +27,3 @@ function getTransformProducts($transform_product, $state = 1, $is_expired = 0, $
 
 	return $sc;
 }
-
- ?>

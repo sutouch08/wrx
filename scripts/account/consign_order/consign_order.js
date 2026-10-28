@@ -1,25 +1,15 @@
-var HOME = BASE_URL + 'account/consign_order/';
-
-function goBack(){
-  window.location.href = HOME;
+function addNew(){
+  window.location.href = `${HOME}add_new`;
 }
-
-
-function goAdd(){
-  window.location.href = HOME + 'add_new';
-}
-
 
 function viewDetail(code){
-  window.location.href = HOME + 'view_detail/'+code;
+  window.location.href = `${HOME}view_detail/${code}`;
 }
 
-
-function goEdit(code)
+function edit(code)
 {
-  window.location.href = HOME + 'edit/'+code;
+  window.location.href = `${HOME}edit/${code}`;
 }
-
 
 //--- delete all data and cancle document
 function getDelete(code){
@@ -35,14 +25,15 @@ function getDelete(code){
 		}, function(){
       $('#cancle-code').val(code);
       $('#cancle-reason').val('').removeClass('has-error');
-      cancle(code);
+      setTimeout(() => {
+        cancle(code);
+      }, 200);
 	});
 }
 
-
 function cancle(code)
-{
-	var reason = $.trim($('#cancle-reason').val());
+{	
+	let reason = $('#cancle-reason').val().trim();
 
 	if(reason.length < 10)
 	{
@@ -53,44 +44,34 @@ function cancle(code)
 	load_in();
 
   $.ajax({
-    url: HOME + 'cancle/'+code,
+    url: `${HOME}cancle/${code}`,
     type:"POST",
-    cache:"false",
+    cache: false,
     data:{
       "reason" : reason
     },
-    success: function(rs) {
-      var rs = $.trim(rs);
-      if( rs == 'success' ) {
-				setTimeout(function() {
-					swal({
-						title: 'Cancled',
-						type: 'success',
-						timer: 1000
-					});
+    success: function(rs) {      
+      if( rs.trim() === 'success' ) {
+				swal({
+					title: 'Success',
+					type: 'success',
+					timer: 1000
+				});
 
-					setTimeout(function(){
-						window.location.reload();
-					}, 1200);
-				}, 200);
+				setTimeout(() => {
+					window.location.reload();
+				}, 1200);
 			}
 			else {
-				setTimeout(function() {
-					swal({
-						title:"Error!",
-						text:rs,
-						type:'error'
-					});
-				}, 200);
+				showError(rs);
 			}
     }
   });
 }
 
-
 function doCancle() {
 	let code = $('#cancle-code').val();
-	let reason = $.trim($('#cancle-reason').val());
+	let reason = $('#cancle-reason').val().trim();
 
 	if( reason.length < 10) {
     $('#cancle-reason').addClass('has-error').focus();
@@ -98,30 +79,25 @@ function doCancle() {
 	}
 
 	$('#cancle-modal').modal('hide');
-
 	return cancle(code);
 }
-
-
 
 $('#cancle-modal').on('shown.bs.modal', function() {
 	$('#cancle-reason').focus();
 });
 
-
-
-
-function doExport(){
-  var code = $('#consign_code').val();
+function doExport() {
+  let code = $('#consign_code').val();
   load_in();
+
   $.ajax({
-    url: HOME + 'export_consign/'+code,
+    url: `${HOME}export_consign/${code}`,
     type:'POST',
-    cache:'false',
-    success:function(rs){
+    cache: false,
+    success:function(rs) {
       load_out();
-      var rs = $.trim(rs);
-      if(rs == 'success'){
+      
+      if(rs.trim() == 'success') {
         swal({
           title:'success',
           type:'success',
@@ -131,30 +107,13 @@ function doExport(){
         setTimeout(function(){
           window.location.reload();
         }, 1200);
-      }else{
-        swal({
-          title:'Error!',
-          text:rs,
-          type: 'error'
-        })
+      }
+			else {
+        showError(rs);
       }
     }
   });
 }
-
-
-function getSearch(){
-	$("#searchForm").submit();
-}
-
-
-$(".search").keyup(function(e){
-	if( e.keyCode == 13 ){
-		getSearch();
-	}
-});
-
-
 
 $("#fromDate").datepicker({
 	dateFormat: 'dd-mm-yy',
@@ -163,8 +122,6 @@ $("#fromDate").datepicker({
 	}
 });
 
-
-
 $("#toDate").datepicker({
 	dateFormat: 'dd-mm-yy',
 	onClose: function(ds){
@@ -172,21 +129,12 @@ $("#toDate").datepicker({
 	}
 });
 
+function printConsignOrder() {
+	const code = $('#consign_code').val();
+	const width = 800;
+	const height = 900;
+	const left = ($(document).width() - width) / 2;  
+  const target = `${HOME}print_consign/${code}`;
 
-
-// JavaScript Document
-function printConsignOrder(){
-  var code = $('#consign_code').val();
-	var center = ($(document).width() - 800) /2;
-  var target = HOME + 'print_consign/'+ code;
-  window.open(target, "_blank", "width=800, height=900, left="+center+", scrollbars=yes");
-}
-
-
-
-function clearFilter(){
-  var url = HOME + 'clear_filter';
-  $.get(url, function(rs){
-    goBack();
-  });
+	window.open(target, '_blank', `width=${width}, height=${height}, left=${left}, scrollbars=yes`);
 }

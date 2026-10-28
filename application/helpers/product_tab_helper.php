@@ -2,11 +2,11 @@
 
 function productTabMenu($mode = 'order')
 {
-	$CI =& get_instance();
+	$ci =& get_instance();
 	$ajax = $mode == 'order' ? 'getOrderTabs' : ($mode == 'sale' ? 'getSaleOrderTabs' : 'getViewTabs');
 	$sc = '';
 	$qr = "SELECT * FROM product_tab WHERE id_parent = 0";
-	$qs = $CI->db->query($qr);
+	$qs = $ci->db->query($qr);
 
 	foreach( $qs->result() as $rs)
 	{

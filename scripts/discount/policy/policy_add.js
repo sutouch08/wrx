@@ -1,204 +1,233 @@
-function addNew(){
-  var name = $('#policy_name').val();
-  var fromDate = $('#fromDate').val();
-  var toDate = $('#toDate').val();
+function add() {
+  clearErrorByClass('r');
+  let h = {
+    'name': $('#name').val().trim(),
+    'start_date': $('#start-date').val().trim(),
+    'end_date': $('#end-date').val().trim()
+  };
 
-  if( name.length == 0){
-    swal('ชื่อนโยบายไม่ถูกต้อง');
+  if (h.name.length == 0) {
+    $('#name').hasError();
     return false;
   }
 
-  if( !isDate(fromDate) || !isDate(toDate)){
-    swal('วันที่ไม่ถูกต้อง');
+  if (!isDate(h.start_date) || !isDate(h.end_date)) {
+    $('#start-date').hasError();
+    $('#end-date').hasError();
     return false;
   }
-
-  $('#addForm').submit();
-}
-
-
-function toggleButton(){
-  if($('.chk-rule:checked').size() > 0){
-    $('#btn-add-rule').removeAttr('disabled');
-  }else{
-    $('#btn-add-rule').attr('disabled', 'disabled');
-  }
-}
-
-function addRule(){
-  id = $('#id_policy').val();
-  count = parseInt($('.chk-rule:checked').size());
-
-  if(count == 0){
-    return false;
-  }
-
-  data = [
-    {'name':'id_policy', 'value' : id}
-  ];
-
-  i = 0;
-  $('.chk-rule').each(function(index, el) {
-    if($(this).is(':checked')){
-      name = 'rule['+i+']';
-      data.push({'name' : name, 'value':$(this).val()});
-      i++;
-    }
-  });
-
-  $('#rule-modal').modal('hide');
 
   load_in();
 
   $.ajax({
-    url: BASE_URL + 'discount/discount_rule/add_policy_rule',
-    type:'POST',
-    cache:'false',
-    data: data,
-    success:function(rs){
+    url: `${HOME}add`,
+    type: 'POST',
+    cache: false,
+    data: {
+      'data': JSON.stringify(h)
+    },
+    success: function (rs) {
       load_out();
-      rs = $.trim(rs);
-      if(rs == 'success'){
-        swal({
-          title:'Success',
-          type:'success',
-          timer:1000
-        });
 
-        setTimeout(function(){
-          window.location.reload();
-        }, 1500);
+      if (isJson(rs)) {
+        let ds = JSON.parse(rs);
 
-      }else{
-        swal(rs);
+        if (ds.status === 'success') {
+          edit(ds.code);
+        }
+        else {
+          showError(ds.message);
+        }
       }
+      else {
+        showError(rs);
+      }
+    },
+    error: function (rs) {
+      showError(rs);
     }
-
   });
 }
 
+function update() {
+  clearErrorByClass('r');
+  let h = {
+    'id': $('#policy-id').val(),
+    'name': $('#name').val().trim(),
+    'start_date': $('#start-date').val().trim(),
+    'end_date': $('#end-date').val().trim(),
+    'active': $('#active').is(':checked') ? 1 : 0
+  };
 
+  if (h.name.length == 0) {
+    $('#name').hasError();
+    return false;
+  }
 
+  if (!isDate(h.start_date) || !isDate(h.end_date)) {
+    $('#start-date').hasError();
+    $('#end-date').hasError();
+    return false;
+  }
 
-function showRuleList(){
+  if (h.active == $('#prev-active').val()
+    && h.name == $('#prev-name').val()
+    && h.start_date == $('#prev-start-date').val()
+    && h.end_date == $('#prev-end-date').val()
+  ) {
+    return false;
+  }
+
+  load_in();
+
+  $.ajax({
+    url: `${HOME}update`,
+    type: 'POST',
+    cache: false,
+    data: {
+      'data': JSON.stringify(h)
+    },
+    success: function (rs) {
+      load_out();
+
+      if (rs.trim() === 'success') {
+        swal({
+          title: 'Success',
+          type: 'success',
+          timer: 1000
+        });
+      }
+      else {
+        showError(rs);
+      }
+    },
+    error: function (rs) {
+      showError(rs);
+    }
+  });
+}
+
+function addRule() {
+  let id = $('#policy-id').val();
+
+  if ($('.chk-rule:checked').length) {
+    let rules = [];
+
+    $('.chk-rule:checked').each(function () {
+      rules.push($(this).val());
+    });
+
+    if (rules.length) {
+      $('#rule-modal').modal('hide');
+
+      load_in();
+
+      $.ajax({
+        url: `${HOME}add_rule`,
+        type: 'POST',
+        cache: false,
+        data: {
+          'id_policy': id,
+          'rules': rules
+        },
+        success: function (rs) {
+          load_out();
+
+          if (rs.trim() == 'success') {
+            setTimeout(() => { refresh(); }, 300);
+          }
+          else {
+            showError(rs);
+          }
+        },
+        error: function (rs) {
+          showError(rs);
+        }
+      });
+    }
+  }
+}
+
+function showRuleList() {
   $('#rule-modal').modal('show');
 }
 
-
-function getActiveRuleList(){
+function getActiveRuleList() {
   load_in();
+
   $.ajax({
-    url: BASE_URL + 'discount/discount_policy/get_active_rule',
-    type:'GET',
-    cache:'false',
-    success:function(rs){
+    url: `${HOME}get_active_rule`,
+    type: 'GET',
+    cache: false,
+    success: function (rs) {
       load_out();
-      if(isJson(rs)){
+
+      if (isJson(rs)) {
         source = $('#rule-template').html();
         data = $.parseJSON(rs);
         output = $('#result');
         render(source, data, output);
         showRuleList();
       }
+      else {
+        showError(rs);
+      }
+    },
+    error: function (rs) {
+      showError(rs);
     }
   });
 }
 
-
-
-function getEdit(){
-  $('.header-box').removeAttr('disabled');
-  $('#btn-edit').addClass('hide');
-  $('#btn-update').removeClass('hide');
+function viewRuleDetail(id_rule) {
+  const url = `${BASE_URL}discount/discount_rule/view_rule_detail/${id_rule}`;
+  const width = 900;
+  const height = 1000;
+  const left = ($(document).width() - width) / 2;
+  window.open(url, '_blank', `width=${width}, height=${height}, left=${left}, location=no, scrollbars=yes`);
 }
 
-
-
-function update(){
-  var id_policy = $('#id_policy').val();
-  var pName = $('#policy_name').val();
-  var fromDate = $('#fromDate').val();
-  var toDate = $('#toDate').val();
-  var active = $('#isActive').val();
-
-  if(isNaN(parseInt(id_policy))){
-    swal('Error!', 'ไม่พบ ID Policy', 'error');
-    return false;
-  }
-
-  if(pName.length < 4 || pName.length > 150){
-    swal('ข้อมูลไม่ถูกต้อง','กรุณากำหนดชื่อนโยบายอย่างน้อย 4 ตัวอักษร สูงสุด 150 ตัวอักษร', 'warning');
-    return false;
-  }
-
-  if(!isDate(fromDate) || ! isDate(toDate)){
-    swal('วันที่ไม่ถูกต้อง', 'กรุณากำหนดวันที่ให้ถูกต้อง', 'error');
-    return false;
-  }
-
-  load_in();
-
-  $('#editForm').submit();
-}
-
-
-
-function setActive(option){
-  $('#isActive').val(option);
-  if(option == 1){
-    $('#btn-active').addClass('btn-success');
-    $('#btn-disactive').removeClass('btn-danger');
-    return;
-  }
-
-  if(option == 0){
-    $('#btn-active').removeClass('btn-success');
-    $('#btn-disactive').addClass('btn-danger');
-  }
-}
-
-function viewRuleDetail(id_rule){
-  var target = BASE_URL + 'discount/discount_rule/view_rule_detail/' + id_rule;
-  var wid = $(document).width();
-	var left = (wid - 900) /2;
-	window.open(target, "_blank", "width=900, height=1000, left="+left+", location=no, scrollbars=yes");
-}
-
-
-function unlinkRule(id, name){
+function unlinkRule(id, name) {
   swal({
-		title: "คุณแน่ใจ ?",
-		text: "ต้องการลบ '"+name+"' ออกจากนโยบายหรือไม่ ?",
-		type: "warning",
-		showCancelButton: true,
-		confirmButtonColor: "#FA5858",
-		confirmButtonText: 'ใช่, ฉันต้องการลบ',
-		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: false
-		}, function(){
-      load_in();
-			$.ajax({
-				url: BASE_URL + 'discount/discount_rule/unlink_rule',
-				type:"POST",
-        cache:"false",
-        data:{
-          "id_rule" : id
+    title: "คุณแน่ใจ ?",
+    text: `ต้องการลบ '${name}' ออกจากนโยบายหรือไม่ ?`,
+    type: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#FA5858",
+    confirmButtonText: 'ใช่, ฉันต้องการลบ',
+    cancelButtonText: 'ยกเลิก',
+    closeOnConfirm: false
+  }, function () {
+    load_in();
+
+    setTimeout(() => {
+      $.ajax({
+        url: `${BASE_URL}discount/discount_rule/unlink_rule`,
+        type: "POST",
+        cache: false,
+        data: {
+          "id_rule": id
         },
-				success: function(rs){
+        success: function (rs) {
           load_out();
-					var rs = $.trim(rs);
-					if( rs == 'success' ){
-						swal({
+
+          if (rs.trim() == 'success') {
+            swal({
               title: 'Success',
               type: 'success',
               timer: 1000
             });
 
-						$("#row_"+id).remove();
-					}else{
-						swal('Error !', rs, 'error');
-					}
-				}
-			});
-	});
+            $(`#row_${id}`).remove();
+          }
+          else {
+            showError(rs);
+          }
+        },
+        error: function (rs) {
+          showError(rs);
+        }
+      });
+    }, 100);
+  });
 }

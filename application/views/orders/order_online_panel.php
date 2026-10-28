@@ -1,7 +1,7 @@
 <?php if($order->is_term == 0) : ?>
 <div class="row">
   <div class="col-sm-12">
-  <?php echo paymentLabel($order->code, paymentExists($order->code), $order->is_paid); ?>
+  <?php echo paymentLabel(paymentExists($order->code), $order->is_paid); ?>
   </div>
 </div>
 <hr />
@@ -28,14 +28,14 @@
               <table class='table table-bordered' style="margin-bottom:0px;">
                 <thead>
                   <tr>
-                    <td colspan="6" align="center">ที่อยู่สำหรับจัดส่ง
+                    <td colspan="6" class="text-center">ที่อยู่สำหรับจัดส่ง
                       <p class="pull-right top-p">
                         <button type="button" class="btn btn-info btn-xs" onClick="addNewAddress()"> เพิ่มที่อยู่ใหม่</button>
                       </p>
                     </td>
                   </tr>
                   <tr style="font-size:12px;">
-                    <td align="center" width="10%">ชื่อเรียก</td>
+                    <td class="text-center" width="10%">ชื่อเรียก</td>
                     <td width="12%">ผู้รับ</td>
                     <td width="35%">ที่อยู่</td>
                     <td width="15%">อีเมล์</td>
@@ -47,12 +47,12 @@
           <?php if(!empty($addr)) : ?>
           <?php 	foreach($addr as $rs) : ?>
                   <tr style="font-size:12px;" id="<?php echo $rs->id; ?>">
-                    <td align="center"><?php echo $rs->alias; ?></td>
+                    <td class="text-center"><?php echo $rs->alias; ?></td>
                     <td><?php echo $rs->name; ?></td>
                     <td><?php echo $rs->address.' '. $rs->sub_district.' '.$rs->district.' '.$rs->province.' '. $rs->postcode; ?></td>
                     <td><?php echo $rs->email; ?></td>
                     <td><?php echo $rs->phone; ?></td>
-                    <td align="right">
+                    <td class="text-right">
               <?php if( $rs->is_default == 1 ) : ?>
                       <button type="button" class="btn btn-mini btn-success btn-address" id="btn-<?php echo $rs->id; ?>" onClick="setDefault(<?php echo $rs->id; ?>)">
                         <i class="fa fa-check"></i>
@@ -69,7 +69,7 @@
                   </tr>
           <?php 	endforeach; ?>
           <?php else : ?>
-                  <tr><td colspan="6" align="center">ไม่พบที่อยู่</td></tr>
+                  <tr><td colspan="6" class="text-center">ไม่พบที่อยู่</td></tr>
           <?php endif; ?>
                 </tbody>
               </table>

@@ -6,7 +6,6 @@ class Temp_receive_transform_model extends CI_Model
     parent::__construct();
   }
 
-
   public function count_rows(array $ds = array())
   {
     if(!empty($ds['code']))
@@ -39,9 +38,7 @@ class Temp_receive_transform_model extends CI_Model
     return $this->mc->count_all_results('OIGN');
   }
 
-
-
-  public function get_list(array $ds = array(), $perpage = NULL, $offset = 0)
+  public function get_list(array $ds = array(), $perpage = 20, $offset = 0)
   {
     $this->mc
     ->select('DocEntry, U_ECOMNO, DocDate, CardCode, CardName')
@@ -76,23 +73,14 @@ class Temp_receive_transform_model extends CI_Model
       }
     }
 
-    $this->mc->order_by('DocDate', 'DESC')->order_by('U_ECOMNO', 'DESC');
+    $rs = $this->mc
+    ->order_by('DocDate', 'DESC')
+    ->order_by('U_ECOMNO', 'DESC')
+    ->limit($perpage, $offset)
+    ->get('OIGN');    
 
-    if(!empty($perpage))
-    {
-      $this->mc->limit($perpage, $offset);
-    }
-
-    $rs = $this->mc->get('OIGN');
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
 
   public function get_detail($docEntry)
   {
@@ -101,14 +89,23 @@ class Temp_receive_transform_model extends CI_Model
     ->where('DocEntry', $docEntry)
     ->get('IGN1');
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;    
   }
 
-} //--- end model
+  public function get($docEntry)
+  {
+    $rs = $this->mc->where('DocEntry', $docEntry)->get('OIGN');
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
+  }
 
-?>
+  public function delete_temp_details($id)
+  {
+    return $this->mc->where('DocEntry', $id)->delete('IGN1');
+  }
+
+  public function delete_temp($id)
+  {
+    return $this->mc->where('DocEntry', $id)->delete('OIGN');
+  }
+
+}

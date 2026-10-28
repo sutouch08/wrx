@@ -2,9 +2,10 @@
 function select_channels($code = '')
 {
   $sc = '';
-  $CI =& get_instance();
-  $CI->load->model('masters/channels_model');
-  $channels = $CI->channels_model->get_data();
+  $ci =& get_instance();
+  $ci->load->model('masters/channels_model');
+  $channels = $ci->channels_model->get_data();
+
   if(!empty($channels))
   {
     foreach($channels as $rs)
@@ -15,7 +16,6 @@ function select_channels($code = '')
 
   return $sc;
 }
-
 
 function select_channels_type($code = NULL)
 {
@@ -32,7 +32,6 @@ function get_channels_array()
   $ci->load->model('masters/channels_model');
   return $ci->channels_model->get_channels_array();
 }
-
 
 function select_dispatch_channels($code = NULL)
 {
@@ -55,22 +54,18 @@ function select_dispatch_channels($code = NULL)
   return $sc;
 }
 
-
 function channels_name($code = NULL)
 {
   $ci =& get_instance();
   $ci->load->model('masters/channels_model');
-
   return $ci->channels_model->get_name($code);
 }
-
 
 function channels_array()
 {
   $ds = [];
   $ci =& get_instance();
   $ci->load->model('masters/channels_model');
-
   $channels = $ci->channels_model->get_all();
 
   if( ! empty($channels))
@@ -121,4 +116,3 @@ function offline_channels_array()
 
   return $arr;
 }
- ?>
