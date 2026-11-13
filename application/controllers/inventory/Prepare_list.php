@@ -8,9 +8,9 @@ class Prepare_list extends PS_Controller
   public $menu_code = 'ICPREP';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'CHECK';
-	public $title = 'ตรวจสอบ รายการจัดสินค้า';  
-  public $error;
+	public $title = 'ตรวจสอบ รายการจัดสินค้า';    
   public $segment = 4;
+
   public function __construct()
   {
     parent::__construct();
@@ -55,7 +55,7 @@ class Prepare_list extends PS_Controller
   public function export_filter()
   {    
     ini_set('memory_limit','2048M');
-    $data = json_decode($this->input->post('data'), true);
+    $data = json_decode($this->input->post('data') ?? '', true);
        
     $filter = array(
       'order_code' => $data['order_code'],

@@ -1,5 +1,5 @@
 <?php $this->load->view('include/header'); ?>
-<?php $isAdmin = (get_cookie('id_profile') == -987654321 ? TRUE : FALSE); ?>
+<?php $isAdmin = $this->_SuperAdmin; ?>
 <div class="row">
 	<div class="col-lg-3 col-md-3 col-sm-3 hidden-xs padding-5">
     <h3 class="title"><?php echo $this->title; ?></h3>
@@ -41,10 +41,7 @@
 			<?php endif; ?>
 			<?php if($order->state == 1 && $order->is_approved == 1 && $order->status == 1 && $order->is_expired == 0 && $this->pm->can_approve) : ?>
 					<button type="button" class="btn btn-xs btn-danger top-btn" onclick="unapprove()"><i class="fa fa-refresh"></i> ไม่อนุมัติ</button>
-			<?php endif; ?>
-			<?php if($is_api && $order->is_wms != 0 && $order->status == 1 && $order->is_expired == 0 && $order->state == 3) : ?>
-				<button type="button" class="btn btn-xs btn-success top-btn" onclick="sendToWMS()">Send to WMS</button>
-			<?php endif; ?>
+			<?php endif; ?>			
     </p>
   </div>
 </div><!-- End Row -->

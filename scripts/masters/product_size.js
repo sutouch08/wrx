@@ -1,55 +1,35 @@
 function addNew(){
-  window.location.href = BASE_URL + 'masters/product_size/add_new';
+  window.location.href = `${HOME}add_new`;
 }
 
-
-
-function goBack(){
-  window.location.href = BASE_URL + 'masters/product_size';
+function edit(id) {
+  window.location.href = `${HOME}edit/${id}`;
 }
 
-
-function getEdit(code){
-  window.location.href = BASE_URL + 'masters/product_size/edit/'+code;
-}
-
-
-function clearFilter(){
-  var url = BASE_URL + 'masters/product_size/clear_filter';
-  var page = BASE_URL + 'masters/product_size';
-  $.get(url, function(rs){
-    window.location.href = page;
-  });
-}
-
+let click = false;
 
 function add() {
-  $('.r').removeClass('has-error');
-  $('.e').text('');
-  let code = $.trim($('#code').val());
-  let name = $.trim($('#name').val());
-  let position = $('#position').val();
+  if(click) return;
+  click = true;
+  clearErrorByClass('r');
+  let code = $('#code').val().trim();
+  let name = $('#name').val().trim();
+  let position = parseDefaultInt($('#position').val(), 1);
 
-  if(code.length == 0) {
-    $('#code-error').text('required');
-    $('#code').addClass('has-error');
-    return false;
+  if(code === '') {
+    $('#code').hasError();
+    click = false;
+    return;
   }
 
-  if(name.length == 0) {
-    $('#name-error').text('required');
-    $('#name').addClass('has-error');
-    return false;
+  if(name === '') {
+    $('#name').hasError();
+    click = false;
+    return;
   }
-
-  if(position == '' || position == undefined) {
-    $('#pos-error').text('required');
-    $('#position').addClass('has-error');
-    return false;
-  }
-
+  
   $.ajax({
-    url:BASE_URL + 'masters/product_size/add',
+    url:`${HOME}add`,
     type:'POST',
     cache:false,
     data:{
@@ -58,45 +38,53 @@ function add() {
       'position' : position
     },
     success:function(rs) {
-      if(rs == 'success') {
+      click = false;
+
+      if(rs.trim() === 'success') {
         swal({
           title:'Success',
           type:'success',
           timer:1000
         });
 
-        setTimeout(() => {
-          addNew();
-        }, 1200);
+        setTimeout(() => { addNew(); }, 1200);
       }
       else {
-        swal({
-          title:'Error!',
-          text:rs,
-          type:'error'
-        });
+        showError(rs);
+        click = false;
       }
+    },
+    error:function(rs) {
+      showError(rs);
+      click = false;
     }
-  })
+  });
 }
 
 
-function update(id) {
-  $('.r').removeClass('has-error');
-  $('.e').text('');
-
-  let code = $('#code').val();
-  let name = $('#name').val();
-  let position = parseDefault(parseInt($('#position').val()), 0);
-
-  if(name.length == 0) {
-    $('#name-error').text('required');
-    $('#name').addClass('has-error');
-    return false;
+function update() {
+  if(click) return;
+  click = true;
+  clearErrorByClass('r');
+  let id = $('#id').val();
+  let code = $('#code').val().trim();
+  let name = $('#name').val().trim();
+  let position = parseDefaultInt($('#position').val(), 1);
+  
+  if(code === '') {
+    $('#code').hasError();
+    click = false;
+    return;
   }
 
+  if(name === '') {
+    $('#name').hasError();
+    click = false;
+    return;
+  }
+  
   $.ajax({
-    url:BASE_URL + 'masters/product_size/update',
+    url:`${HOME}update`,
     type:'POST',
     cache:false,
     data:{
@@ -106,7 +94,8 @@ function update(id) {
       'position' : position
     },
     success:function(rs) {
-      if(rs == 'success') {
+      click = false;
+      if(rs.trim() === 'success') {
         swal({
           title:'Success',
           type:'success',
@@ -114,21 +103,21 @@ function update(id) {
         });
       }
       else {
-        swal({
-          title:'Error!',
-          text:rs,
-          type:'error'
-        })
+        showError(rs);
       }
+    },
+    error:function(rs) {
+      showError(rs);
+      click = false;
     }
-  })
+  });
 }
 
 
-function getDelete(id, name){
+function confirmDelete(id, name){
   swal({
     title:'Are sure ?',
-    text:'ต้องการลบ ' + name + ' หรือไม่ ?',
+    text: `ต้องการลบ ${name} หรือไม่ ?`,
     type:'warning',
     showCancelButton: true,
 		confirmButtonColor: '#FA5858',
@@ -139,7 +128,7 @@ function getDelete(id, name){
     setTimeout(() => {
       load_in();
       $.ajax({
-        url:BASE_URL + 'masters/product_size/delete',
+        url:`${HOME}delete`,
         type:'POST',
         cache:false,
         data:{
@@ -147,30 +136,24 @@ function getDelete(id, name){
         },
         success:function(rs) {
           load_out();
-          if(rs == 'success') {
+          if(rs.trim() === 'success') {
             swal({
               title:'Success',
               type:'success',
               timer:1000
             });
 
-            $('#row-'+id).remove();
+            $(`#row-${id}`).remove();
+            reIndex();
           }
           else {
-            swal({
-              title:'Error!',
-              text:rs,
-              type:'error'
-            })
+            showError(rs);
           }
+        },
+        error:function(rs) {
+          showError(rs);
         }
       })
-    }, 200)
-  })
-}
-
-
-
-function getSearch(){
-  $('#searchForm').submit();
+    }, 100)
+  });
 }

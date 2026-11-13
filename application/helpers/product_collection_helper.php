@@ -1,5 +1,5 @@
 <?php
-function select_active_collection(?string $code = '')
+function select_active_collection($code = '')
 {
   $ci =& get_instance();
   $ci->load->model('masters/product_collection_model');  
@@ -20,7 +20,7 @@ function select_active_collection(?string $code = '')
   return $ds;
 }
 
-function select_all_collection(?string $code = '')
+function select_all_collection($code = '')
 {
   $ci =& get_instance();
   $ci->load->model('masters/product_collection_model');

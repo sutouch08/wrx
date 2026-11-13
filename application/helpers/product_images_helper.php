@@ -39,15 +39,25 @@ function get_product_image(string $code, $size = 'default')
 
 function delete_product_image(int $id, string $code)
 {
+  $sc = TRUE;
   $ci =& get_instance();
-  $path = $ci->config->item('image_file_path').'products/';
+  $path = $ci->config->item('image_file_path').'products';
   $use_size = array('mini', 'default', 'medium', 'large');
 
   foreach($use_size as $size)
   {
-    $image_path = $path.'/'.$code.'/product_'.$size.'_'.$id.'.jpg';
-    unlink($image_path);
+    $image_path = $path .'/'.$code.'/product_'.$size.'_'.$id.'.jpg';
+
+    if(file_exists($image_path))
+    {
+      if( ! unlink($image_path))
+      {
+        $sc = FALSE;
+      }
+    }
   }
+  
+  return $sc;
 }
 
 function get_cover_image(?string $code, $size = 'default')

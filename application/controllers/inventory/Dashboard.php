@@ -6,12 +6,12 @@ class Dashboard extends CI_Controller
   public $menu_code = '';
 	public $menu_group_code = '';
   public $menu_sub_group_code = '';
-  public $ms;
+  public ?object $pm;
+  public ?object $ms;
+  public ?string $home;
+  public bool $isViewer = FALSE;
+  public int $notibars = 0;
   public $title = "Dashboard";
-  public $home;
-  public $isViewer = FALSE;
-  public $notibars = 0;
-  public $pm;
   public $channels = array(
     'offline' => 'offline',
     'online' => 'online',
@@ -26,7 +26,6 @@ class Dashboard extends CI_Controller
     $this->home = base_url()."inventory/dashboard";
     $this->load->model('inventory/dashboard_model');
     $this->load->library('user_agent');
-
     $this->is_mobile = $this->agent->is_mobile();
     $this->pm = (object) array('can_view' => 1);
   }
@@ -60,7 +59,6 @@ class Dashboard extends CI_Controller
   public function count_orders()
   {
     $sc = TRUE;
-
     $rows = 0;
 
     $channels = array(
@@ -91,27 +89,5 @@ class Dashboard extends CI_Controller
     );
 
     echo json_encode($arr);
-  }
-
-
-  public function get_dashboard_data()
-  {
-    $sc = TRUE;
-
-    $data = $this->dashboard_model->get_dashboard_data();
-
-    $ds = [];
-
-    if( ! empty($data))
-    {
-      foreach($data as $row)
-      {
-        
-      }
-    }
-    
-  }
-
-
-} //--- end class
-?>
+  }  
+} 

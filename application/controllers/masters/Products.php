@@ -1,17 +1,17 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+
 class Products extends PS_Controller
 {
   public $menu_code = 'DBPROD';
   public $menu_group_code = 'DB';
   public $menu_sub_group_code = 'PRODUCT';
   public $title = 'เพิ่ม/แก้ไข สินค้า';
-  public $error = '';
-  public $wms;
-  public $wms_export_item;
-  public $soko_export_item;
-  public $wmsApi = FALSE;
-  public $sokoApi = FALSE;
+  public $segment = 4;
 
   public function __construct()
   {
@@ -46,15 +46,7 @@ class Products extends PS_Controller
     $this->load->helper('product_images');
     $this->load->helper('unit');
     $this->load->helper('item_group');
-
-    $this->wms = $this->load->database('wms', TRUE);
-    // $this->load->library('wms_product_api');
-    // $this->load->library('soko_product_api');
-
-    // $this->wmsApi = is_true(getConfig('WMS_API'));
-    // $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
-
-    // $this->wms_export_item = getConfig('WMS_EXPORT_ITEMS');
+    $this->load->library('user_agent');
   }
 
 
@@ -79,76 +71,49 @@ class Products extends PS_Controller
     if ($this->input->post('search'))
     {
       redirect($this->home);
+      exit;
     }
-    else
+
+    $perpage = get_rows();
+    $rows = $this->product_style_model->count_rows($filter);
+    $filter['data'] = $this->product_style_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+
+    if (!empty($filter['data']))
     {
-      //--- แสดงผลกี่รายการต่อหน้า
-      $perpage = get_rows();
-      //--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-      if ($perpage > 300)
+      foreach ($filter['data'] as $rs)
       {
-        $perpage = 20;
+        $rs->code = $rs->code;
+        $rs->old_code = $rs->old_code;
+        $rs->name = $rs->name;
+        $rs->price = $rs->price;
+        $rs->group = $this->product_group_model->get_name($rs->group_code);
+        $rs->main_group = $this->product_main_group_model->get_name($rs->main_group_code);
+        $rs->sub_group = $this->product_sub_group_model->get_name($rs->sub_group_code);
+        $rs->kind = $this->product_kind_model->get_name($rs->kind_code);
+        $rs->type = $this->product_type_model->get_name($rs->type_code);
+        $rs->category  = $this->product_category_model->get_name($rs->category_code);
+        $rs->brand = $this->product_brand_model->get_name($rs->brand_code);
+        $rs->collection = $this->product_collection_model->get_name($rs->collection_code);
+        $rs->year = $rs->year;
+        $rs->sell = $rs->can_sell;
+        $rs->active = $rs->active;
+        $rs->api = $rs->is_api;
+        $rs->date_upd = $rs->date_upd;
       }
-
-      $segment  = 4; //-- url segment
-      $rows     = $this->product_style_model->count_rows($filter);
-      //--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-      $init      = pagination_config($this->home . '/index/', $rows, $perpage, $segment);
-      $products = $this->product_style_model->get_data($filter, $perpage, $this->uri->segment($segment));
-      $ds       = array();
-      if (!empty($products))
-      {
-        foreach ($products as $rs)
-        {
-          $rs->code = $rs->code;
-          $rs->old_code = $rs->old_code;
-          $rs->name = $rs->name;
-          $rs->price = $rs->price;
-          $rs->group = $this->product_group_model->get_name($rs->group_code);
-          $rs->main_group = $this->product_main_group_model->get_name($rs->main_group_code);
-          $rs->sub_group = $this->product_sub_group_model->get_name($rs->sub_group_code);
-          $rs->kind = $this->product_kind_model->get_name($rs->kind_code);
-          $rs->type = $this->product_type_model->get_name($rs->type_code);
-          $rs->category  = $this->product_category_model->get_name($rs->category_code);
-          $rs->brand = $this->product_brand_model->get_name($rs->brand_code);
-          $rs->collection = $this->product_collection_model->get_name($rs->collection_code);
-          $rs->year = $rs->year;
-          $rs->sell = $rs->can_sell;
-          $rs->active = $rs->active;
-          $rs->api = $rs->is_api;
-          $rs->date_upd = $rs->date_upd;
-        }
-      }
-
-      $filter['data'] = $products;
-
-      $this->pagination->initialize($init);
-      $this->load->view('masters/products/products_view', $filter);
     }
-  }
 
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $this->pagination->initialize($init);
+    $this->load->view('masters/products/products_view', $filter);
+  }
 
   public function export_filter()
   {
-    ini_set('memory_limit', '2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
+    ini_set('memory_limit', '2048M');
+    ini_set('max_execution_time', 300);
 
     $token = $this->input->post('token');
-
-    $ds = array(
-      'code' => $this->input->post('export_code'),
-      'name' => $this->input->post('export_name'),
-      'group' => $this->input->post('export_group'),
-      'main_group' => $this->input->post('export_main_group'),
-      'sub_group' => $this->input->post('export_sub_group'),
-      'category' => $this->input->post('export_category'),
-      'kind' => $this->input->post('export_kind'),
-      'type' => $this->input->post('export_type'),
-      'brand' => $this->input->post('export_brand'),
-      'collection' => $this->input->post('export_collection'),
-      'year' => $this->input->post('export_year'),
-      'sell' => $this->input->post('export_sell'),
-      'active' => $this->input->post('export_active')
-    );
+    $ds = json_decode($this->input->post('data') ?? '{}', true);
 
     $header = array(
       'Code',
@@ -180,23 +145,16 @@ class Products extends PS_Controller
 
     $products = $this->products_model->get_products_list($ds);
 
-    // Create a file pointer
     $f = fopen('php://memory', 'w');
     $delimiter = ",";
     $bom = (chr(0xEF) . chr(0xBB) . chr(0xBF));
     fputs($f, $bom);
-    fputcsv($f, $header, $delimiter);
+    fputcsv($f, $header, $delimiter, "\"", "\\");
 
     if (!empty($products))
     {
-
       foreach ($products as $rs)
       {
-        $count_stock = $rs->count_stock == 1 ? 'Y' : 'N';
-        $is_active = $rs->active == 1 ? 'Y' : 'N';
-        $is_api = $rs->is_api == 1 ? 'Y' : 'N';
-        $is_sell = $rs->can_sell == 1 ? 'Y' : 'N';
-
         $arr = array(
           $rs->code,
           $rs->name,
@@ -216,45 +174,32 @@ class Products extends PS_Controller
           $rs->cost,
           $rs->price,
           $rs->unit_code,
-          $count_stock,
-          $is_api,
+          $rs->count_stock ? 'Y' : 'N',
+          $rs->is_api ? 'Y' : 'N',
           $rs->old_style,
           $rs->old_code,
-          $is_active,
-          $is_sell,
+          $rs->active ? 'Y' : 'N',
+          $rs->can_sell ? 'Y' : 'N',
           $rs->api_rate
         );
 
-        fputcsv($f, $arr, $delimiter);
+        fputcsv($f, $arr, $delimiter, "\"", "\\");
       }
-
-      $memuse = (memory_get_usage() / 1024) / 1024;
-      $arr = array('memory usage', round($memuse, 2) . ' MB');
-
-      fputcsv($f, $arr, $delimiter);
     }
 
-    //--- Move to begin of file
     fseek($f, 0);
-
     setToken($token);
-
     $file_name = "Products Master.csv";
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment;filename="' . $file_name . '"');
-
-    //output all remaining data on a file pointer
     fpassthru($f);;
-
-    exit();
+    exit;
   }
-
 
   public function add_new()
   {
     $this->load->view('masters/products/products_add_view');
   }
-
 
   public function add_style()
   {
@@ -330,8 +275,6 @@ class Products extends PS_Controller
     echo json_encode($arr);
   }
 
-  
-
   public function export_style($style_code)
   {
     $style = $this->product_style_model->get($style_code);
@@ -352,7 +295,6 @@ class Products extends PS_Controller
 
     return FALSE;
   }
-
 
   public function edit($id, $tab = 'styleTab')
   {
@@ -378,58 +320,49 @@ class Products extends PS_Controller
     }
   }
 
-
   //--- update item data
   public function update_item()
   {
-    if ($this->input->post('id'))
+    $id = $this->input->post('id');
+    $code = $this->input->post('code');
+
+    if (empty($id) || empty($code))
     {
-      $id = $this->input->post('id');
-      $code = $this->input->post('code');
-      $old_code = NULL; //get_null(trim($this->input->post('old_code')));
-      $barcode = get_null(trim($this->input->post('barcode')));
-      $cost = get_null($this->input->post('cost'));
-      $price = get_null($this->input->post('price'));
-
-      $ds = array(
-        'barcode' => ($barcode === '' ? NULL : $barcode),
-        'cost' => ($cost === NULL ? 0.00 : $cost),
-        'price' => ($price === NULL ? 0.00 : $price),
-        'old_code' => $old_code
-      );
-
-      if ($this->products_model->update_by_id($id, $ds))
-      {
-
-        $this->do_export($code, 'U'); //--- A = add, U = update
-
-        echo 'success';
-      }
-      else
-      {
-        echo 'Update item fail';
-      }
+      echo get_error('required');
+      exit;
     }
-    else
+
+    $ds = array(
+      'barcode' => get_null(trim($this->input->post('barcode') ?? '')),
+      'cost' => floatval($this->input->post('cost') ?? 0),
+      'price' => floatval($this->input->post('price') ?? 0),
+      'old_code' => NULL
+    );
+
+    if (! $this->products_model->update_by_id($id, $ds))
     {
-      echo 'Item code not found';
+      echo get_error('update');
+      exit;
     }
+
+    $this->do_export($code, 'U');
+
+    echo 'success';
   }
-
 
   public function update_style()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
-    if(! empty($ds) && ! empty($ds->id) && ! empty($ds->code))
+    if (! empty($ds) && ! empty($ds->id) && ! empty($ds->code))
     {
       $code = $ds->code;
       $cost_update = is_true($ds->cost_update);
       $price_update = is_true($ds->price_update);
 
-      $arr = array(        
-        'name' => addslashes($ds->name),
+      $arr = array(
+        'name' => $ds->name,
         'cost' => $ds->cost,
         'price' => $ds->price,
         'unit_code' => empty($ds->unit_code) ? 'PCS' : $ds->unit_code,
@@ -450,23 +383,23 @@ class Products extends PS_Controller
         'count_stock' => empty($ds->count_stock) ? 0 : 1,
         'can_sell' => empty($ds->can_sell) ? 0 : 1,
         'is_api' => empty($ds->is_api) ? 0 : 1,
-        'active' => empty($ds->active) ? 0 : 1,        
+        'active' => empty($ds->active) ? 0 : 1,
         'update_user' => $this->_user->uname
       );
-      
-      if( ! $this->product_style_model->update_by_id($ds->id, $arr))
+
+      if (! $this->product_style_model->update_by_id($ds->id, $arr))
       {
         $sc = FALSE;
         set_error('update');
       }
 
-      if($sc === TRUE)
+      if ($sc === TRUE)
       {
         $this->export_style($code);
 
         $items = $this->products_model->get_style_items($code);
 
-        if( ! empty($items))
+        if (! empty($items))
         {
           $arr = array(
             'unit_code' => empty($ds->unit_code) ? 'PCS' : $ds->unit_code,
@@ -491,22 +424,22 @@ class Products extends PS_Controller
             'update_user' => $this->_user->uname
           );
 
-          if($cost_update)
+          if ($cost_update)
           {
             $arr['cost'] = $ds->cost;
           }
 
-          if($price_update)
+          if ($price_update)
           {
             $arr['price'] = $ds->price;
           }
 
-          foreach($items as $item)
+          foreach ($items as $item)
           {
             $this->products_model->update($item->code, $arr);
           }
         }
-      }                
+      }
     }
     else
     {
@@ -516,7 +449,6 @@ class Products extends PS_Controller
 
     $this->_response($sc);
   }
-
 
   //---- update style data
   public function update()
@@ -579,7 +511,6 @@ class Products extends PS_Controller
     redirect($this->home . '/edit/' . $code);
   }
 
-
   public function update_cost_price_by_size()
   {
     $sc = TRUE;
@@ -587,8 +518,8 @@ class Products extends PS_Controller
     {
       $code = $this->input->post('style_code');
       $size = $this->input->post('size');
-      $cost = empty($this->input->post('cost')) ? 0 : $this->input->post('cost');
-      $price = empty($this->input->post('price')) ? 0 : $this->input->post('price');
+      $cost = floatval($this->input->post('cost') ?? 0);
+      $price = floatval($this->input->post('price') ?? 0);
 
       if (!empty($size))
       {
@@ -614,7 +545,6 @@ class Products extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
   public function update_all_cost_price_by_size()
   {
     $sc = TRUE;
@@ -622,9 +552,9 @@ class Products extends PS_Controller
     if (!empty($this->input->post('style_code')))
     {
       $code = $this->input->post('style_code');
-      $sizes = $this->input->post('size'); //--- array
-      $cost = $this->input->post('cost'); //--- array
-      $price = $this->input->post('price'); //--- array
+      $sizes = $this->input->post('size') ?? []; //--- array
+      $cost = $this->input->post('cost') ?? []; //--- array
+      $price = $this->input->post('price') ?? []; //--- array
 
       if (!empty($sizes))
       {
@@ -662,7 +592,6 @@ class Products extends PS_Controller
     redirect($this->home . '/edit/' . $code . '/priceTab');
   }
 
-
   public function toggle_can_sell($id)
   {
     $status = $this->products_model->get_status('can_sell', $id);
@@ -677,7 +606,6 @@ class Products extends PS_Controller
       echo 'fail';
     }
   }
-
 
   public function toggle_active($id)
   {
@@ -694,7 +622,6 @@ class Products extends PS_Controller
     }
   }
 
-
   public function toggle_api($id)
   {
     $status = $this->products_model->get_status('is_api', $id);
@@ -710,7 +637,6 @@ class Products extends PS_Controller
     }
   }
 
-
   public function item_gen($id)
   {
     $style = $this->product_style_model->get_by_id($id);
@@ -719,8 +645,8 @@ class Products extends PS_Controller
     {
       $data = array(
         'style' => $style,
-        'colors' => $this->product_color_model->get_data(),
-        'sizes' => $this->product_size_model->get_data(),
+        'colors' => $this->product_color_model->get_all(),
+        'sizes' => $this->product_size_model->get_all(),
         'images' => $this->product_image_model->get_style_images($style->code)
       );
 
@@ -732,38 +658,37 @@ class Products extends PS_Controller
     }
   }
 
-
   public function gen_items()
   {
+    $sc = TRUE;
     $code = $this->input->post('style');
 
     if ($this->input->post('style'))
     {
       $code = $this->input->post('style');
-      $id = $this->input->post('id');      
+      $id = $this->input->post('id');
       $colors = $this->input->post('colors');
       $sizes = $this->input->post('sizes');
       $images = $this->input->post('image');
       $cost = $this->input->post('cost');
-      $price = $this->input->post('price');      
+      $price = $this->input->post('price');
 
       if ($colors !== NULL && $sizes !== NULL)
       {
-        $rs = $this->gen_color_and_size($code, $colors, $sizes, $cost, $price);
+        if (!$this->gen_color_and_size($code, $colors, $sizes, $cost, $price)) $sc = FALSE;
       }
 
       if ($colors !== NULL && $sizes === NULL)
       {
-        $rs = $this->gen_color_only($code, $colors, $cost, $price);
+        if (!$this->gen_color_only($code, $colors)) $sc = FALSE;
       }
-
 
       if ($colors === NULL && $sizes !== NULL)
       {
-        $rs = $this->gen_size_only($code, $sizes, $cost, $price);
+        if (!$this->gen_size_only($code, $sizes, $cost, $price)) $sc = FALSE;
       }
 
-      if ($rs === TRUE && $colors !== NULL && $images !== NULL)
+      if ($sc === TRUE && $colors !== NULL && $images !== NULL)
       {
         foreach ($images as $key => $val)
         {
@@ -780,7 +705,11 @@ class Products extends PS_Controller
                   'id_image' => $key
                 );
 
-                $this->product_image_model->update_product_imag($arr);
+                if (! $this->product_image_model->update_product_imag($arr))
+                {
+                  $sc = FALSE;
+                  $this->error .= 'Update image fail : ' . $item->code . ' /n';
+                }
               }
             }
           }
@@ -796,7 +725,6 @@ class Products extends PS_Controller
 
     redirect($this->home . '/edit/' . $id . '/itemTab');
   }
-
 
   public function gen_color_and_size($style, $colors, $sizes, $cost, $price)
   {
@@ -839,16 +767,19 @@ class Products extends PS_Controller
 
         if ($this->products_model->is_exists($code))
         {
-          $rs = $this->products_model->update($code, $data);
+          if (! $this->products_model->update($code, $data))
+          {
+            $sc = FALSE;
+            $this->error .= 'Update fail : ' . $code . ' /n';
+          }
         }
         else
         {
-          $rs = $this->products_model->add($data);
-        }
-
-        if ($rs === FALSE)
-        {
-          $this->error .= 'Insert fail : ' . $code . ' /n';
+          if (! $this->products_model->add($data))
+          {
+            $sc = FALSE;
+            $this->error .= 'Insert fail : ' . $code . ' /n';
+          }
         }
       }
     }
@@ -856,9 +787,9 @@ class Products extends PS_Controller
     return $sc;
   }
 
-
   public function gen_color_only($style, $colors)
   {
+    $sc = TRUE;
     foreach ($colors as $color)
     {
       $code = $style . '-' . $color;
@@ -892,18 +823,19 @@ class Products extends PS_Controller
         'update_user' => $this->_user->uname
       );
 
-      $rs = $this->products_model->add($data);
-
-      if ($rs === FALSE)
+      if (!$this->products_model->add($data))
       {
+        $sc = FALSE;
         $this->error .= 'Insert fail : ' . $code . ' /n';
       }
     }
-  }
 
+    return $sc;
+  }
 
   public function gen_size_only($style, $sizes, $cost, $price)
   {
+    $sc = TRUE;
     foreach ($sizes as $size)
     {
       $code = $style . '-' . $size;
@@ -937,15 +869,15 @@ class Products extends PS_Controller
         'update_user' => $this->_user->uname
       );
 
-      $rs = $this->products_model->add($data);
-
-      if ($rs === FALSE)
+      if (! $this->products_model->add($data))
       {
+        $sc = FALSE;
         $this->error .= 'Insert fail : ' . $code . ' /n';
       }
     }
-  }
 
+    return $sc;
+  }
 
   public function generate_old_code_item()
   {
@@ -1000,7 +932,6 @@ class Products extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
   public function delete_item()
   {
     $sc = TRUE;
@@ -1013,24 +944,23 @@ class Products extends PS_Controller
         if (! $this->products_model->delete_item($item))
         {
           $sc = FALSE;
-          $message = "ลบรายการไม่สำเร็จ";
+          $this->error = "ลบรายการไม่สำเร็จ";
         }
       }
       else
       {
         $sc = FALSE;
-        $message = "ไม่สามารถลบ {$item} ได้ เนื่องจากสินค้ามี Transcetion เกิดขึ้นแล้ว";
+        $this->error = "ไม่สามารถลบ {$item} ได้ เนื่องจากสินค้ามี Transcetion เกิดขึ้นแล้ว";
       }
     }
     else
     {
       $sc = FALSE;
-      $message = 'ไม่พบข้อมูล';
+      $this->error = 'ไม่พบข้อมูล';
     }
 
-    echo $sc === TRUE ? 'success' : $message;
+    $this->_response($sc);
   }
-
 
   public function delete_style($style)
   {
@@ -1043,7 +973,7 @@ class Products extends PS_Controller
       if ($this->products_model->is_exists_style($style) === TRUE)
       {
         $sc = FALSE;
-        $message = 'ไม่สามารถลบรุ่นสินค้าได้เนื่องจากมีรายการสินค้าที่เชื่อมโยงอยู่';
+        $this->error = 'ไม่สามารถลบรุ่นสินค้าได้เนื่องจากมีรายการสินค้าที่เชื่อมโยงอยู่';
       }
       else
       {
@@ -1052,24 +982,23 @@ class Products extends PS_Controller
         if ($rs !== TRUE)
         {
           $sc = FALSE;
-          $message = 'ลบข้อมูลรุ่นสินค้าไม่สำเร็จ';
+          $this->error = 'ลบข้อมูลรุ่นสินค้าไม่สำเร็จ';
         }
       }
     }
     else
     {
       $sc = FALSE;
-      $message = 'ไม่พบข้อมูลสินค้า';
+      $this->error = 'ไม่พบข้อมูลสินค้า';
     }
 
-    echo $sc === TRUE ? 'success' : $message;
+    $this->_response($sc);
   }
-
 
   //--- ดึง items และรูปภาพ เพื่อทำการเชื่อมโยงรูปภาพ
   public function get_image_items()
   {
-    $style = trim($this->input->post('style_code'));
+    $style = trim($this->input->post('style_code') ?? '');
 
     $sc = 'noimage';
     //---- จำนวนรายการสินค้า ทั้งหมด
@@ -1135,11 +1064,10 @@ class Products extends PS_Controller
     echo $sc;
   }
 
-
   public function mapping_image()
   {
     $sc = TRUE;
-    $items = json_decode($this->input->post('items'));
+    $items = json_decode($this->input->post('items') ?? '{}');
 
     if (! empty($items))
     {
@@ -1162,14 +1090,14 @@ class Products extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
   public function generate_barcode()
   {
     $this->load->model('masters/product_barcode_model');
     $this->load->helper('barcode');
-    $style = $this->input->post('style');
-    $type  = $this->input->post('barcodeType');
+    $style = $this->input->post('style') ?? '';
+    $type  = $this->input->post('barcodeType') ?? '';
     $items = $this->products_model->get_unbarcode_items($style);
+
     if (!empty($items))
     {
       foreach ($items as $item)
@@ -1177,7 +1105,7 @@ class Products extends PS_Controller
         //--- type   1 = บาร์โค้ดภายใน  2 = บาร์โค้ดสากล
         if ($type == 1)
         {
-          $barcode = $this->product_barcode_model->get_last_barcode();
+          $barcode = intval($this->product_barcode_model->get_last_barcode() ?? 0);
           $barcode += 1;
           $arr = array(
             'barcode' => $barcode,
@@ -1191,7 +1119,7 @@ class Products extends PS_Controller
         }
         else
         {
-          $running = $this->product_barcode_model->get_last_ean_barcode();
+          $running = intval($this->product_barcode_model->get_last_ean_barcode() ?? 0);
           $running += 1;
           $barcode = generateEAN($running);
           $arr = array(
@@ -1205,41 +1133,24 @@ class Products extends PS_Controller
             $this->products_model->update_barcode($item->code, $barcode);
           }
         }
-      }
+      }      
+    }
 
-      echo 'success';
-    }
-    else
-    {
-      echo 'ไม่พบรายการที่ไม่มีบาร์โค้ด';
-    }
+    echo 'success';
   }
-
 
   public function is_style_exists($code)
   {
-    $rs = $this->product_style_model->is_exists($code);
-    if ($rs === TRUE)
-    {
-      echo 'exists';
-    }
-    else
-    {
-      echo 'ok';
-    }
+    echo $this->product_style_model->is_exists($code) ? 'exists' : 'ok';
   }
-
 
   public function do_export($code, $method = 'A')
   {
     $sc = TRUE;
-
     $item = $this->products_model->get($code);
     //--- เช็คข้อมูลในฐานข้อมูลจริง
     $exst = $this->products_model->is_sap_exists($item->code);
-
     $method = $exst === TRUE ? 'U' : $method;
-
     //--- เช็คข้อมูลในถังกลาง
     $middle = $this->products_model->get_un_import_middle($item->code);
     if (!empty($middle))
@@ -1249,7 +1160,6 @@ class Products extends PS_Controller
         $this->products_model->drop_middle_item($mid->DocEntry);
       }
     }
-
 
     $ds = array(
       'ItemCode' => $item->code, //--- รหัสสินค้า
@@ -1296,7 +1206,6 @@ class Products extends PS_Controller
     return $sc;
   }
 
-
   public function export_products($style_code)
   {
     $sc = TRUE;
@@ -1325,151 +1234,35 @@ class Products extends PS_Controller
   }
 
 
-  public function send_to_wms()
-  {
-    $sc = TRUE;
-
-    $code = trim($this->input->post('code')); //--- style code
-
-    if (! empty($code))
-    {
-      if ($this->wmsApi)
-      {
-        $items = $this->products_model->get_style_items($code);
-
-        if (! empty($items))
-        {
-          $export = $this->wms_product_api->export_style($code, $items);
-
-          if (!$export)
-          {
-            $sc = FALSE;
-            $this->error = "Error : " . $this->wms_product_api->error;
-          }
-        }
-        else
-        {
-          $sc = FALSE;
-          $this->error = "Items not found";
-        }
-      }
-      else
-      {
-        $sc = FALSE;
-        $this->error = "API is  not enabled";
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      $this->error = "Missing required parameter: code";
-    }
-
-    echo $sc === TRUE ? 'success' : $this->error;
-  }
-
-
-  public function send_to_soko()
-  {
-    $sc = TRUE;
-    $msg = "";
-    $count = 0;
-    $success = 0;
-    $failed = 0;
-
-    $code = trim($this->input->post('code')); //--- style code
-
-    if (! empty($code))
-    {
-      if ($this->sokoApi)
-      {
-        $items = $this->products_model->get_style_items($code);
-
-        if (! empty($items))
-        {
-          $count = count($items);
-
-          foreach ($items as $item)
-          {
-            if (empty($item->soko_code))
-            {
-              if (! $this->soko_product_api->create_item($item->code, $item))
-              {
-                $sc = FALSE;
-                $msg .= "\n{$item->code} : {$this->soko_product_api->error}";
-                $failed++;
-              }
-            }
-            else
-            {
-              if (! $this->soko_product_api->update_item($item->code, $item))
-              {
-                $sc = FALSE;
-                $msg .= "\n{$item->code} : {$this->soko_product_api->error}";
-                $failed++;
-              }
-            }
-          }
-
-          $this->error = $sc === FALSE ? "Failed : {$failed} Of {$count} items " . $msg : "";
-        }
-        else
-        {
-          $sc = FALSE;
-          $this->error = "Items not found";
-        }
-      }
-      else
-      {
-        $sc = FALSE;
-        $this->error = "API is not enabled";
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      $this->error = "Missing required parameter: code";
-    }
-
-    echo $sc === TRUE ? 'success' : $this->error;
-  }
-
-
   public function export_barcode($code, $token)
-  {
+  {    
     $products = $this->products_model->get_style_items($code);
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
+    $sheet->setTitle($code);
 
-    //--- load excel library
-    $this->load->library('excel');
-
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Stock Balance Report');
-
-    //--- set report title header
-    $this->excel->getActiveSheet()->setCellValue('A1', 'Barcode');
-    $this->excel->getActiveSheet()->setCellValue('B1', 'Item Code');
-
-
+    $sheet->setCellValue('A1', 'Barcode');
+    $sheet->setCellValue('B1', 'Item Code');
     $row = 2;
+
     if (!empty($products))
     {
       foreach ($products as $rs)
       {
-        $this->excel->getActiveSheet()->setCellValue('A' . $row, $rs->barcode);
-        $this->excel->getActiveSheet()->setCellValue('B' . $row, $rs->code);
+        $sheet->setCellValueExplicit('A' . $row, $rs->barcode, DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('B' . $row, $rs->code, DataType::TYPE_STRING);
         $row++;
       }
 
-      $this->excel->getActiveSheet()->getStyle('A2:A' . $row)->getNumberFormat()->setFormatCode('0');
+      $sheet->getStyle('A2:A' . $row)->getNumberFormat()->setFormatCode('0');
     }
 
     setToken($token);
-
     $file_name = "{$code}_barcode.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="' . $file_name . '"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
-    $writer->save('php://output');
+    $writer = new Xlsx($excel);
+    $writer->save('php://output');    
   }
 
 

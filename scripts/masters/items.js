@@ -1,23 +1,13 @@
-var HOME = BASE_URL + 'masters/items/';
-
 function addNew(){
-  window.location.href = HOME + 'add_new';
+  window.location.href = `${HOME}add_new`;
 }
-
-
-
-function goBack(){
-  window.location.href = HOME;
-}
-
 
 function getEdit(id){
-	window.location.href = HOME + 'edit/'+id;
+	window.location.href = `${HOME}edit/${id}`;
 }
 
-
 function viewDetail(id) {
-  window.location.href = HOME + 'view_detail/'+id;
+  window.location.href = `${HOME}view_detail/${id}`;
 }
 
 
@@ -173,22 +163,7 @@ function update() {
 	if(data.name.length === 0) {
 		set_error($('#name'), $('#name-error'), "required");
 		error++;
-	}
-
-	// if(data.style.length === 0) {
-	// 	set_error($('#style'), $('#style-error'), "required");
-	// 	error++;
-	// }
-
-	// if(data.color_code.length === 0) {
-	// 	set_error($('#color'), $('#color-error'), "required");
-	// 	error++;
-	// }
-
-	// if(data.size_code.length === 0) {
-	// 	set_error($('#size'), $('#size-error'), "required");
-	// 	error++;
-	// }
+	}	
 
 	if(data.unit_code.length === 0) {
 		set_error($('#unit_code'), $('#unit-error'), "required");
@@ -435,15 +410,6 @@ $('#api-rate').change(function() {
 })
 
 
-function clearFilter(){
-  var url = HOME + 'clear_filter';
-  var page = BASE_URL + 'masters/products';
-  $.get(url, function(){
-    goBack();
-  });
-}
-
-
 function getDelete(id, code, no){
   let url = BASE_URL + 'masters/items/delete_item/';// + encodeURIComponent(code);
   swal({
@@ -485,72 +451,6 @@ function getDelete(id, code, no){
   })
 }
 
-function getTemplate(){
-  var token	= new Date().getTime();
-	get_download(token);
-	window.location.href = BASE_URL + 'masters/items/download_template/'+token;
-}
-
-function getSearch(){
-  $('#searchForm').submit();
-}
-
-
-function sendToWms(code) {
-	load_in();
-	$.ajax({
-		url:BASE_URL + 'masters/items/send_to_wms',
-		type:'POST',
-		cache:false,
-		data:{
-			'code' : code
-		},
-		success:function(rs) {
-			load_out();
-			if(rs === 'success') {
-				swal({
-					title:'Success',
-					type:'success',
-					timer:1000
-				});
-			}
-			else {
-				swal({
-					title:'Error',
-					text:rs,
-					type:'error'
-				})
-			}
-		}
-	})
-}
-
-
-function sendToSoko(code) {
-	load_in();
-	$.ajax({
-		url:BASE_URL + 'masters/items/send_to_soko',
-		type:'POST',
-		cache:false,
-		data:{
-			'code' : code
-		},
-		success:function(rs) {
-			load_out();
-			if(rs === 'success') {
-				swal({
-					title:'Success',
-					type:'success',
-					timer:1000
-				});
-			}
-			else {
-				swal({
-					title:'Error',
-					text:rs,
-					type:'error'
-				})
-			}
-		}
-	})
+function getTemplate() {  
+	window.location.href = `${HOME}download_template`;
 }

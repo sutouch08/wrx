@@ -3,7 +3,7 @@ function select_product_main_group($code = '')
 {
   $ci =& get_instance();
   $ci->load->model('masters/product_main_group_model');
-  $result = $ci->product_main_group_model->get_data();
+  $result = $ci->product_main_group_model->get_all();
   $ds = '';
   
   if(!empty($result))

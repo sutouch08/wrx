@@ -1,45 +1,153 @@
-function addNew(){
-  window.location.href = BASE_URL + 'masters/customer_area/add_new';
+function addNew() {
+  window.location.href = `${HOME}add_new`;
+}
+
+function edit(code) {
+  window.location.href = `${HOME}edit/${code}`;
+}
+
+let click = 0;
+
+function add() {
+  if(click > 0) {
+    return false;
+  }
+
+  click = 1;
+  clearErrorByClass('r');
+
+  let code = $('#code').val().trim();
+  let name = $('#name').val().trim();
+  
+  if(code === '') {
+    $('#code').hasError();
+    click = 0;
+    return false;
+  }
+
+  if(name === '') {
+    $('#name').hasError();
+    click = 0;
+    return false;
+  }
+
+  load_in();
+
+  $.ajax({
+    url: `${HOME}add`,
+    type: 'POST',
+    data: { 'code': code, 'name': name },
+    success: function(rs) {
+      load_out();
+
+      if(rs.trim() === 'success') {
+        swal({
+          title:'Success',
+          type:'success',
+          timer:1000
+        });
+
+        setTimeout(() => { refresh(); }, 1200);
+      } 
+      else {
+        showError(rs);
+        click = 0;
+      }
+    },
+    error: function(rs) {
+      showError(rs);
+      click = 0;
+    }
+  })
 }
 
 
+function update() {
+  if(click > 0) {
+    return false;
+  }
 
-function goBack(){
-  window.location.href = BASE_URL + 'masters/customer_area';
+  click = 1;
+  clearErrorByClass('r');
+
+  let code = $('#code').val().trim();
+  let name = $('#name').val().trim();
+
+  if(code === '') {
+    $('#code').hasError();
+    click = 0;
+    return false;
+  }
+
+  if(name === '') {
+    $('#name').hasError();
+    click = 0;
+    return false;
+  }
+
+  load_in();
+
+  $.ajax({
+    url: `${HOME}update`,
+    type: 'POST',
+    data: { 'code': code, 'name': name },
+    success: function(rs) {
+      load_out();
+
+      if(rs.trim() === 'success') {
+        swal({
+          title:'Success',
+          type:'success',
+          timer:1000
+        });
+
+        setTimeout(() => { refresh(); }, 1200);
+      } 
+      else {
+        showError(rs);
+        click = 0;
+      }
+    },
+    error: function(rs) {
+      showError(rs);
+      click = 0;
+    }
+  })
 }
 
-
-function getEdit(code){
-  window.location.href = BASE_URL + 'masters/customer_area/edit/'+code;
-}
-
-
-function clearFilter(){
-  var url = BASE_URL + 'masters/customer_area/clear_filter';
-  var page = BASE_URL + 'masters/customer_area';
-  $.get(url, function(rs){
-    window.location.href = page;
-  });
-}
-
-
-function getDelete(code, name){
+function confirmDelete(id, name){
   swal({
     title:'Are sure ?',
-    text:'ต้องการลบ ' + name + ' หรือไม่ ?',
+    text:`ต้องการลบ '${name}' หรือไม่ ?`,
     type:'warning',
     showCancelButton: true,
 		confirmButtonColor: '#FA5858',
 		confirmButtonText: 'ใช่, ฉันต้องการลบ',
 		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: false
+		closeOnConfirm: true
   },function(){
-    window.location.href = BASE_URL + 'masters/customer_area/delete/' + code;
+    load_in();
+
+    setTimeout(() => {
+      $.ajax({
+        url: `${HOME}delete`,
+        type: 'POST',
+        data: { 'id': id },
+        success: function(rs) {
+          load_out();
+          if(rs.trim() === 'success') {
+            $(`#row-${id}`).remove();
+            reIndex();
+          } 
+          else {
+            showError(rs);
+          }
+        },
+        error:function(rs) {
+          showError(rs);
+        }
+      })
+    }, 100);
   })
 }
 
-
-
-function getSearch(){
-  $('#searchForm').submit();
-}

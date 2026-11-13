@@ -1,16 +1,13 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class Return_order extends PS_Controller
 {
   public $menu_code = 'ICRTOR';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'RETURN';
-	public $title = 'คืนสินค้า(ลดหนี้ขาย)';
-  public $filter;
-  public $error;
-	public $wms;
-	public $isAPI;
+	public $title = 'คืนสินค้า(ลดหนี้ขาย)';  
   public $segment = 4;
   public $required_remark = 1;
 
@@ -23,11 +20,7 @@ class Return_order extends PS_Controller
     $this->load->model('masters/zone_model');
     $this->load->model('masters/customers_model');
     $this->load->model('masters/products_model');
-    $this->load->helper('warehouse');
-
-		$this->isAPI = is_true(getConfig('WMS_API'));
-    $this->wmsApi = is_true(getConfig('WMS_API'));
-    $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
+    $this->load->helper('warehouse');		
   }
 
 
@@ -54,24 +47,27 @@ class Return_order extends PS_Controller
       'sap' => get_filter('sap', 'sm_sap', 'all')
     );
 
-    //--- แสดงผลกี่รายการต่อหน้า
-    $perpage = get_rows();
-
-    $rows = $this->return_order_model->count_rows($filter);
-    $init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
-    $document = $this->return_order_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
-
-    if(!empty($document))
+    if($this->input->post('search'))
     {
-      foreach($document as $rs)
+      redirect($this->home);
+      exit;
+    }
+   
+    $perpage = get_rows();
+    $rows = $this->return_order_model->count_rows($filter);
+    $filter['docs'] = $this->return_order_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+
+    if(!empty($filter['docs']))
+    {
+      foreach($filter['docs'] as $rs)
       {
         $rs->qty = $this->return_order_model->get_sum_qty($rs->code);
         $rs->amount = $this->return_order_model->get_sum_amount($rs->code);
       }
     }
-
-    $filter['docs'] = $document;
+    
     $filter['allow_import_return'] = is_true(getConfig('ALLOW_IMPORT_RETURN'));
+    $init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
     $this->pagination->initialize($init);
     $this->load->view('inventory/return_order/return_order_list', $filter);
   }
@@ -119,154 +115,146 @@ class Return_order extends PS_Controller
 
 
   public function import_excel_file()
-	{
-    ini_set('max_execution_time', 1200);
-    ini_set('memory_limit','1000M');
-
-    $this->load->library('excel');
+  {
+    ini_set('max_execution_time', 1200); // 20 minutes
+    ini_set('memory_limit', '1024M'); // 1GB
 
     $sc = TRUE;
-    $import = 0;
+
+    if( ! isset($_FILES['uploadFile']))
+    {
+      $sc = FALSE;
+      $this->error = "ไม่พบไฟล์ที่อัปโหลด";
+    }
+
+    $file = 'uploadFile';
+    $path = $this->config->item('upload_path').'return/';
     $uid = genUid();
-    $Ymd = date('Ymd');
-    $file = isset( $_FILES['uploadFile'] ) ? $_FILES['uploadFile'] : FALSE;
-  	$path = $this->config->item('upload_path').'return/';
-    $file	= 'uploadFile';
+    
     $config = array(
-      "allowed_types" => "xlsx",
-      "upload_path" => $path,
-      "file_name"	=> "SM-import-{$Ymd}-{$uid}",
-      "max_size" => 5120,
-      "overwrite" => TRUE
+      'allowed_types' => 'xlsx',
+      'upload_path' => $path,
+      'file_name' => 'SM-import-'.date('Ymd').'-'.$uid,
+      'max_size' => 5120,
+      'overwrite' => TRUE
     );
 
-    $this->load->library("upload", $config);
+    $this->load->library('upload', $config);
 
-    if(! $this->upload->do_upload($file))
+    if( ! $this->upload->do_upload($file))
     {
       $sc = FALSE;
       $this->error = $this->upload->display_errors();
     }
-
+    
     if($sc === TRUE)
     {
-      //---- checking data
       $info = $this->upload->data();
-      /// read file
-      $excel = PHPExcel_IOFactory::load($info['full_path']);
-      //get only the Cell Collection
-      $collection	= $excel->getActiveSheet()->toArray(NULL, TRUE, TRUE, TRUE);
-
-      $i = 1;
-      $count = count($collection);
+      $excel = IOFactory::load($info['full_path']);
+      $collection = $excel->getActiveSheet()->toArray(null, true, true, true);
+      $rows = count($collection ?? []);
       $limit = intval(getConfig('IMPORT_ROWS_LIMIT')) + 1;
 
-      if($count <= $limit)
+      if($rows > $limit)
       {
-        $ds = array();
-        $zn = array(); //-- ไว้เก็บโซน object
+        $sc = FALSE;
+        $this->error = "Exceeds row limit of {$limit}";
+      }
+
+      if($sc === TRUE)
+      {
+        $ds = [];
+        $zn = [];
         $bookcode = getConfig('BOOK_CODE_RETURN_ORDER');
+        $i = 1;
 
-        /*
-        Loop เพื่อ จัดข้อมูลในรูปแบบเอกสารมี order เป็น key หลัก ในมิติที่ 1 ไว้ใช้สร้างเอกสาร
-        รายการสินค้า จะถูกเพิ่มเข้าใน invoice เป็น array มิติที่ 2
-        $ds[order_code] = array(
-          [0] => line data object,
-          [1] => line data object
-        );
-        */
-
-        foreach($collection as $cs)
+        if($rows > 0)
         {
-          if($sc === FALSE)
+          foreach($collection as $cs)
           {
-            break;
-          }
+            if($sc === FALSE) break;
 
-          if($i === 1)
-          {
-            $i++;
-
-            $headCol = array(
-              'A' => 'Date',
-              'B' => 'Order Code',
-              'C' => 'Warehouse Code',
-              'D' => 'Zone Code',
-              'E' => 'Item Code',
-              'F' => 'Return Qty',
-              'G' => 'Interface',
-              'H' => 'WMS',
-              'I' => 'Remark'
-            );
-
-            foreach($headCol as $col => $field)
+            if($i === 1)
             {
-              if($cs[$col] !== $field)
+              $i++;
+              // check header columns
+              $headCol = array(
+                'A' => 'Date',
+                'B' => 'Order Code',
+                'C' => 'Warehouse Code',
+                'D' => 'Zone Code',
+                'E' => 'Item Code',
+                'F' => 'Return Qty',
+                'G' => 'Interface',
+                'H' => 'WMS',
+                'I' => 'Remark'
+              );
+
+              foreach ($headCol as $col => $field)
               {
-                $sc = FALSE;
-                $this->error = 'Column '.$col.' Should be '.$field;
-                break;
+                if ($cs[$col] !== $field)
+                {
+                  $sc = FALSE;
+                  $this->error = 'Column ' . $col . ' Should be ' . $field;
+                  break;
+                }
               }
+
+              continue; // skip header row after checking columns
             }
-          }
-          else
-          {
-            if( ! empty($cs['A']))
+
+            if(! empty(trim($cs['A'] ?? '')))
             {
-              if(empty(trim($cs['B'])))
+              if($sc === TRUE && empty(trim($cs['B'] ?? '')))
               {
                 $sc = FALSE;
-                $this->error = "Missing Order Code at Line{$i}";
+                $this->error = "Order Code is required at row {$i}";
               }
 
-              if(empty(trim($cs['C'])))
+              if($sc === TRUE && empty(trim($cs['C'] ?? '')))
               {
                 $sc = FALSE;
-                $this->error = "Missing Warhouse Code at Line{$i}";
+                $this->error = "Warehouse Code is required at row {$i}";
               }
 
-              if(empty(trim($cs['D'])))
+              if($sc === TRUE && empty(trim($cs['D'] ?? '')))
               {
                 $sc = FALSE;
-                $this->error = "Missing Zone Code at Line{$i}";
+                $this->error = "Zone Code is required at row {$i}";
               }
 
-              if(empty(trim($cs['E'])))
+              if($sc === TRUE && empty(trim($cs['E'] ?? '')))
               {
                 $sc = FALSE;
-                $this->error = "Missing Item Code at Line{$i}";
+                $this->error = "Item Code is required at row {$i}";
               }
 
-              if(empty(trim($cs['F'])) OR intval($cs['F']) <= 0)
+              if($sc === TRUE && (empty(trim($cs['F'] ?? '')) OR intval($cs['F']) <= 0))
               {
                 $sc = FALSE;
-                $this->error = "Invalid Reqturn Qty at Line{$i}";
+                $this->error = "Return Qty is required and must be greater than 0 at row {$i}";
               }
 
               if($sc === TRUE)
               {
-                $date = db_date(trim($cs['A']));
-                $order_code = trim($cs['B']); //--- order code use to be 1st dimention array
-                $zone_code = trim($cs['D']);
-                $item_code = trim($cs['E']);
-                $return_qty = intval(trim($cs['F']));
-                $api = trim($cs['G']);
-                $is_wms = 0;
+                $date = db_date(trim($cs['A'] ?? ''));
+                $order_code = trim($cs['B'] ?? '');                
+                $zone_code = trim($cs['D'] ?? '');
+                $item_code = trim($cs['E'] ?? '');
+                $return_qty = intval($cs['F'] ?? 0);
+                $api = trim($cs['G'] ?? '');
                 $remark = empty($cs['I']) ? NULL : get_null(trim($cs['I']));
 
-
-                //--- ถ้ายังไม่มี order_code ให้สร้างใหม่
+                // ถ้ายังไม่มี order_code ให้สร้างใหม่
                 if( ! isset($ds[$order_code]))
                 {
-                  //--- check date format only check not convert
                   if( ! is_valid_date($date))
                   {
                     $sc = FALSE;
-                    $this->error = "Invalid Date format at Line{$i}";
+                    $this->error = "Invalid date at row {$i}";                    
                   }
 
-                  //--- check warehouse and zone
-                  if( empty($zn[$zone_code]))
+                  if($sc === TRUE && empty($zn[$zone_code]))
                   {
                     $zone = $this->zone_model->get($zone_code);
 
@@ -277,54 +265,44 @@ class Return_order extends PS_Controller
                     else
                     {
                       $sc = FALSE;
-                      $this->error = "Invalid Zone Code at Line{$i}";
+                      $this->error = "Invalid zone code at row {$i}";
                     }
                   }
-                  else
+
+                  $zone = $sc === TRUE ? $zn[$zone_code] : NULL;
+                  $invoice = $sc === TRUE ? $this->return_order_model->get_invoice_detail_by_order_item($order_code, $item_code) : NULL;
+
+                  if($sc === TRUE && empty($invoice))
                   {
-                    $zone = $zn[$zone_code];
+                    $sc = FALSE;
+                    $this->error = "Invoice not exists for {$order_code} : {$item_code} at row {$i}";
                   }
 
-
-                  //---- ไว้สร้างเอกสารใหม่
-                  if($sc == TRUE)
+                  if($sc === TRUE && $return_qty > $invoice->qty)
                   {
-                    $invoice = $this->return_order_model->get_invoice_detail_by_order_item($order_code, $item_code);
+                    $sc = FALSE;
+                    $this->error = "Return Qty ".(number($return_qty))." exceeds invoice Qty ".(number($invoice->qty))." at row {$i}";
+                  }
 
-                    if(empty($invoice))
-                    {
-                      $sc = FALSE;
-                      $this->error = "Invoice not exists for {$order_code} : {$item_code} at Line {$i}";
-                    }
+                  if($sc === TRUE)
+                  {
+                    $invoice->price = round(add_vat($invoice->price, $invoice->vat_rate), 2);
+                    $amount = round(get_price_after_discount($invoice->price, $invoice->discount) * $return_qty, 2);
+                    $vat_amount = round(get_vat_amount($amount, $invoice->vat_rate), 2);
 
-                    if($sc === TRUE)
-                    {
-                      if($invoice->qty < $return_qty)
-                      {
-                        $sc = FALSE;
-                        $this->error = "Return quantity ({$return_qty}) exceed invoice quantity ({intval($invoice)}) at Line {$i}";
-                      }
-                    }
-
-                    if($sc === TRUE)
-                    {
-                      $invoice->price = round(add_vat($invoice->price), 2);
-                      $amount = round((get_price_after_discount($invoice->price, $invoice->discount) * $return_qty), 2);
-                      $vat_amount = round(get_vat_amount($amount), 2);
-
-                      $ds[$order_code] = (object) array(
-                        'date_add' => $date,
-                        'invoice' => $invoice->code,
-                        'customer_code' => $invoice->customer_code,
-                        'customer_name' => $invoice->customer_name,
-                        'order_code' => $order_code,
-                        'warehouse_code' => $zone->warehouse_code,
-                        'zone_code' => $zone->code,
-                        'must_accept' => empty($zone->user_id) ? 0 : 1,
-                        'is_wms' => $is_wms,
-                        'api' => (empty($api) OR $api == 'N') ? 0 : 1,
-                        'remark' => $remark,
-                        'details' => array((object)array(
+                    $ds[$order_code] = (object) array(
+                      'date_add' => $date,
+                      'invoice' => $invoice->code,
+                      'customer_code' => $invoice->customer_code,
+                      'customer_name' => $invoice->customer_name,
+                      'order_code' => $order_code,
+                      'warehouse_code' => $zone->warehouse_code,
+                      'zone_code' => $zone->code,
+                      'must_accept' => empty($zone->user_id) ? 0 : 1,
+                      'api' => is_true($api) ? 1 : 0,
+                      'remark' => $remark,
+                      'details' => array(
+                        (object) array(
                           'invoice_code' => $invoice->code,
                           'DocEntry' => $invoice->DocEntry,
                           'LineNum' => $invoice->LineNum,
@@ -337,19 +315,19 @@ class Return_order extends PS_Controller
                           'discount_percent' => round($invoice->discount, 2),
                           'amount' => $amount,
                           'vat_amount' => $vat_amount
-                        ))
-                      );
-                    }
-                  }
+                        )
+                      )
+                    );
+                  }                  
                 }
-                else
+                else 
                 {
-                  $invoice = $this->return_order_model->get_invoice_detail_by_order_item($order_code, $item_code);
-                  $invoice->price = round(add_vat($invoice->price), 2);
-                  $amount = round((get_price_after_discount($invoice->price, $invoice->discount) * $return_qty), 2);
-                  $vat_amount = round(get_vat_amount($amount), 2);
+                  $invoice = $this->invoice_model->get_invoice_detail_by_order_item($order_code, $row->product_code);
+                  $invoice->price = round(add_vat($invoice->price, $invoice->vat_rate), 2);
+                  $amount = round(get_price_after_discount($invoice->price, $invoice->discount) * $return_qty, 2);
+                  $vat_amount = round(get_vat_amount($amount, $invoice->vat_rate), 2);
 
-                  $ds[$order_code]->details[] = (object)array(
+                  $ds[$order_code]->details[] = (object) array(
                     'invoice_code' => $invoice->code,
                     'DocEntry' => $invoice->DocEntry,
                     'LineNum' => $invoice->LineNum,
@@ -364,115 +342,102 @@ class Return_order extends PS_Controller
                     'vat_amount' => $vat_amount
                   );
                 }
-              } //--- endif $sc === TRUE
-
-              $i++;
+              } // end if 
             }
-          }  //--- end if $i === 1
-        } //--- foreach collection
+            
+            $i++;
+          } //-- end foreach $ds->rows
+        }
+      }
 
-        //--- เก็บข้อมูลครบแล้ว
-        if($sc === TRUE && ! empty($ds))
+      if($sc === TRUE && ! empty($ds))
+      {
+        $this->db->trans_begin();
+
+        foreach($ds as $sm)
         {
-          $this->db->trans_begin();
+          if($sc === FALSE) break;
 
-          foreach($ds as $sm)
+          $code = $this->get_new_code($sm->date_add);
+
+          if(empty($code))
           {
-            if($sc === FALSE)
-            {
-              break;
-            }
-
-            $code = $this->get_new_code($sm->date_add);
-
-            if(empty($code))
-            {
-              $sc = FALSE;
-              $this->error = "Failed to generate document number for {$sm->order_code}";
-            }
-
-            if($sc === TRUE)
-            {
-              $arr = array(
-                'code' => $code,
-                'bookcode' => $bookcode,
-                'invoice' => $sm->invoice,
-                'customer_code' => $sm->customer_code,
-                'warehouse_code' => $sm->warehouse_code,
-                'zone_code' => $sm->zone_code,
-                'user' => $this->_user->uname,
-                'date_add' => $sm->date_add,
-                'remark' => $sm->remark,
-                'status' => 1,
-                'must_accept' => $sm->must_accept,
-                'is_import' => 1,
-                'import_id' => $uid
-              );
-
-              if( ! $this->return_order_model->add($arr))
-              {
-                $sc = FALSE;
-                $this->error = "เพิ่มเอกสารไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
-              }
-
-              if($sc === TRUE)
-              {
-                if( ! empty($sm->details))
-                {
-                  foreach($sm->details as $rs)
-                  {
-                    $arr = array(
-                      'return_code' => $code,
-                      'invoice_code' => $rs->invoice_code,
-                      'DocEntry' => get_null($rs->DocEntry),
-                      'LineNum' => get_null($rs->LineNum),
-                      'order_code' => get_null($rs->order_code),
-                      'product_code' => $rs->product_code,
-                      'product_name' => $rs->product_name,
-                      'sold_qty' => $rs->sold_qty,
-                      'qty' => $rs->return_qty,
-                      'receive_qty' => $rs->return_qty,
-                      'price' => $rs->price,
-                      'discount_percent' => $rs->discount_percent,
-                      'amount' => $rs->amount,
-                      'vat_amount' => $rs->vat_amount
-                    );
-
-                    if( ! $this->return_order_model->add_detail($arr))
-                    {
-                      $sc = FALSE;
-                      $this->error = "บันทึกรายการไม่สำเร็จ @ {$rs->product_code} : {$rs->order_code}";
-                    }
-                  } //-- end foreach
-                } // end if
-              } // endif
-            }
-          } //--- end foreach
+            $sc = FALSE;
+            $this->error = "Failed to generate new code for return order on date {$sm->order_code}";
+          }
 
           if($sc === TRUE)
           {
-            $this->db->trans_commit();
+            $arr = array(
+              'code' => $code,
+              'bookcode' => $bookcode,
+              'invoice' => $sm->invoice,
+              'customer_code' => $sm->customer_code,
+              'warehouse_code' => $sm->warehouse_code,
+              'zone_code' => $sm->zone_code,
+              'date_add' => $sm->date_add,
+              'remark' => $sm->remark,
+              'status' => 1,
+              'must_accept' => $sm->must_accept,
+              'is_import' => 1,
+              'import_id' => $uid
+            );
+
+            if( ! $this->return_order_model->add($arr))
+            {
+              $sc = FALSE;
+              $this->error = "Failed to add return order {$code}";
+            }
+
+            if($sc === TRUE && ! empty($sm->details))
+            {
+              foreach($sm->details as $rs)
+              {
+                $arr = array(
+                  'return_code' => $code,
+                  'invoice_code' => $rs->invoice_code,
+                  'DocEntry' => get_null($rs->DocEntry),
+                  'LineNum' => get_null($rs->LineNum),
+                  'order_code' => get_null($rs->order_code),
+                  'product_code' => $rs->product_code,
+                  'product_name' => $rs->product_name,
+                  'sold_qty' => $rs->sold_qty,
+                  'qty' => $rs->return_qty,
+                  'receive_qty' => $rs->return_qty,
+                  'price' => $rs->price,
+                  'discount_percent' => $rs->discount_percent,
+                  'amount' => $rs->amount,
+                  'vat_amount' => $rs->vat_amount
+                );
+
+                if( ! $this->return_order_model->add_detail($arr))
+                {
+                  $sc = FALSE;
+                  $this->error = "Failed to add return order detail for product {$rs->product_code} : {$rs->order_code}";
+                }
+              }
+            }
           }
-          else
-          {
-            $this->db->trans_rollback();
-          }
-        } //-- endif
-      }
-      else
-      {
-        $sc = FALSE;
-        $this->error = "ไฟล์มีรายการเกิน {$limit} บรรทัด";
+        } // end foreach $ds
+
+        if($sc === TRUE)
+        {
+          $this->db->trans_commit();
+        }
+        else
+        {
+          $this->db->trans_rollback();
+        }
       }
     }
 
     $arr = array(
-      'status' => $sc === TRUE ? 'success' : 'failed',
+      'status' => $sc === TRUE ? 'success' : 'error',
       'message' => $sc === TRUE ? 'success' : $this->error
     );
 
     echo json_encode($arr);
-	}
+  }
 
 
   public function get_template_file()
@@ -505,7 +470,7 @@ class Return_order extends PS_Controller
   public function save_as_draft()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds))
     {
@@ -517,7 +482,7 @@ class Return_order extends PS_Controller
         {
           if( ! empty($ds->rows))
           {
-            $vatRate = getConfig('SALE_VAT_RATE');
+            $vatRate = floatval(getConfig('SALE_VAT_RATE'));
 
             $this->db->trans_begin();
 
@@ -578,7 +543,7 @@ class Return_order extends PS_Controller
   public function save_and_close()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
     $ex = 0;
 
     if( ! empty($ds))
@@ -598,7 +563,7 @@ class Return_order extends PS_Controller
 
             if( ! empty($ds->rows))
             {
-              $vatRate = getConfig('SALE_VAT_RATE');
+              $vatRate = floatval(getConfig('SALE_VAT_RATE'));
 
               foreach($ds->rows as $row)
               {
@@ -753,7 +718,7 @@ class Return_order extends PS_Controller
   public function save()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds))
     {
@@ -841,7 +806,7 @@ class Return_order extends PS_Controller
               {
                 if( ! empty($ds->rows))
                 {
-                  $vatRate = getConfig('SALE_VAT_RATE');
+                  $vatRate = floatval(getConfig('SALE_VAT_RATE'));
 
                   foreach($ds->rows as $row)
                   {
@@ -1170,21 +1135,13 @@ class Return_order extends PS_Controller
   public function accept_confirm()
   {
     $sc = TRUE;
-
-    $ex = 0;
-
     $this->load->model('inventory/movement_model');
-
     $code = $this->input->post('code');
-
-    $remark = trim($this->input->post('accept_remark'));
-
+    $remark = trim($this->input->post('accept_remark') ?? '');
     $doc = $this->return_order_model->get($code);
 
     if(!empty($doc))
-    {
-      $date_add = getConfig('ORDER_SOLD_DATE') === 'D' ? $doc->date_add : now();
-
+    {      
       if($doc->status == 4 )
       {
         $status = $doc->save_type == 3 ? 3 : 1;
@@ -1391,13 +1348,12 @@ class Return_order extends PS_Controller
   public function add()
   {
     $sc = TRUE;
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
     {
       $date_add = db_date($data->date_add, TRUE);
       $shipped_date = empty($data->shipped_date) ? NULL : db_date($data->shipped_date, TRUE);
-
       $code = $this->get_new_code($date_add);
 
       $arr = array(
@@ -1410,7 +1366,7 @@ class Return_order extends PS_Controller
         'user' => $this->_user->uname,
         'date_add' => $date_add,
         'shipped_date' => $shipped_date,
-        'remark' => get_null(trim($data->remark))
+        'remark' => get_null(trim($data->remark ?? ''))
       );
 
       if( ! $this->return_order_model->add($arr))
@@ -1561,7 +1517,7 @@ class Return_order extends PS_Controller
           $rs->uid = $rs->DocEntry ."-".$rs->LineNum;
           $rs->invoice = $invoice;
           $rs->sold_qty = round($qty, 2);
-          $rs->price = round(add_vat($rs->price), 2);
+          $rs->price = round(add_vat($rs->price, $rs->vat_rate), 2);
           $rs->sold_label = number($qty);
           $rs->price_label = number($rs->price, 2);
           $rs->discount = round($rs->discount, 2);
@@ -1591,14 +1547,14 @@ class Return_order extends PS_Controller
   public function get_invoice()
   {
     $sc = TRUE;
-    $invoice = $this->input->post('invoice_code');
-    $code = $this->input->post('code');
+    $invoice = $this->input->post('invoice_code') ?? '';    
     $details = $this->return_order_model->get_invoice_details($invoice);
     $ds = array();
+
     if(empty($details))
     {
       $sc = FALSE;
-      $message = 'ไม่พบข้อมูล';
+      $this->error = 'ไม่พบข้อมูล';
     }
 
     if(!empty($details))
@@ -1608,6 +1564,7 @@ class Return_order extends PS_Controller
         $returned_qty = $this->return_order_model->get_returned_qty($invoice, $rs->order_code, $rs->product_code);
         $qty = $rs->qty - $returned_qty;
         $row = new stdClass();
+
         if($qty > 0)
         {
           $row->barcode = $this->products_model->get_barcode($rs->product_code);
@@ -1615,7 +1572,7 @@ class Return_order extends PS_Controller
 					$row->order_code = $rs->order_code;
           $row->code = $rs->product_code;
           $row->name = $rs->product_name;
-          $row->price = round(add_vat($rs->price), 2);
+          $row->price = round(add_vat($rs->price, $rs->vat_rate), 2);
           $row->discount = round($rs->discount, 2);
           $row->qty = round($qty, 2);
           $row->amount = 0;
@@ -1624,14 +1581,14 @@ class Return_order extends PS_Controller
       }
     }
 
-    echo $sc === TRUE ? json_encode($ds) : $message;
+    echo $sc === TRUE ? json_encode($ds) : $this->error;
   }
 
 
   //--- auto complete
   public function get_sap_invoice_code($customer_code = NULL)
   {
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 		$sc = array();
 
 		$this->ms
@@ -1721,9 +1678,8 @@ class Return_order extends PS_Controller
   public function cancle_return($code)
   {
     $sc = TRUE;
-    $reason = trim($this->input->post('reason'));
-    $force_cancel = $this->input->post('force_cancel') == 1 ? TRUE : FALSE;
-
+    $reason = trim($this->input->post('reason') ?? '');
+    
     if($this->pm->can_delete)
     {
 			$doc = $this->return_order_model->get($code);
@@ -1887,8 +1843,9 @@ class Return_order extends PS_Controller
   {
     if($this->input->post('barcode'))
     {
-      $barcode = trim($this->input->post('barcode'));
+      $barcode = trim($this->input->post('barcode') ?? '');
       $item = $this->products_model->get_product_by_barcode($barcode);
+      
       if(!empty($item))
       {
         echo json_encode($item);
@@ -1908,7 +1865,7 @@ class Return_order extends PS_Controller
     if(! $this->export->export_return($code))
     {
       $sc = FALSE;
-      $this->error = trim($this->export->error);
+      $this->error = $this->export->error;
     }
 
     return $sc;
@@ -1938,6 +1895,7 @@ class Return_order extends PS_Controller
     $run_digit = getConfig('RUN_DIGIT_RETURN_ORDER');
     $pre = $prefix .'-'.$Y.$M;
     $code = $this->return_order_model->get_max_code($pre);
+
     if(! is_null($code))
     {
       $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
@@ -1971,7 +1929,7 @@ class Return_order extends PS_Controller
       'sm_pos_api',
       'sm_sap'
     );
-    clear_filter($filter);
+
+    return clear_filter($filter);
   }
-} //--- end class
-?>
+}

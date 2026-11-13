@@ -6,9 +6,7 @@ class Packing_video extends PS_Controller
   public $menu_code = 'ICVIDEO';
   public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'CHECK';
-  public $title = 'Packing Video';
-  public $filter;
-  public $error;
+  public $title = 'Packing Video'; 
   public $segment = 4; 
 
   public function __construct()
@@ -42,4 +40,4 @@ class Packing_video extends PS_Controller
     $filter = array('v_order_code', 'v_role', 'v_from_date', 'v_to_date');
     return clear_filter($filter);
   }
-} //--- end class
+}

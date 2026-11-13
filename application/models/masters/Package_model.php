@@ -8,81 +8,39 @@ class Package_model extends CI_Model
     parent::__construct();
   }
 
-
   public function add(array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return  $this->db->insert($this->tb, $ds);
-    }
-
-    return FALSE;
+    return !empty($ds) ? $this->db->insert($this->tb, $ds) : FALSE;
   }
-
-
 
   public function update($id, array $ds = array())
   {
-    if(!empty($ds))
-    {
-      $this->db->where('id', $id);
-
-      return $this->db->update($this->tb, $ds);
-    }
-
-    return FALSE;
+    return !empty($ds) ? $this->db->where('id', $id)->update($this->tb, $ds) : FALSE;
   }
-
 
   public function delete($id)
   {
     return $this->db->where('id', $id)->delete($this->tb);
   }
 
-
-
   public function get($id)
   {
     $rs = $this->db->where('id', $id)->get($this->tb);
-
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row();
-    }
-
-    return NULL;
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
   }
-
-
 
   public function get_all($active = 0)
   {
-    if( ! empty($active))
-    {
-      $this->db->where('active', 1);
-    }
-
+    if( ! empty($active)) $this->db->where('active', 1);
     $rs = $this->db->order_by('id', 'ASC')->get($this->tb);
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
 
   public function get_name($id)
   {
     $rs = $this->db->where('id', $id)->get($this->tb);
-
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row()->name;
-    }
-
-    return NULL;
+    return $rs->num_rows() === 1 ? $rs->row()->name : "";
   }
-
 
   public function count_rows(array $ds = array())
   {
@@ -123,31 +81,12 @@ class Package_model extends CI_Model
     }
 
     $rs = $this->db->order_by('id', 'DESC')->limit($perpage, $offset)->get($this->tb);
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
 
   public function is_exists_name($name, $id = NULL)
   {
-    if( ! empty($id))
-    {
-      $this->db->where('id !=', $id);
-    }
-
-    $rs = $this->db->where('name', $name)->get($this->tb);
-
-    if($rs->num_rows() > 0)
-    {
-      return TRUE;
-    }
-
-    return FALSE;
+    if( ! empty($id)) $this->db->where('id !=', $id);
+    return $this->db->where('name', $name)->count_all_results($this->tb) > 0;
   }
-}//--- end class
-?>
+}

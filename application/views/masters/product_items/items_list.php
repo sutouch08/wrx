@@ -164,7 +164,7 @@
 			</thead>
 			<tbody>
 				<?php if (!empty($data)) : ?>
-					<?php $no = $this->uri->segment(4) + 1; ?>
+					<?php $no = $this->uri->segment($this->segment) + 1; ?>					
 					<?php foreach ($data as $rs) : ?>
 						<tr id="row-<?php echo $no; ?>" class="font-size-12">
 							<td class="middle text-center">
@@ -186,14 +186,14 @@
 							<td class="middle text-center"><?php echo $rs->color_code; ?></td>
 							<td class="middle text-center"><?php echo $rs->size_code; ?></td>
 							<td class="middle text-right"><?php echo number($rs->price, 2); ?></td>
-							<td class="middle"><?php echo $rs->group; ?></td>
-							<td class="middle"><?php echo $rs->main_group; ?></td>
-							<td class="middle"><?php echo $rs->sub_group; ?></td>
-							<td class="middle"><?php echo $rs->category; ?></td>
-							<td class="middle"><?php echo $rs->kind; ?></td>
-							<td class="middle"><?php echo $rs->type; ?></td>
-							<td class="middle"><?php echo $rs->brand; ?></td>
-							<td class="middle"><?php echo $rs->collection; ?></td>
+							<td class="middle"><?php echo $rs->group_name; ?></td>
+							<td class="middle"><?php echo $rs->main_group_name; ?></td>
+							<td class="middle"><?php echo $rs->sub_group_name; ?></td>
+							<td class="middle"><?php echo $rs->category_name; ?></td>
+							<td class="middle"><?php echo $rs->kind_name; ?></td>
+							<td class="middle"><?php echo $rs->type_name; ?></td>
+							<td class="middle"><?php echo $rs->brand_name; ?></td>
+							<td class="middle"><?php echo $rs->collection_name; ?></td>
 							<td class="middle text-center"><?php echo $rs->year; ?></td>
 							<td class="middle text-center"><?php echo is_active($rs->can_sell); ?></td>
 							<td class="middle text-center"><?php echo is_active($rs->active); ?></td>

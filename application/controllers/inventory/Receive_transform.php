@@ -6,10 +6,7 @@ class Receive_transform extends PS_Controller
   public $menu_code = 'ICTRRC';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'RECEIVE';
-	public $title = 'รับสินค้าจากการแปรสภาพ';
-  public $filter;
-  public $error;
-	public $wms;
+	public $title = 'รับสินค้าจากการแปรสภาพ';  
   public $required_remark = TRUE; //--- บังคับใส่หมายเหตุ
 
   public function __construct()
@@ -40,30 +37,26 @@ class Receive_transform extends PS_Controller
       'zone' => get_filter('zone', 'trans_zone', '')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
-		$segment  = 4; //-- url segment
-		$rows     = $this->receive_transform_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$document = $this->receive_transform_model->get_data($filter, $perpage, $this->uri->segment($segment));
-
-    if(!empty($document))
+    if($this->input->post('search'))
     {
-      foreach($document as $rs)
+      redirect($this->home);
+      exit;
+    }
+		
+		$perpage = get_rows();		
+		$segment = 4; //-- url segment
+		$rows = $this->receive_transform_model->count_rows($filter);		
+		$filter['document'] = $this->receive_transform_model->get_data($filter, $perpage, $this->uri->segment($segment));
+
+    if(!empty($filter['document']))
+    {
+      foreach($filter['document'] as $rs)
       {
         $rs->qty = $this->receive_transform_model->get_sum_qty($rs->code);
       }
     }
-
-    $filter['document'] = $document;
-
+    
+		$init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
     $this->load->view('inventory/receive_transform/receive_transform_list', $filter);
   }
@@ -142,7 +135,7 @@ class Receive_transform extends PS_Controller
     $sc = TRUE;
     $this->load->model('inventory/movement_model');
     $code = $this->input->post('code');
-    $remark = trim($this->input->post('accept_remark'));
+    $remark = trim($this->input->post('accept_remark') ?? '');
 
     $ex = 0;
 
@@ -252,7 +245,7 @@ class Receive_transform extends PS_Controller
             if(! $this->export->export_receive_transform($doc->code))
             {
               $ex = 1; //--- export error
-              $this->error = trim($this->export->error);
+              $this->error = trim($this->export->error ?? '');
             }
           } //--- end export
         }
@@ -293,13 +286,12 @@ class Receive_transform extends PS_Controller
     $this->load->model('orders/orders_model');
 
     $doc = $this->receive_transform_model->get($code);
-    //$order = $this->orders_model->get($doc->order_code);
+    
     if(!empty($doc))
     {
       $zone = $this->zone_model->get($doc->zone_code);
       $doc->zone_name = $zone->name;
-      $doc->warehouse_name = $zone->warehouse_name;
-      //$doc->requester = $this->user_model->get_name($order->user);
+      $doc->warehouse_name = $zone->warehouse_name;      
       $doc->user_name = $this->user_model->get_name($doc->user);
     }
 
@@ -318,7 +310,7 @@ class Receive_transform extends PS_Controller
   {
     $sc = TRUE;
     $ex = 0;
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if(! empty($data))
     {
@@ -371,9 +363,7 @@ class Receive_transform extends PS_Controller
   	        if( ! empty($receive))
   	        {
   	          //--- ลบรายการเก่าก่อนเพิ่มรายการใหม่
-  	          $this->receive_transform_model->drop_details($code);
-
-  						$details = array();
+  	          $this->receive_transform_model->drop_details($code);  						
 
   	          foreach($receive as $rs)
   	          {
@@ -440,7 +430,6 @@ class Receive_transform extends PS_Controller
   									$sc = FALSE;
   									$this->error = "ไม่พบรหัสสินค้า : {$rs->product_code}";
   								}
-
   	            }//--- end if qty > 0
   	          } //--- end foreach
   	        } //--- end if !empty($receive)
@@ -471,7 +460,7 @@ class Receive_transform extends PS_Controller
               if(! $this->export->export_receive_transform($code))
               {
                 $ex = 1; //--- export error
-                $this->error = trim($this->export->error);
+                $this->error = trim($this->export->error ?? '');
               }
             }
           }//-- export
@@ -540,7 +529,6 @@ class Receive_transform extends PS_Controller
   public function unreceive_product($order_code, $product_code, $qty)
   {
     $sc = TRUE;
-
     $list = $this->transform_model->get_transform_product_by_code($order_code, $product_code);
 
     if(!empty($list))
@@ -591,9 +579,7 @@ class Receive_transform extends PS_Controller
       {
         $this->load->model('inventory/movement_model');
         $code = $this->input->post('receive_code');
-        $reason = trim($this->input->post('reason'));
-        $force_cancel = $this->input->post('force_cancel') == 1 ? TRUE : FALSE;
-
+        $reason = trim($this->input->post('reason') ?? '');
         $doc = $this->receive_transform_model->get($code);
 
         if( ! empty($doc))
@@ -748,6 +734,7 @@ class Receive_transform extends PS_Controller
     $pm = get_permission('ICRTCOST', $this->_user->uid, $this->_user->id_profile);
     $can_edit_price = ($pm->can_view + $pm->can_add + $pm->can_edit + $pm->can_delete + $pm->can_approve) > 0 ? TRUE : FALSE;
     $ds = array();
+
     if(!empty($details))
     {
       $no = 1;
@@ -763,7 +750,8 @@ class Receive_transform extends PS_Controller
         $diff = $diff < 0 ? 0 : $diff;
 				$cost = $this->get_avg_cost($rs->product_code);
 				$cost = $cost == 0 ? $rs->price : $cost;
-        $arr = array(
+
+        $ds[] = array(
           'no' => $no,
           'barcode' => $rs->barcode,
           'pdCode' => $rs->product_code,
@@ -776,8 +764,7 @@ class Receive_transform extends PS_Controller
           'backlog' => number($diff),
           'disabled' => $can_edit_price ? "" : "disabled"
         );
-
-        array_push($ds, $arr);
+        
         $no++;
         $totalQty += $rs->sold_qty;
         $totalReceive += $rs->receive_qty;
@@ -785,14 +772,13 @@ class Receive_transform extends PS_Controller
         $totalBacklog += $diff;
       }
 
-      $arr = array(
+      $ds[] = array(
         'qty' => number($totalQty),
         'received' => number($totalReceive),
         'uncomplete' => number($totalUncomplete),
         'backlog' => number($totalBacklog)
       );
-      array_push($ds, $arr);
-
+      
       $sc = json_encode($ds);
     }
     else
@@ -815,7 +801,7 @@ class Receive_transform extends PS_Controller
 
       $ds = array(
         'doc' => $doc,
-        'details' => array(),
+        'details' => [],
       );
 
       $zone_code = $doc->zone_code;
@@ -848,16 +834,15 @@ class Receive_transform extends PS_Controller
         foreach($details as $rs)
         {
           $row = $this->receive_transform_model->get_detail_row($doc->code, $rs->product_code);
-
           $uncomplete_qty = $this->receive_transform_model->get_sum_uncomplete_qty($rs->order_code, $rs->product_code, $doc->code);
           $diff = $rs->sold_qty - ($rs->receive_qty + $uncomplete_qty);
           $diff = $diff < 0 ? 0 : $diff;
   				$cost = empty($row[0]) ? $this->get_avg_cost($rs->product_code) : $row[0]->price;
   				$cost = $cost == 0 ? $rs->price : $cost;
-          $receive_qty = empty($row[0]) ? 0 : round($row[0]->qty); //( ! empty($row) ? round($row->qty, 2) : 0);
+          $receive_qty = empty($row[0]) ? 0 : round($row[0]->qty); 
           $amount = round($cost * $receive_qty, 2);
 
-          $arr = array(
+          $ds['details'][] = (object) array(
             'no' => $no,
             'barcode' => $rs->barcode,
             'product_code' => $rs->product_code,
@@ -871,9 +856,7 @@ class Receive_transform extends PS_Controller
             'limit' => $diff,
             'backlog' => number($diff),
             'disabled' => $can_edit_price ? "" : "disabled"
-          );
-
-          array_push($ds['details'], (object)$arr);
+          );         
 
           $no++;
           $totalInputQty += $receive_qty;
@@ -936,6 +919,7 @@ class Receive_transform extends PS_Controller
   public function is_exists($code)
   {
     $ext = $this->receive_transform_model->is_exists($code);
+
     if($ext)
     {
       echo 'เลขที่เอกสารซ้ำ';
@@ -947,7 +931,6 @@ class Receive_transform extends PS_Controller
   }
 
 
-
   public function add_new()
   {
     $this->load->view('inventory/receive_transform/receive_transform_add');
@@ -956,7 +939,6 @@ class Receive_transform extends PS_Controller
 
   public function add()
   {
-
     if($this->input->post('date_add'))
     {
       $date_add = db_date($this->input->post('date_add'), TRUE);
@@ -979,7 +961,6 @@ class Receive_transform extends PS_Controller
       if($rs)
       {
         $arr = array('code' => $code);
-
 				echo json_encode($arr);
       }
       else
@@ -992,7 +973,6 @@ class Receive_transform extends PS_Controller
 			echo "Missing required parameter";
 		}
   }
-
 
 
   public function do_export($code)
@@ -1009,14 +989,12 @@ class Receive_transform extends PS_Controller
     if(! $this->export->export_receive_transform($code))
     {
       $sc = FALSE;
-      $this->error = trim($this->export->error);
+      $this->error = trim($this->export->error ?? '');
     }
 
     return $sc;
   }
-  //--- end export transform
-
-
+  
 
   public function get_new_code($date)
   {
@@ -1027,6 +1005,7 @@ class Receive_transform extends PS_Controller
     $run_digit = getConfig('RUN_DIGIT_RECEIVE_TRANSFORM');
     $pre = $prefix .'-'.$Y.$M;
     $code = $this->receive_transform_model->get_max_code($pre);
+
     if(!empty($code))
     {
       $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
@@ -1039,7 +1018,6 @@ class Receive_transform extends PS_Controller
 
     return $new_code;
   }
-
 
 
 	public function get_transform_backlogs($code, $product_code)
@@ -1063,7 +1041,7 @@ class Receive_transform extends PS_Controller
       'trans_zone',
       'trans_warehouse'
     );
-    clear_filter($filter);
-  }
 
-} //--- end class
+    return clear_filter($filter);
+  }
+} 

@@ -407,7 +407,7 @@ function deleteItem(id, code){
 
 function downloadBarcode(code)
 {
-	var token	= new Date().getTime();
+	let token = generateUID();
 	get_download(token);
 	window.location.href = BASE_URL + 'masters/products/export_barcode/'+code+'/'+token;
 }

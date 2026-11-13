@@ -7,8 +7,7 @@ class Buffer extends PS_Controller
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'CHECK';
 	public $title = 'ตรวจสอบ BUFFER';
-  public $filter;
-  public $error;
+  
   public function __construct()
   {
     parent::__construct();
@@ -27,35 +26,30 @@ class Buffer extends PS_Controller
       'to_date' => get_filter('to_date', 'to_date', '')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
+		if($this->input->post('search'))
 		{
-			$perpage = 20;
+			redirect($this->home);
+			exit;
 		}
-
+		
+		$perpage = get_rows();		
 		$segment  = 4; //-- url segment
-		$rows     = $this->buffer_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$ds   = $this->buffer_model->get_data($filter, $perpage, $this->uri->segment($segment));
-
-    $filter['data'] = $ds;
-
+		$rows = $this->buffer_model->count_rows($filter);		
+		$filter['data'] = $this->buffer_model->get_data($filter, $perpage, $this->uri->segment($segment));
+		$init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
     $this->load->view('inventory/buffer/buffer_view', $filter);
   }
 
-
-
 	public function delete_buffer()
 	{
 		$sc = TRUE;
-		$id = trim($this->input->post('id'));
+		$id = trim($this->input->post('id') ?? '');
+
 		if(!empty($id))
 		{
 			$rs = $this->buffer_model->delete($id);
+
 			if(!$rs)
 			{
 				$sc = FALSE;
@@ -73,9 +67,6 @@ class Buffer extends PS_Controller
 
   function clear_filter(){
     $filter = array('order_code', 'pd_code', 'zone_code', 'from_date', 'to_date');
-    clear_filter($filter);
+    return clear_filter($filter);
   }
-
-
-} //--- end class
-?>
+}

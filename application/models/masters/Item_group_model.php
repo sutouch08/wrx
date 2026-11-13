@@ -6,7 +6,6 @@ class Item_group_model extends CI_Model
     parent::__construct();
   }
 
-
   public function get_data()
   {
     $rs = $this->ms
@@ -14,13 +13,6 @@ class Item_group_model extends CI_Model
     ->where('Locked', 'N')
     ->get('OITB');
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-} //--- end class
-
- ?>
+}

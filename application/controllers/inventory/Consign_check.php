@@ -1,30 +1,22 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 class Consign_check extends PS_Controller
 {
   public $menu_code = 'ICCSRC';
-	public $menu_group_code = 'IC';
+  public $menu_group_code = 'IC';
   public $menu_sub_group_code = '';
-	public $title = 'กระทบยอดสินค้า';
-  public $filter;
-  public $error;
-	public $wms;
-  public $isAPI;
-  public $wmsApi = FALSE;
-  public $sokoApi = FALSE;
-
+  public $title = 'กระทบยอดสินค้า';
+  public ?object $wms;
+ 
   public function __construct()
   {
     parent::__construct();
-    $this->home = base_url().'inventory/consign_check';
+    $this->home = base_url() . 'inventory/consign_check';
     $this->load->model('inventory/consign_check_model');
     $this->load->model('masters/products_model');
     $this->load->model('masters/zone_model');
     $this->load->model('masters/warehouse_model');
     $this->load->model('stock/stock_model');
-
-    $this->wmsApi = is_true(getConfig('WMS_API'));
-    $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
   }
 
   public function index()
@@ -38,26 +30,23 @@ class Consign_check extends PS_Controller
       'status' => get_filter('status', 'check_status', 'all'),
       'valid' => get_filter('valid', 'check_valid', 'all'),
       'consign_code' => get_filter('consign_code', 'check_consign_code', ''),
-			'is_wms' => get_filter('is_wms', 'check_is_wms', 'all')
+      'is_wms' => get_filter('is_wms', 'check_is_wms', 'all')
     );
 
-    //--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
-		$segment  = 4; //-- url segment
-		$rows     = $this->consign_check_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$docs = $this->consign_check_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
-    if(!empty($docs))
+    if ($this->input->post('search'))
     {
-      foreach($docs as $doc)
+      redirect($this->home);
+      exit;
+    }
+
+    $perpage = get_rows();
+    $segment  = 4; //-- url segment
+    $rows = $this->consign_check_model->count_rows($filter);
+    $docs = $this->consign_check_model->get_list($filter, $perpage, $this->uri->segment($segment));
+
+    if (!empty($docs))
+    {
+      foreach ($docs as $doc)
       {
         $doc->zone_name = $this->zone_model->get_name($doc->zone_code);
       }
@@ -65,154 +54,99 @@ class Consign_check extends PS_Controller
 
     $filter['docs'] = $docs;
 
-		$this->pagination->initialize($init);
+    $init  = pagination_config($this->home . '/index/', $rows, $perpage, $segment);
+    $this->pagination->initialize($init);
     $this->load->view('inventory/consign_check/consign_check_list', $filter);
   }
-
-
 
   public function add_new()
   {
     $this->load->view('inventory/consign_check/consign_check_add');
   }
 
-
   //--- add new document
   public function add()
   {
     $sc = TRUE;
     $ex = 1;
+    $data = json_decode($this->input->post('data') ?? '{}');
 
-    $data = json_decode($this->input->post('data'));
-
-    if( ! empty($data))
+    if (! empty($data))
     {
       $date_add = db_date($data->date_add, TRUE);
       $zone = $this->zone_model->get($data->zone_code);
-      $is_wms = $data->is_wms;
+      $code = $this->get_new_code($date_add);
 
-      if($is_wms != 0 && $this->consign_check_model->is_not_close_exists($zone->code))
-			{
-				$sc = FALSE;
-				$this->error = "เพิ่มเอกสารไม่สำเร็จ เนื่องจากพบเอกสารกระทบยอดของโซนนี้ที่ยังไม่ปิด";
-			}
-			else
-			{
-				$code = $this->get_new_code($date_add);
+      $arr = array(
+        'code' => $code,
+        'customer_code' => $data->customer_code,
+        'customer_name' => $data->customer_name,
+        'zone_code' => $zone->code,
+        'warehouse_code' => $zone->warehouse_code,
+        'user' => $this->_user->uname,
+        'date_add' => $date_add,
+        'remark' => $data->remark
+      );
 
-        $status = $is_wms == 0 ? 0 : ($is_wms == 2 && $this->sokoApi ? 3 : ($is_wms == 1 && $this->wmsApi ? 3 : 0));
+      $this->db->trans_begin();
 
-        $arr = array(
-          'code' => $code,
-          'customer_code' => $data->customer_code,
-          'customer_name' => $data->customer_name,
-          'zone_code' => $zone->code,
-          'warehouse_code' => $zone->warehouse_code,
-          'user' => $this->_user->uname,
-          'date_add' => $date_add,
-          'remark' => $data->remark,
-          'is_wms' => $is_wms,
-          'status' => $status
-        );
+      if ($this->consign_check_model->add($arr))
+      {
+        //---- get stock balance in zone
+        $warehouse = $this->warehouse_model->get($zone->warehouse_code);
 
-	      $this->db->trans_begin();
-
-	      if($this->consign_check_model->add($arr))
-	      {
-	        //---- get stock balance in zone
-	        $warehouse = $this->warehouse_model->get($zone->warehouse_code);
-
-	        if( ! empty($warehouse))
-	        {
-	          if($warehouse->is_consignment == 1)
-	          {
-	            $stocks = $this->stock_model->get_all_stock_consignment_zone($zone->code);
-	          }
-	          else
-	          {
-	            $stocks = $this->stock_model->get_all_stock_in_zone($zone->code);
-	          }
-
-	          if( ! empty($stocks))
-	          {
-	            foreach($stocks as $rs)
-	            {
-	              if($sc === FALSE)
-	              {
-	                break;
-	              }
-
-                $ds = array(
-                  'check_code' => $code,
-                  'product_code' => $rs->product_code,
-                  'product_name' => $this->products_model->get_name($rs->product_code),
-                  'stock_qty' => $rs->qty
-                );
-
-	              if( ! $this->consign_check_model->add_detail($ds))
-	              {
-	                $sc = FALSE;
-	                $this->error = "เพิ่มยอดตั้งต้นไม่สำเร็จ";
-	              }
-
-	            } //-- edn foreach
-	          }
-	        }
-	        else
-	        {
-	          $sc = FALSE;
-	          $this->error = "คลังสินค้าไม่ถูกต้อง";
-	        }
-	      }
-	      else
-	      {
-	        $sc = FALSE;
-	        $this->error = "เพิ่มเอกสารไม่สำเร็จ";
-	      }
-
-	      if($sc === FALSE)
-	      {
-	        $this->db->trans_rollback();
-	      }
-	      else
-	      {
-	        $this->db->trans_commit();
-	      }
-
-				if($sc === TRUE)
-				{
-					if($is_wms == 1 && $this->wmsApi)
-					{
-						//--- send to wms
-						$this->wms = $this->load->database('wms', TRUE);
-						$this->load->library('wms_receive_api');
-
-						$doc = $this->consign_check_model->get($code);
-						$details = $this->consign_check_model->get_details($code);
-
-						if( ! $this->wms_receive_api->export_consign_check($doc, $details))
-						{
-              $ex = 0;
-							$this->error = "บันทึกรายการสำเร็จแต่ส่งข้อมูลไป WMS ไม่สำเร็จ กรุณากดส่งข้อมูลอีกครั้ง";
-						}
-					}
-
-          if($is_wms == 2 && $this->sokoApi)
+        if (! empty($warehouse))
+        {
+          if ($warehouse->is_consignment == 1)
           {
-            $this->wms = $this->load->database('wms', TRUE);
-            $this->load->library('soko_receive_api');
-
-            $doc = $this->consign_check_model->get($code);
-						$details = $this->consign_check_model->get_details($code);
-
-            if( ! $this->soko_receive_api->create_consign_check($doc, $details))
-            {
-              $ex = 0;
-              $this->error = "บันทึกเอกสารสำเร็จ แต่ส่งข้อมูลไป Soko ไม่สำเร็จ <br/> ".$this->soko_receive_api->error;
-            }
+            $stocks = $this->stock_model->get_all_stock_consignment_zone($zone->code);
           }
-				}
-			}
+          else
+          {
+            $stocks = $this->stock_model->get_all_stock_in_zone($zone->code);
+          }
+
+          if (! empty($stocks))
+          {
+            foreach ($stocks as $rs)
+            {
+              if ($sc === FALSE) break;
+
+              $ds = array(
+                'check_code' => $code,
+                'product_code' => $rs->product_code,
+                'product_name' => $this->products_model->get_name($rs->product_code),
+                'stock_qty' => $rs->qty
+              );
+
+              if (! $this->consign_check_model->add_detail($ds))
+              {
+                $sc = FALSE;
+                $this->error = "เพิ่มยอดตั้งต้นไม่สำเร็จ";
+              }
+            } //-- edn foreach
+          }
+        }
+        else
+        {
+          $sc = FALSE;
+          $this->error = "คลังสินค้าไม่ถูกต้อง";
+        }
+      }
+      else
+      {
+        $sc = FALSE;
+        $this->error = "เพิ่มเอกสารไม่สำเร็จ";
+      }
+
+      if ($sc === FALSE)
+      {
+        $this->db->trans_rollback();
+      }
+      else
+      {
+        $this->db->trans_commit();
+      }
     }
     else
     {
@@ -230,57 +164,51 @@ class Consign_check extends PS_Controller
     echo json_encode($arr);
   }
 
-
   //---- edit document details
   public function edit($code)
   {
     $doc = $this->consign_check_model->get($code);
 
-		if(!empty($doc))
-		{
-			if($doc->status != 0)
-			{
-				redirect($this->home.'/view_detail/'.$code);
-			}
-			else
-			{
-				$doc->zone_name = $this->zone_model->get_name($doc->zone_code);
+    if (!empty($doc))
+    {
+      if ($doc->status != 0)
+      {
+        redirect($this->home . '/view_detail/' . $code);
+      }
+      else
+      {
+        $doc->zone_name = $this->zone_model->get_name($doc->zone_code);
+        $details = $this->consign_check_model->get_details($code);
 
-		    $details = $this->consign_check_model->get_details($code);
-		    if(!empty($details))
-		    {
-		      foreach($details as $rs)
-		      {
-		        $rs->barcode = $this->products_model->get_barcode($rs->product_code);
-		      }
-		    }
+        if (!empty($details))
+        {
+          foreach ($details as $rs)
+          {
+            $rs->barcode = $this->products_model->get_barcode($rs->product_code);
+          }
+        }
 
-		    $ds['doc'] = $doc;
-		    $ds['details'] = $details;
+        $ds['doc'] = $doc;
+        $ds['details'] = $details;
 
-		    $this->load->view('inventory/consign_check/consign_check_edit', $ds);
-			}
-		}
-		else
-		{
-			$this->page_error();
-		}
-
+        $this->load->view('inventory/consign_check/consign_check_edit', $ds);
+      }
+    }
+    else
+    {
+      $this->page_error();
+    }
   }
-
-
 
 
   public function view_detail($code)
   {
-    $doc = $this->consign_check_model->get($code);
+    $ds['doc'] = $this->consign_check_model->get($code);
 
-    if( ! empty($doc))
+    if (! empty($ds['doc']))
     {
-      $doc->zone_name = $this->zone_model->get_name($doc->zone_code);
-      $ds['doc'] = $doc;
+      $ds['doc']->zone_name = $this->zone_model->get_name($ds['doc']->zone_code);
       $ds['details'] = $this->consign_check_model->get_details($code);
-
       $this->load->view('inventory/consign_check/consign_check_view_detail', $ds);
     }
     else
@@ -297,9 +225,9 @@ class Consign_check extends PS_Controller
     $id_box = $this->input->post('id_box');
     $barcode = $this->input->post('barcode');
     $qty = $this->input->post('qty');
-
     $pd = $this->products_model->get_product_by_barcode($barcode);
-    if(empty($pd))
+
+    if (empty($pd))
     {
       $sc = FALSE;
       $this->error = "ไม่พบสินค้าในระบบ กรุณาตรวจสอบบาร์โค้ด";
@@ -309,27 +237,28 @@ class Consign_check extends PS_Controller
       $this->db->trans_start();
 
       $ds = $this->consign_check_model->get_detail($code, $pd->code);
-      if(empty($ds))
+
+      if (empty($ds))
       {
         $sc = FALSE;
         $this->error = "ไม่พบสินค้า '{$pd->code}' ในโซน";
       }
       else
       {
-        if($ds->stock_qty < ($ds->qty + $qty))
+        if ($ds->stock_qty < ($ds->qty + $qty))
         {
           $sc = FALSE;
           $this->error = "{$pd->code} : จำนวนสินค้าเกินกว่ายอดที่มีในโซน";
         }
         else
         {
-          if( ! $this->consign_check_model->update_check_detail($code, $pd->code, $qty))
+          if (! $this->consign_check_model->update_check_detail($code, $pd->code, $qty))
           {
             $sc = FALSE;
             $this->error = "{$pd->code} : บันทึกจำนวนตรวจนับไม่สำเร็จ";
           }
 
-          if( ! $this->consign_check_model->update_box_qty($id_box, $code, $pd->code, $qty))
+          if (! $this->consign_check_model->update_box_qty($id_box, $code, $pd->code, $qty))
           {
             $sc = FALSE;
             $this->error = "{$pd->code} : บันทึกยอดตรวจนับลงกล่องไม่สำเร็จ";
@@ -344,25 +273,25 @@ class Consign_check extends PS_Controller
   }
 
 
-
-
   //---- get checked detail
   public function get_checked_detail($code)
   {
-
     $product_code = $this->input->get('product_code');
+
     $sc = array(
       'pdCode' => $product_code
     );
 
     $details = $this->consign_check_model->get_consign_box_product_details($code, $product_code);
-    if(!empty($details))
+
+    if (!empty($details))
     {
       $ds = array();
-      foreach($details as $rs)
+
+      foreach ($details as $rs)
       {
         $arr = array(
-          'box' => 'กล่องที่ '.$rs->box_no,
+          'box' => 'กล่องที่ ' . $rs->box_no,
           'qty' => $rs->qty,
           'id_box' => $rs->id_box,
           'pdCode' => $rs->product_code
@@ -380,31 +309,29 @@ class Consign_check extends PS_Controller
     echo json_encode($sc);
   }
 
-
-
-
   //--- remove checked detail in this box
   public function remove_checked_item($code)
   {
     $sc = TRUE;
     $product_code = $this->input->post('product_code');
     $id_box = $this->input->post('id_box');
-    $detail = $this->consign_check_model->get_consign_box_detail($id_box,$code, $product_code);
-    if(!empty($detail))
+    $detail = $this->consign_check_model->get_consign_box_detail($id_box, $code, $product_code);
+
+    if (!empty($detail))
     {
       $this->db->trans_start();
       $qty = $detail->qty * (-1);
 
-      if( ! $this->consign_check_model->update_check_detail($code, $product_code, $qty))
+      if (! $this->consign_check_model->update_check_detail($code, $product_code, $qty))
       {
         $sc = FALSE;
-        $this->error = "{$pd->code} : ปรับปรุงตรวจนับไม่สำเร็จ";
+        $this->error = "{$product_code} : ปรับปรุงตรวจนับไม่สำเร็จ";
       }
 
-      if( ! $this->consign_check_model->delete_box_qty($id_box, $code, $product_code))
+      if (! $this->consign_check_model->delete_box_qty($id_box, $code, $product_code))
       {
         $sc = FALSE;
-        $this->error = "{$pd->code} : ปรับปรุงยอดตรวจนับในกล่องไม่สำเร็จ";
+        $this->error = "{$product_code} : ปรับปรุงยอดตรวจนับในกล่องไม่สำเร็จ";
       }
 
       $this->db->trans_complete();
@@ -414,18 +341,16 @@ class Consign_check extends PS_Controller
   }
 
 
-
-
   public function get_box($code, $barcode)
   {
     $sc = TRUE;
     $box = $this->consign_check_model->get_box($code, $barcode);
 
     //--- if box not exists
-    if(empty($box))
+    if (empty($box))
     {
       //--- so add new box
-      if($this->consign_check_model->add_box($code, $barcode))
+      if ($this->consign_check_model->add_box($code, $barcode))
       {
         //--- try to get box again
         $box = $this->consign_check_model->get_box($code, $barcode);
@@ -433,7 +358,7 @@ class Consign_check extends PS_Controller
     }
 
     //--- Now box must not empty
-    if(!empty($box))
+    if (!empty($box))
     {
       $arr = array(
         'id_box' => $box->id,
@@ -451,20 +376,19 @@ class Consign_check extends PS_Controller
   }
 
 
-
   public function get_box_list($code)
   {
     $ds = array();
     $box_list = $this->consign_check_model->get_box_list($code);
 
-    if(!empty($box_list))
+    if (!empty($box_list))
     {
-      foreach($box_list as $rs)
+      foreach ($box_list as $rs)
       {
         $arr = array(
           'id_box' => $rs->id,
           'barcode' => $rs->code,
-          'box_no' => 'กล่องที่ '.$rs->box_no
+          'box_no' => 'กล่องที่ ' . $rs->box_no
         );
 
         array_push($ds, $arr);
@@ -479,18 +403,15 @@ class Consign_check extends PS_Controller
   }
 
 
-
-
   public function close_consign_check($code)
   {
     $sc = TRUE;
-
     $doc = $this->consign_check_model->get($code);
 
-    if($doc->valid == 0 && $doc->status == 0 && $doc->is_wms == 0)
+    if ($doc->valid == 0 && $doc->status == 0 && $doc->is_wms == 0)
     {
       //--- change status to 1 (saved)
-      if(! $this->consign_check_model->change_status($code, 1))
+      if (! $this->consign_check_model->change_status($code, 1))
       {
         $sc = FALSE;
         $this->error = "ปิดการตรวจนับไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
@@ -500,7 +421,7 @@ class Consign_check extends PS_Controller
     {
       $sc = FALSE;
 
-      if($doc->valid == 1)
+      if ($doc->valid == 1)
       {
         $this->error = "เอกสารถูกดึงไปตัดยอดขายแล้ว";
       }
@@ -513,19 +434,16 @@ class Consign_check extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
-
   //--- Unsave document
   public function open_consign_check($code)
   {
     $sc = TRUE;
-
     $doc = $this->consign_check_model->get($code);
 
-    if(($doc->valid == 0 && $doc->status == 1) OR ($this->_SuperAdmin))
+    if (($doc->valid == 0 && $doc->status == 1) or ($this->_SuperAdmin))
     {
       //--- change status to 0 (not save)
-      if(! $this->consign_check_model->change_status($code, 0))
+      if (! $this->consign_check_model->change_status($code, 0))
       {
         $sc = FALSE;
         $this->error = "เปิดการตรวจนับไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
@@ -535,12 +453,12 @@ class Consign_check extends PS_Controller
     {
       $sc = FALSE;
 
-      if($doc->valid == 1)
+      if ($doc->valid == 1)
       {
         $this->error = "เอกสารถูกดึงไปตัดยอดขายแล้ว";
       }
 
-      if($doc->status == 2)
+      if ($doc->status == 2)
       {
         $this->error = "เอกสารถูกยกเลิกไปแล้ว";
       }
@@ -550,19 +468,16 @@ class Consign_check extends PS_Controller
   }
 
 
-
   public function update_header($code)
   {
     $sc = TRUE;
-
     $remark = $this->input->post('remark');
 
     $arr = array(
       'remark' => $remark
     );
 
-
-    if( ! $this->consign_check_model->update($code, $arr))
+    if (! $this->consign_check_model->update($code, $arr))
     {
       $sc = FALSE;
       $this->error = "ปรับปรุงข้อมูลไม่สำเร็จ";
@@ -575,17 +490,15 @@ class Consign_check extends PS_Controller
   public function reload_stock($code)
   {
     $sc = TRUE;
-
     $doc = $this->consign_check_model->get($code);
 
-    if( ! empty($doc))
+    if (! empty($doc))
     {
-
       $warehouse = $this->warehouse_model->get($doc->warehouse_code);
 
-      if(!empty($warehouse))
+      if (!empty($warehouse))
       {
-        if($warehouse->is_consignment == 1)
+        if ($warehouse->is_consignment == 1)
         {
           $stocks = $this->stock_model->get_all_stock_consignment_zone($doc->zone_code);
         }
@@ -594,7 +507,7 @@ class Consign_check extends PS_Controller
           $stocks = $this->stock_model->get_all_stock_in_zone($doc->zone_code);
         }
 
-        if(!empty($stocks))
+        if (!empty($stocks))
         {
           //---- ทำยอดตั้งต้นให้เป็น 0 ก่อน
           //--- ตัวไหนมียอดจะถูก update ทีหลัง
@@ -605,18 +518,18 @@ class Consign_check extends PS_Controller
           //--- set all stock_qty = 0;
           $this->consign_check_model->reset_stock_qty($code);
 
-          foreach($stocks as $rs)
+          foreach ($stocks as $rs)
           {
-            if($sc === FALSE)
+            if ($sc === FALSE)
             {
               break;
             }
 
             $detail = $this->consign_check_model->get_detail($code, $rs->product_code);
 
-            if(!empty($detail))
+            if (!empty($detail))
             {
-              if( ! $this->consign_check_model->update_stock_qty($detail->id, $rs->qty))
+              if (! $this->consign_check_model->update_stock_qty($detail->id, $rs->qty))
               {
                 $sc = FALSE;
                 $this->error = "Update stock failed";
@@ -625,22 +538,21 @@ class Consign_check extends PS_Controller
             else
             {
               $ds = array(
-              'check_code' => $code,
-              'product_code' => $rs->product_code,
-              'product_name' => $this->products_model->get_name($rs->product_code),
-              'stock_qty' => $rs->qty
+                'check_code' => $code,
+                'product_code' => $rs->product_code,
+                'product_name' => $this->products_model->get_name($rs->product_code),
+                'stock_qty' => $rs->qty
               );
 
-              if( ! $this->consign_check_model->add_detail($ds))
+              if (! $this->consign_check_model->add_detail($ds))
               {
                 $sc = FALSE;
                 $this->error = "เพิ่มยอดตั้งต้นไม่สำเร็จ";
               }
             }
-
           } //-- edn foreach
 
-          if($sc === TRUE)
+          if ($sc === TRUE)
           {
             $this->db->trans_commit();
           }
@@ -663,11 +575,9 @@ class Consign_check extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
   public function clear_all_details($code)
   {
     $sc = $this->delete_all_details($code);
-
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
@@ -677,22 +587,22 @@ class Consign_check extends PS_Controller
     $sc = TRUE;
     $doc = $this->consign_check_model->get($code);
 
-    if($doc->valid == 0)
+    if ($doc->valid == 0)
     {
-      if($doc->status != 1)
+      if ($doc->status != 1)
       {
         $this->db->trans_begin();
         //--- 1. ลบรายการในกล่องทั้งหมด
-        if( ! $this->consign_check_model->delete_all_box_details($code))
+        if (! $this->consign_check_model->delete_all_box_details($code))
         {
           $sc = FALSE;
           $this->error = "ลบรายการสินค้าในกล่องไม่สำเร็จ";
         }
 
         //--- 2. ลบกล่องทั้งหมด
-        if($sc === TRUE)
+        if ($sc === TRUE)
         {
-          if( ! $this->consign_check_model->delete_all_box($code))
+          if (! $this->consign_check_model->delete_all_box($code))
           {
             $sc = FALSE;
             $this->error = "ลบกล่องไม่สำเร็จ";
@@ -700,16 +610,16 @@ class Consign_check extends PS_Controller
         }
 
         //--- 3. ลบรายการรับเข้าและรายการตั้งต้นทั้งหมด
-        if($sc === TRUE)
+        if ($sc === TRUE)
         {
-          if( ! $this->consign_check_model->delete_all_details($code))
+          if (! $this->consign_check_model->delete_all_details($code))
           {
             $sc = FALSE;
             $this->error = "ลบรายการตั้งต้นและรายการตรวจนับไม่สำเร็จ";
           }
         }
 
-        if($sc === FALSE)
+        if ($sc === FALSE)
         {
           $this->db->trans_rollback();
         }
@@ -734,56 +644,29 @@ class Consign_check extends PS_Controller
   }
 
 
-
-
   //---- ยกเลิกเอกสาร
   public function cancle($code)
   {
     $sc = TRUE;
 
-    if($this->pm->can_delete)
-    {
-      $reason = $this->input->post('reason');
-      $force = $this->input->post('force_cancel') == 1 ? TRUE : FALSE;
-
+    if ($this->pm->can_delete)
+    {      
       $doc = $this->consign_check_model->get($code);
 
-      if($doc->status != 2)
+      if ($doc->status != 2)
       {
-        if($doc->valid == 0)
+        if ($doc->valid == 0)
         {
-          if($doc->is_wms == 2 && $this->sokoApi)
+          $arr = array(
+            'status' => 2,
+            'cancle_reason' => trim($this->input->post('reason') ?? ''),
+            'cancle_user' => $this->_user->uname
+          );
+
+          if (! $this->consign_check_model->update($code, $arr))
           {
-            if($doc->wms_export == 1 && $doc->soko_code)
-            {
-              $this->wms = $this->load->database('wms', TRUE);
-              $this->load->library('soko_receive_api');
-
-              if( ! $this->soko_receive_api->cancel_consign_check($doc))
-              {
-                if( ! $force)
-                {
-                  $sc = FALSE;
-                  $this->error = "ยกเลิกเอกสารที่ Soko ไม่สำเร็จ กรุณาติดต่อเจ้าหน้าที่ <br/>{$this->soko_receive_api->error}";
-                }
-              }
-            }
-          }
-
-          //--- change status = 2 (cancle)
-          if($sc === TRUE)
-          {
-            $arr = array(
-              'status' => 2,
-              'cancle_reason' => trim($this->input->post('reason')),
-              'cancle_user' => $this->_user->uname
-            );
-
-            if( ! $this->consign_check_model->update($code, $arr))
-            {
-              $sc = FALSE;
-              $this->error = "เปลี่ยนสถานะเอกสารไม่สำเร็จ";
-            }
+            $sc = FALSE;
+            $this->error = "เปลี่ยนสถานะเอกสารไม่สำเร็จ";
           }
         }
         else
@@ -807,7 +690,8 @@ class Consign_check extends PS_Controller
   {
     $this->load->library('printer');
     $doc = $this->consign_check_model->get($code);
-    if(!empty($doc))
+
+    if (!empty($doc))
     {
       $zone = $this->zone_model->get($doc->zone_code);
       $doc->zone_name = $zone->name;
@@ -815,9 +699,9 @@ class Consign_check extends PS_Controller
     }
 
     $details = $this->consign_check_model->get_consign_box_details($id_box, $code);
-    if(!empty($details))
+    if (!empty($details))
     {
-      foreach($details as $rs)
+      foreach ($details as $rs)
       {
         $rs->product_name = $this->products_model->get_name($rs->product_code);
       }
@@ -838,9 +722,9 @@ class Consign_check extends PS_Controller
     $box = $this->consign_check_model->get_box_by_id($id_box);
     $details = $this->consign_check_model->get_consign_box_details($id_box, $code);
 
-    if( ! empty($details))
+    if (! empty($details))
     {
-      foreach($details as $rs)
+      foreach ($details as $rs)
       {
         $rs->barcode = $this->products_model->get_barcode($rs->product_code);
       }
@@ -856,70 +740,6 @@ class Consign_check extends PS_Controller
   }
 
 
-	public function send_to_wms($code)
-	{
-		$sc = TRUE;
-
-		$doc = $this->consign_check_model->get($code);
-
-		if( ! empty($doc))
-		{
-      if($doc->is_wms == 2 && $this->sokoApi && ($doc->status == 3 OR $doc->status == 0))
-      {
-        $this->wms = $this->load->database('wms', TRUE);
-        $this->load->library('soko_receive_api');
-
-        $details = $this->consign_check_model->get_details($code);
-
-        if( ! empty($details))
-        {
-          if( ! $this->soko_receive_api->create_consign_check($doc, $details))
-          {
-            $sc = FALSE;
-            $this->error = "ส่งข้อมูลไป SOKOCHAN ไม่สำเร็จ <br/> {$this->soko_receive_api->error}";
-          }
-        }
-        else
-        {
-          $sc = FALSE;
-          $this->error = "ไม่พบรายการตั้งรับ กรุณาตรวจสอบ";
-        }
-      }
-
-			if($doc->is_wms == 1 && $this->wmsApi && ($doc->status == 3 OR $doc->status == 0))
-			{
-				$details = $this->consign_check_model->get_details($code);
-
-				if( ! empty($details))
-				{
-					$this->wms = $this->load->database('wms', TRUE);
-					$this->load->library('wms_receive_api');
-
-					$rs = $this->wms_receive_api->export_consign_check($doc, $details);
-
-					if(! $rs)
-					{
-						$sc = FALSE;
-						$this->error = "ส่งข้อมูลไป WMS ไม่สำเร็จ <br/>({$this->wms_receive_api->error})";
-					}
-				}
-				else
-				{
-					$sc = FALSE;
-					$this->error = "ไม่พบรายการตั้งรับ กรุณาตรวจสอบ";
-				}
-			}
-		}
-		else
-		{
-			$sc = FALSE;
-			$this->error = "Invalid document code";
-		}
-
-		echo $sc === TRUE ? 'success' : $this->error;
-	}
-
-
   public function get_new_code($date)
   {
     $date = $date == '' ? date('Y-m-d') : $date;
@@ -927,16 +747,17 @@ class Consign_check extends PS_Controller
     $M = date('m', strtotime($date));
     $prefix = getConfig('PREFIX_CONSIGN_CHECK');
     $run_digit = getConfig('RUN_DIGIT_CONSIGN_CHECK');
-    $pre = $prefix .'-'.$Y.$M;
+    $pre = $prefix . '-' . $Y . $M;
     $code = $this->consign_check_model->get_max_code($pre);
-    if(!empty($code))
+
+    if (!empty($code))
     {
-      $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
-      $new_code = $prefix . '-' . $Y . $M . sprintf('%0'.$run_digit.'d', $run_no);
+      $run_no = mb_substr($code, ($run_digit * -1), NULL, 'UTF-8') + 1;
+      $new_code = $prefix . '-' . $Y . $M . sprintf('%0' . $run_digit . 'd', $run_no);
     }
     else
     {
-      $new_code = $prefix . '-' . $Y . $M . sprintf('%0'.$run_digit.'d', '001');
+      $new_code = $prefix . '-' . $Y . $M . sprintf('%0' . $run_digit . 'd', '001');
     }
 
     return $new_code;
@@ -954,13 +775,9 @@ class Consign_check extends PS_Controller
       'check_status',
       'check_valid',
       'check_consign_code',
-			'check_is_wms'
+      'check_is_wms'
     );
 
-    clear_filter($filter);
+    return clear_filter($filter);
   }
-
-
-
-} //---- end class
- ?>
+} 

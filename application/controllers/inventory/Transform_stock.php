@@ -6,12 +6,9 @@ class Transform_stock extends PS_Controller
   public $menu_code = 'ICTRFS';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'REQUEST';
-	public $title = 'เบิกแปรสภาพ(สต็อก)';
-  public $filter;
+	public $title = 'เบิกแปรสภาพ(สต็อก)';  
   public $role = 'Q';
-  public $isClosed = FALSE;
-	public $wmsApi;
-  public $sokoApi;
+  public $isClosed = FALSE;	
   public $require_remark = 1;
 
   public function __construct()
@@ -33,10 +30,7 @@ class Transform_stock extends PS_Controller
     $this->load->helper('state');
     $this->load->helper('product_images');
     $this->load->helper('transform');
-    $this->load->helper('warehouse');
-
-		$this->wmsApi = is_true(getConfig('WMS_API'));
-    $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
+    $this->load->helper('warehouse');		
   }
 
 
@@ -73,7 +67,6 @@ class Transform_stock extends PS_Controller
     );
 
     $state_list = array();
-
     $button = array();
 
     for($i =1; $i <= 9; $i++)
@@ -90,32 +83,28 @@ class Transform_stock extends PS_Controller
     $button['not_save'] = empty($filter['notSave']) ? '' : 'btn-info';
     $button['only_me'] = empty($filter['onlyMe']) ? '' : 'btn-info';
     $button['is_expire'] = empty($filter['isExpire']) ? '' : 'btn-info';
-
-
     $filter['state_list'] = empty($state_list) ? NULL : $state_list;
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
+    if ($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
 
-    $role     = 'Q'; //--- Q = แปรสภาพเพื่อสต็อก
+		$perpage = get_rows();		
+    $role = 'Q'; //--- Q = แปรสภาพเพื่อสต็อก
 		$segment  = 4; //-- url segment
-		$rows     = $this->orders_model->count_rows($filter, $role);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$orders   = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($segment), $role);
-    $ds       = array();
+		$rows = $this->orders_model->count_rows($filter, $role);	
+		$orders = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($segment), $role);
+    $ds = array();
+
     if(!empty($orders))
     {
       foreach($orders as $rs)
       {
         $rs->customer_name = empty($rs->customer_name) ? $this->customers_model->get_name($rs->customer_code) : $rs->customer_name;
-        $rs->total_amount  = $rs->doc_total <= 0 ? $this->orders_model->get_order_total_amount($rs->code) : $rs->doc_total;
-        $rs->state_name    = get_state_name($rs->state);
+        $rs->total_amount = $rs->doc_total <= 0 ? $this->orders_model->get_order_total_amount($rs->code) : $rs->doc_total;
+        $rs->state_name = get_state_name($rs->state);
         $ds[] = $rs;
       }
     }
@@ -124,10 +113,10 @@ class Transform_stock extends PS_Controller
 		$filter['state'] = $state;
     $filter['btn'] = $button;
 
+		$init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
     $this->load->view('transform/transform_list', $filter);
   }
-
 
 
   public function add_new()
@@ -136,38 +125,23 @@ class Transform_stock extends PS_Controller
   }
 
 
-
   public function add()
   {
     $sc = TRUE;
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
     {
 			$this->load->model('masters/warehouse_model');
-
-      $wmsWh = getConfig('WMS_WAREHOUSE');
-      $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
-
       $book_code = getConfig('BOOK_CODE_TRANSFORM');
-
       $date_add = db_date($data->date_add);
-
       $due_date = db_date($data->due_date);
-
       $code = $this->get_new_code($date_add);
-
-      $role = 'Q'; //--- T = เบิกแปรสภาพ
-
+      $role = 'Q';
       $wh = $this->warehouse_model->get($data->warehouse_code);
 
       if( ! empty($wh))
-      {
-        $isSoko = $wh->code == $sokoWh ? TRUE : FALSE;
-        $isWms = $wh->code == $wmsWh ? TRUE : FALSE;
-
-        $is_wms = $isWms ? 1 : ($isSoko ? 2 : 0);
-
+      {        
         $ds = array(
           'code' => $code,
           'date_add' => $date_add,
@@ -181,8 +155,7 @@ class Transform_stock extends PS_Controller
           'remark' => get_null($data->remark),
           'user_ref' => $data->empName,
           'zone_code' => $data->zone_code,
-          'warehouse_code' => $wh->code,
-          'is_wms' => $is_wms
+          'warehouse_code' => $wh->code
         );
 
         if( ! $this->orders_model->add($ds))
@@ -225,7 +198,6 @@ class Transform_stock extends PS_Controller
   }
 
 
-
   public function edit_order($code, $approve_view = NULL)
   {
     $this->load->helper('print');
@@ -237,17 +209,19 @@ class Transform_stock extends PS_Controller
 
     $ds = array();
     $rs = $this->orders_model->get($code);
+
     if(!empty($rs))
     {
       $rs->customer_name = empty($rs->customer_name) ? $this->customers_model->get_name($rs->customer_code) : $rs->customer_name;
-      $rs->total_amount  = $rs->doc_total <= 0 ? $this->orders_model->get_order_total_amount($rs->code) : $rs->doc_total;
-      $rs->user          = $this->user_model->get_name($rs->user);
-      $rs->state_name    = get_state_name($rs->state);
-      $rs->zone_name     = $this->zone_model->get_name($rs->zone_code);
+      $rs->total_amount = $rs->doc_total <= 0 ? $this->orders_model->get_order_total_amount($rs->code) : $rs->doc_total;
+      $rs->user = $this->user_model->get_name($rs->user);
+      $rs->state_name = get_state_name($rs->state);
+      $rs->zone_name = $this->zone_model->get_name($rs->zone_code);
     }
 
     $state = $this->order_state_model->get_order_state($code);
     $ost = array();
+
     if(!empty($state))
     {
       foreach($state as $st)
@@ -257,6 +231,7 @@ class Transform_stock extends PS_Controller
     }
 
     $details = $this->orders_model->get_order_details($code);
+
     if(!empty($details))
     {
       foreach($details as $rd)
@@ -273,8 +248,7 @@ class Transform_stock extends PS_Controller
 		$ds['addr'] = $this->address_model->get_ship_to_address($rs->customer_code);
 		$ds['cancle_reason'] = ($rs->state == 9 ? $this->orders_model->get_cancle_reason($code) : NULL);
     $ds['approve_logs'] = $this->approve_logs_model->get($code);
-    $ds['approve_view'] = $approve_view;
-    $ds['is_api'] = is_api($rs->is_wms, $this->wmsApi, $this->sokoApi);
+    $ds['approve_view'] = $approve_view;    
     $ds['tracking'] = $this->orders_model->get_order_tracking($code);
     $ds['backlogs'] = $rs->is_backorder == 1 ? $this->orders_model->get_backlog_details($rs->code) : NULL;
     $this->isClosed = $this->transform_model->is_closed($code);
@@ -282,31 +256,20 @@ class Transform_stock extends PS_Controller
   }
 
 
-
   public function update_order()
   {
     $sc = TRUE;
 
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
     {
 			$this->load->model('masters/warehouse_model');
-
-      $wmsWh = getConfig('WMS_WAREHOUSE');
-      $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
-
       $code = $data->code;
-
       $wh = $this->warehouse_model->get($data->warehouse_code);
 
       if( ! empty($wh))
-      {
-        $isSoko = $wh->code == $sokoWh ? TRUE : FALSE;
-        $isWms = $wh->code == $wmsWh ? TRUE : FALSE;
-
-        $is_wms = $isWms ? 1 : ($isSoko ? 2 : 0);
-
+      {        
         $ds = array(
           'customer_code' => $data->customer_code,
           'reference' => get_null($data->reference),
@@ -318,8 +281,7 @@ class Transform_stock extends PS_Controller
           'zone_code' => $data->zone_code,
           'warehouse_code' => $wh->code,
           'id_address' => NULL,
-          'id_sender' => NULL,
-          'is_wms' => $is_wms
+          'id_sender' => NULL
         );
 
         if( ! $this->orders_model->update($code, $ds))
@@ -333,8 +295,6 @@ class Transform_stock extends PS_Controller
         $sc = FALSE;
         $this->error = "Invalid warehouse code";
       }
-
-
     }
     else
     {
@@ -346,7 +306,6 @@ class Transform_stock extends PS_Controller
   }
 
 
-
   public function edit_detail($code)
   {
     $this->load->helper('print');
@@ -356,17 +315,18 @@ class Transform_stock extends PS_Controller
 
     $ds = array();
     $rs = $this->orders_model->get($code);
+
     if(!empty($rs))
     {
       $rs->customer_name = $this->customers_model->get_name($rs->customer_code);
-      $rs->total_amount  = $this->orders_model->get_order_total_amount($rs->code);
-      $rs->user          = $this->user_model->get_name($rs->user);
-      $rs->state_name    = get_state_name($rs->state);
-      $rs->zone_name    = $this->zone_model->get_name($rs->zone_code);
+      $rs->total_amount = $this->orders_model->get_order_total_amount($rs->code);
+      $rs->user = $this->user_model->get_name($rs->user);
+      $rs->state_name = get_state_name($rs->state);
+      $rs->zone_name = $this->zone_model->get_name($rs->zone_code);
     }
-
-    $state = $this->order_state_model->get_order_state($code);
+    
     $details = $this->orders_model->get_order_details($code);
+
     if(!empty($details))
     {
       foreach($details as $rd)
@@ -383,7 +343,6 @@ class Transform_stock extends PS_Controller
     $this->load->view('transform/transform_edit_detail', $ds);
 
   }
-
 
 
   public function save($code)
@@ -463,8 +422,8 @@ class Transform_stock extends PS_Controller
 
       $order_code = $this->input->post('order_code');
       $id_order_detail  = $this->input->post('id_order_detail');
-      $original_product = trim($this->input->post('original_product'));
-      $transform_product = trim($this->input->post('transform_product'));
+      $original_product = trim($this->input->post('original_product') ?? '');
+      $transform_product = trim($this->input->post('transform_product') ?? '');
       $qty = intval($this->input->post('qty'));
 
       $order = $this->orders_model->get($order_code);
@@ -475,12 +434,12 @@ class Transform_stock extends PS_Controller
       $arr = array(
         'order_code' => $order_code,
         'id_order_detail' => $id_order_detail,
-        'original_code' => trim($original_product),
-        'product_code' => trim($transform_product),
+        'original_code' => $original_product,
+        'product_code' => $transform_product,
         'order_qty' => $qty,
         'sold_qty' => $sold_qty,
         'valid' => $valid
-        );
+      );
 
       $rs = $this->transform_model->update($arr);
 
@@ -501,20 +460,19 @@ class Transform_stock extends PS_Controller
     {
       $sc = 'ไม่พบข้อมูลสินค้า';
     }
+
     echo $sc;
   }
-
-
 
 
   public function remove_transform_product()
   {
     if($this->input->post('id_order_detail'))
     {
-      $id_order_detail = $this->input->post('id_order_detail');
-      $product_code = $this->input->post('product_code');
-
+      $id_order_detail = $this->input->post('id_order_detail') ?? 0;
+      $product_code = $this->input->post('product_code') ?? '';
       $rs = $this->transform_model->remove_transform_product($id_order_detail, $product_code);
+
       if($rs === TRUE)
       {
         $rd = $this->transform_model->get_transform_product($id_order_detail);
@@ -537,10 +495,9 @@ class Transform_stock extends PS_Controller
   }
 
 
-
   public function remove_transform_detail()
   {
-    $id_order_detail = $this->input->post('id_order_detail');
+    $id_order_detail = $this->input->post('id_order_detail') ?? 0;
     if($this->transform_model->remove_transform_detail($id_order_detail) === TRUE)
     {
       $this->db->set('not_return', 1)->where('id', $id_order_detail)->update('order_details');
@@ -567,11 +524,11 @@ class Transform_stock extends PS_Controller
   }
 
 
-
   public function is_exists_connected()
   {
-    $id_order_detail = $this->input->get('id_order_detail');
-    if($this->transform_model->hasTransformProduct($id_order_detail) === TRUE)
+    $id_order_detail = $this->input->get('id_order_detail') ?? 0;
+
+    if($this->transform_model->hasTransformProduct($id_order_detail))
     {
       echo 'exists';
     }
@@ -582,9 +539,6 @@ class Transform_stock extends PS_Controller
   }
 
 
-
-
-
   public function get_detail_table($code)
   {
     $this->load->helper('print');
@@ -593,8 +547,8 @@ class Transform_stock extends PS_Controller
 
     $sc = "no data found";
   	$order = $this->orders_model->get($code);
-
     $details = $this->orders_model->get_order_details($code);
+
     if(!empty($details))
     {
       $no = 1;
@@ -602,11 +556,10 @@ class Transform_stock extends PS_Controller
       $ds = array();
 
       foreach($details as $rs)
-      {
-        $hasTransformProduct = $this->transform_model->hasTransformProduct($rs->id);
+      {        
         $transform_product = $this->transform_model->get_transform_product($rs->id);
-        //$checked = $hasTransformProduct === FALSE ? 'checked' : '';
-        $arr = array(
+        
+        $ds[] = array(
           'id' => $rs->id,
           'no' => $no,
           'imageLink' => get_product_image($rs->product_code, 'mini'),
@@ -615,23 +568,21 @@ class Transform_stock extends PS_Controller
           'qty' => number($rs->qty),
           'transProduct' => $transform_product === FALSE ? '' : getTransformProducts($transform_product, $order->state, $order->is_expired),
           'trans_qty' => $this->transform_model->get_sum_transform_product_qty($rs->id),
-          'checkbox' => "", //$checked,
-          'button' => 'show' //$hasTransformProduct === FALSE ? '' : 'show'
+          'checkbox' => "",
+          'button' => 'show'
         );
-
-        array_push($ds, $arr);
+       
         $total_qty += $rs->qty;
         $no++;
       }
 
-      $arr = array('total_qty' => number($total_qty));
-      array_push($ds, $arr);
-
+      $ds[] = array('total_qty' => number($total_qty));      
       $sc = json_encode($ds);
     }
 
     echo $sc;
   }
+
 
   public function get_new_code($date)
   {
@@ -642,6 +593,7 @@ class Transform_stock extends PS_Controller
     $run_digit = getConfig('RUN_DIGIT_TRANSFORM_STOCK');
     $pre = $prefix .'-'.$Y.$M;
     $code = $this->orders_model->get_max_code($pre);
+
     if(! is_null($code))
     {
       $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
@@ -654,7 +606,6 @@ class Transform_stock extends PS_Controller
 
     return $new_code;
   }
-
 
 
   public function set_never_expire()
@@ -672,6 +623,7 @@ class Transform_stock extends PS_Controller
     $rs = $this->orders_model->un_expired($code);
     echo $rs === TRUE ? 'success' : 'ทำรายการไม่สำเร็จ';
   }
+
 
   public function clear_filter()
   {
@@ -701,8 +653,6 @@ class Transform_stock extends PS_Controller
       'transform_state_9'
     );
 
-
-    clear_filter($filter);
+    return clear_filter($filter);
   }
 }
-?>

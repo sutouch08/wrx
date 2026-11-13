@@ -1,12 +1,15 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 class Zone extends PS_Controller
 {
   public $menu_code = 'DBZONE';
 	public $menu_group_code = 'DB';
   public $menu_sub_group_code = 'WAREHOUSE';
 	public $title = 'เพิ่ม/แก้ไข โซน';
-  public $error;
+  public $segment = 4;
 
   public function __construct()
   {
@@ -30,25 +33,26 @@ class Zone extends PS_Controller
       'is_fast_move' => get_filter('is_fast_move', 'z_fastmove', 'all')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-
-		$segment  = 4; //-- url segment
-		$rows = $this->zone_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$list = $this->zone_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
-    if(!empty($list))
+    if($this->input->post('search'))
     {
-      foreach($list as $rs)
+      redirect($this->home);
+      exit;
+    }
+
+		//--- แสดงผลกี่รายการต่อหน้า
+		$perpage = get_rows();		
+		$rows = $this->zone_model->count_rows($filter);		
+		$filter['list'] = $this->zone_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+
+    if(!empty($filter['list']))
+    {
+      foreach($filter['list'] as $rs)
       {
         $rs->customer_count = $this->zone_model->count_customer($rs->code);
       }
     }
 
-    $filter['list'] = $list;
-
+		$init = pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
 		$this->pagination->initialize($init);
     $this->load->view('masters/zone/zone_list', $filter);
   }
@@ -56,7 +60,7 @@ class Zone extends PS_Controller
 
   public function generate_qrcode()
   {
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
     $list = [];
 
     if( ! empty($ds))
@@ -64,9 +68,7 @@ class Zone extends PS_Controller
       $this->load->library('ixqrcode');
 
       foreach($ds as $rs)
-      {
-        $path = $this->config->item('qrcode_path').$rs->code.'.png';
-
+      {        
         $qr = array(
           'data' => $rs->code,
           'size' => 8,
@@ -93,37 +95,32 @@ class Zone extends PS_Controller
 
 
   public function toggle_fast_move()
-  {
-    $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+  {    
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
-    if( ! empty($ds))
+    if(empty($ds))
     {
-      $arr = array(
-        'is_fast_move' => $ds->is_fast_move == 1 ? 1 : 0
-      );
-
-      if(is_array($ds->zoneList))
-      {
-        if( ! $this->db->where_in('code', $ds->zoneList)->update('zone', $arr))
-        {
-          $sc = FALSE;
-          $this->error = "Failed to update zone list";
-        }
-      }
-      else
-      {
-        $sc = FALSE;
-        $this->error = "Missing required parameter : zoneList";
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      set_error('required');
+      echo get_error('required');
+      exit;
     }
 
-    $this->_response($sc);
+    $arr = array(
+      'is_fast_move' => $ds->is_fast_move == 1 ? 1 : 0
+    );
+
+    if(! is_array($ds->zoneList))
+    {
+      echo "Missing required parameter : zoneList";
+      exit;
+    }
+
+    if(! $this->db->where_in('code', $ds->zoneList)->update('zone', $arr))
+    {
+      echo "Failed to update zone list";
+      exit;
+    }
+
+    echo "success";
   }
 
 
@@ -152,7 +149,6 @@ class Zone extends PS_Controller
       redirect($this->home);
     }
   }
-
 
 
   public function update()
@@ -239,6 +235,7 @@ class Zone extends PS_Controller
   public function delete($code)
   {
     $sc = TRUE;
+
     if($this->pm->can_delete)
     {
       if($this->zone_model->count_customer($code) > 0)
@@ -263,7 +260,6 @@ class Zone extends PS_Controller
           $this->error = "ลบโซนไม่สำเร็จ";
         }
       }
-
     }
     else
     {
@@ -273,8 +269,6 @@ class Zone extends PS_Controller
 
     echo $sc === TRUE ? 'success' : $this->error;
   }
-
-
 
 
   public function add_customer()
@@ -288,6 +282,7 @@ class Zone extends PS_Controller
         $code = $this->input->post('zone_code');
         $customer_code = $this->input->post('customer_code');
         $customer = $this->customers_model->get($customer_code);
+
         if(!empty($customer))
         {
           if($this->zone_model->is_exists_customer($code, $customer->code))
@@ -321,7 +316,6 @@ class Zone extends PS_Controller
         $sc = FALSE;
         $this->error = "ไม่พบข้อมูล";
       }
-
     }
     else
     {
@@ -331,7 +325,6 @@ class Zone extends PS_Controller
 
     echo $sc === TRUE ? 'success' : $this->error;
   }
-
 
 
   public function delete_customer($id)
@@ -356,10 +349,10 @@ class Zone extends PS_Controller
   }
 
 
-
   public function add_employee()
   {
     $sc = TRUE;
+
     if($this->pm->can_edit)
     {
       if($this->input->post('zone_code') && $this->input->post('empID'))
@@ -413,7 +406,6 @@ class Zone extends PS_Controller
         $sc = FALSE;
         $this->error = "ไม่พบข้อมูล";
       }
-
     }
     else
     {
@@ -423,7 +415,6 @@ class Zone extends PS_Controller
 
     echo $sc === TRUE ? 'success' : $this->error;
   }
-
 
 
   public function delete_employee($id)
@@ -498,9 +489,9 @@ class Zone extends PS_Controller
   public function get_zone()
   {
     $sc = TRUE;
-    $code = trim($this->input->get('code'));
-    $whsCode = get_null(trim($this->input->get('warehouse_code')));
-    $whsName = get_null(trim($this->input->get('warehouse_name')));
+    $code = trim($this->input->get('code') ?? '');
+    $whsCode = get_null(trim($this->input->get('warehouse_code') ?? ''));
+    $whsName = get_null(trim($this->input->get('warehouse_name') ?? ''));
     $zone = $this->zone_model->get_zone($code, $whsCode);
 
     if(empty($zone))
@@ -523,52 +514,33 @@ class Zone extends PS_Controller
 
   //--- check zone
   public function get_zone_code()
-  {
-    $sc = TRUE;
-    if($this->input->get('barcode'))
-    {
-      $barcode = trim($this->input->get('barcode'));
-      $code = $this->zone_model->get_zone_code($barcode);
-
-      if($code === FALSE)
-      {
-        $sc = FALSE;
-      }
-    }
-
-    echo $sc === TRUE ? $code : 'not_exists';
+  {    
+    $barcode = trim($this->input->get('barcode') ?? '');
+    $code = $this->zone_model->get_zone_code($barcode);
+    echo empty($code) ? 'not_exists' : $code;
   }
-
-
 
   public function get_warehouse_zone()
-  {
-    $sc = TRUE;
-    $code = trim($this->input->get('barcode'));
-    $warehouse_code = trim($this->input->get('warehouse_code'));
-    if(!empty($code) && !empty($warehouse_code))
-    {
-      $zone = $this->zone_model->get_zone_detail_in_warehouse($code, $warehouse_code);
-      if($zone === FALSE)
-      {
-        $sc = FALSE;
-        $this->error = "ไม่พบโซน";
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      $this->error = "รหัสโซนหรือรหัสคลังไม่ถูกต้อง : {$code} | {$warehouse_code}";
+  {    
+    $code = trim($this->input->get('barcode') ?? '');
+    $warehouse_code = trim($this->input->get('warehouse_code') ?? '');
+
+    if(empty($code) || empty($warehouse_code))
+    {      
+      echo 'not_exists';
+      exit;
     }
 
-    echo $sc === TRUE ? json_encode($zone) : 'not_exists';
+    $zone = $this->zone_model->get_zone_detail_in_warehouse($code, $warehouse_code);
+    echo empty($zone) ? 'not_exists' : json_encode($zone);
   }
-
-
 
 
   public function export_filter()
   {
+    ini_set('memory_limit', '2048M');
+    ini_set('max_execution_time', 600); // 5 minutes  
+    
     $ds = array(
       'code' => $this->input->post('zone_code'),
       'uname' => $this->input->post('zone_uname'),
@@ -577,38 +549,33 @@ class Zone extends PS_Controller
     );
 
     $token = $this->input->post('token');
+    $list = $this->zone_model->get_export_list($ds);
 
-    $list = $this->zone_model->get_list($ds);
-
-    //--- load excel library
-    $this->load->library('excel');
-
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Zone master data');
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
+    $sheet->setTitle('Zone master data');
 
     //--- set Table header
-
-
-    $this->excel->getActiveSheet()->setCellValue('A1', 'ลำดับ');
-    $this->excel->getActiveSheet()->setCellValue('B1', 'รหัสโซน');
-    $this->excel->getActiveSheet()->setCellValue('C1', 'ชื่อโซน');
-    $this->excel->getActiveSheet()->setCellValue('D1', 'รหัสคลัง');
-    $this->excel->getActiveSheet()->setCellValue('E1', 'คลังสินค้า');
-    $this->excel->getActiveSheet()->setCellValue('F1', 'รหัสเก่า');
-    $this->excel->getActiveSheet()->setCellValue('G1', 'เจ้าของโซน');
-    $this->excel->getActiveSheet()->setCellValue('H1', 'ผู้รับผิดชอบ');
-    $this->excel->getActiveSheet()->setCellValue('I1', 'Active');
+    $sheet->setCellValue('A1', 'ลำดับ');
+    $sheet->setCellValue('B1', 'รหัสโซน');
+    $sheet->setCellValue('C1', 'ชื่อโซน');
+    $sheet->setCellValue('D1', 'รหัสคลัง');
+    $sheet->setCellValue('E1', 'คลังสินค้า');
+    $sheet->setCellValue('F1', 'รหัสเก่า');
+    $sheet->setCellValue('G1', 'เจ้าของโซน');
+    $sheet->setCellValue('H1', 'ผู้รับผิดชอบ');
+    $sheet->setCellValue('I1', 'Active');
 
 
     //---- กำหนดความกว้างของคอลัมภ์
-    $this->excel->getActiveSheet()->getColumnDimension('B')->setWidth(20);
-    $this->excel->getActiveSheet()->getColumnDimension('C')->setWidth(30);
-    $this->excel->getActiveSheet()->getColumnDimension('D')->setWidth(20);
-    $this->excel->getActiveSheet()->getColumnDimension('E')->setWidth(30);
-    $this->excel->getActiveSheet()->getColumnDimension('F')->setWidth(20);
-    $this->excel->getActiveSheet()->getColumnDimension('G')->setWidth(20);
-    $this->excel->getActiveSheet()->getColumnDimension('H')->setWidth(30);
-    $this->excel->getActiveSheet()->getColumnDimension('I')->setWidth(15);
+    $sheet->getColumnDimension('B')->setWidth(20);
+    $sheet->getColumnDimension('C')->setWidth(30);
+    $sheet->getColumnDimension('D')->setWidth(20);
+    $sheet->getColumnDimension('E')->setWidth(30);
+    $sheet->getColumnDimension('F')->setWidth(20);
+    $sheet->getColumnDimension('G')->setWidth(20);
+    $sheet->getColumnDimension('H')->setWidth(30);
+    $sheet->getColumnDimension('I')->setWidth(15);
 
 
     $row = 2;
@@ -619,32 +586,16 @@ class Zone extends PS_Controller
       $no = 1;
 
       foreach($list as $rs)
-      {
-        //--- ลำดับ
-        $this->excel->getActiveSheet()->setCellValue('A'.$row, $no);
-
-        //--- zone code
-        $this->excel->getActiveSheet()->setCellValue('B'.$row, $rs->code);
-
-        //--- zone name
-        $this->excel->getActiveSheet()->setCellValue('C'.$row, $rs->name);
-
-        //--- warehouse code
-        $this->excel->getActiveSheet()->setCellValue('D'.$row, $rs->warehouse_code);
-
-        //---- waehouser name
-        $this->excel->getActiveSheet()->setCellValue('E'.$row, $rs->warehouse_name);
-        //--- old code
-        $this->excel->getActiveSheet()->setCellValue('F'.$row, "{$rs->old_code}");
-
-        //--- user name
-        $this->excel->getActiveSheet()->setCellValue('G'.$row, $rs->uname);
-
-        $this->excel->getActiveSheet()->setCellValue('H'.$row, $rs->display_name);
-
-        $this->excel->getActiveSheet()->setCellValue('I'.$row, ($rs->active ? 'Y' : 'N'));
-
-
+      {        
+        $sheet->setCellValue('A'.$row, $no);       
+        $sheet->setCellValue('B'.$row, $rs->code);
+        $sheet->setCellValue('C'.$row, $rs->name);
+        $sheet->setCellValue('D'.$row, $rs->warehouse_code); 
+        $sheet->setCellValue('E'.$row, $rs->warehouse_name);       
+        $sheet->setCellValue('F'.$row, "{$rs->old_code}");        
+        $sheet->setCellValue('G'.$row, $rs->uname);
+        $sheet->setCellValue('H'.$row, $rs->display_name);
+        $sheet->setCellValue('I'.$row, ($rs->active ? 'Y' : 'N'));
 
         $no++;
         $row++;
@@ -654,12 +605,10 @@ class Zone extends PS_Controller
       $file_name = "Zone Master Data.xlsx";
       header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
       header('Content-Disposition: attachment;filename="'.$file_name.'"');
-      $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+      $writer = new Xlsx($excel);
       $writer->save('php://output');
     }
   }
-
-
 
   public function clear_filter()
   {
@@ -674,9 +623,6 @@ class Zone extends PS_Controller
       'z_fastmove'
     );
 
-    clear_filter($filter);
+    return clear_filter($filter);
   }
-
-} //--- end class
-
- ?>
+}

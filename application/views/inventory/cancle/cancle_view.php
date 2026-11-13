@@ -38,6 +38,7 @@
       <button type="button" class="btn btn-xs btn-warning btn-block" onclick="clearFilter()"><i class="fa fa-retweet"></i> Reset</button>
     </div>
   </div>
+  <input type="hidden" name="search" value="1" />
 </form>
 <hr class="margin-top-15">
 <?php echo $this->pagination->create_links(); ?>
@@ -58,23 +59,23 @@
         <?php if (!empty($data)) : ?>
           <?php $no = $this->uri->segment($this->segment) + 1; ?>
           <?php $orders = []; ?>
-          <?php $zones = []; ?>          
+          <?php $zones = []; ?>
           <?php foreach ($data as $rs) : ?>
-          <?php $zoneName = ""; ?>
-          <?php if(isset($zones[$rs->zone_code])) : ?>
-            <?php $zoneName = $zones[$rs->zone_code]; ?>
-          <?php else : ?>
-            <?php $zoneName = zone_name($rs->zone_code); ?>
-            <?php $zones[$rs->zone_code] = $zoneName; ?>
-          <?php endif; ?>
-          
-          <?php $state = ""; ?>
-          <?php if(isset($orders[$rs->order_code])) : ?>
-            <?php $state = $orders[$rs->order_code]; ?>
-          <?php else : ?>
-            <?php $state = $this->cancle_model->get_order_state($rs->order_code); ?>
-            <?php $orders[$rs->order_code] = $state; ?>
-          <?php endif; ?>
+            <?php $zoneName = ""; ?>
+            <?php if (isset($zones[$rs->zone_code])) : ?>
+              <?php $zoneName = $zones[$rs->zone_code]; ?>
+            <?php else : ?>
+              <?php $zoneName = zone_name($rs->zone_code); ?>
+              <?php $zones[$rs->zone_code] = $zoneName; ?>
+            <?php endif; ?>
+
+            <?php $state = ""; ?>
+            <?php if (isset($orders[$rs->order_code])) : ?>
+              <?php $state = $orders[$rs->order_code]; ?>
+            <?php else : ?>
+              <?php $state = $this->cancle_model->get_order_state($rs->order_code); ?>
+              <?php $orders[$rs->order_code] = $state; ?>
+            <?php endif; ?>
             <tr class="font-size-12" id="row-<?php echo $rs->id; ?>">
               <td class="text-center no"><?php echo $no; ?></td>
               <td class="text-center"><?php echo thai_date($rs->date_upd, TRUE); ?></td>

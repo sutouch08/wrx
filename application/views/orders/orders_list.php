@@ -64,7 +64,7 @@
 
 		<div class="col-lg-1-harf col-md-2 col-sm-2 col-xs-6 padding-5">
 			<label>ช่องทางขาย</label>
-			<select class="width-100" name="channels" id="channels" onchange="getSearch()">
+			<select class="form-control input-sm search" name="channels" id="channels">
 				<option value="">ทั้งหมด</option>
 				<?php echo select_channels($channels); ?>
 			</select>
@@ -184,7 +184,7 @@
 
 		<div class="col-lg-4 col-md-4-harf col-sm-4 col-xs-12 padding-5">
 			<label>คลัง</label>
-			<select class="width-100" name="warehouse" id="warehouse" onchange="getSearch()">
+			<select class="form-control input-sm search" name="warehouse" id="warehouse">
 				<option value="">ทั้งหมด</option>
 				<?php echo select_warehouse($warehouse); ?>
 			</select>
@@ -331,19 +331,7 @@
 	</div>
 </div>
 
-<?php
-if ($this->_SuperAdmin)
-{
-	echo $query_time;
-}
-
-?>
-
-<?php
-if ($can_upload) :
-	$this->load->view('orders/import_order');
-endif;
-?>
+<?php if ($can_upload) $this->load->view('orders/import_order'); ?>
 
 <script>
 	$('#channels').select2();

@@ -1,81 +1,57 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 class Warehouse_model extends CI_Model
-{
+{  
+  private $tb = "warehouse";
+  private $tr = "warehouse_role";
+
   public function __construct()
   {
-    parent::__construct();
+    parent::__construct();    
   }
 
   public function get($code)
   {
-
     $rs = $this->db
     ->select('warehouse.*, warehouse_role.name AS role_name')
-    ->from('warehouse')
+    ->from($this->tb)
     ->join('warehouse_role', 'warehouse.role = warehouse_role.id', 'left')
     ->where('warehouse.code', $code)
     ->get();
 
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row();
-    }
-
-    return FALSE;
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
   }
 
 
   public function get_name($code)
   {
-    $rs = $this->db->where('code', $code)->get('warehouse');
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row()->name;
-    }
-
-    return NULL;
+    $rs = $this->db->where('code', $code)->get($this->tb);
+    return $rs->num_rows() === 1 ? $rs->row()->name : "";
   }
 
 
   public function add(array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->db->insert('warehouse', $ds);
-    }
-
-    return FALSE;
+    return !empty($ds) ? $this->db->insert($this->tb, $ds) : FALSE;
   }
 
 
   public function update($code, array $ds = array())
   {
-    if(!empty($ds))
-    {
-      $this->db->where('code', $code);
-      return $this->db->update('warehouse', $ds);
-    }
-
-    return FALSE;
+    return !empty($ds) ? $this->db->where('code', $code)->update($this->tb, $ds) : FALSE;    
   }
 
 
   public function delete($code)
   {
-    return $this->db->where('code', $code)->delete('warehouse');
+    return $this->db->where('code', $code)->delete($this->tb);
   }
 
 
   public function get_all_role()
   {
-    $rs = $this->db->get('warehouse_role');
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    $rs = $this->db->get($this->tr);
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
@@ -137,11 +113,11 @@ class Warehouse_model extends CI_Model
       }
     }
 
-    return $this->db->count_all_results('warehouse');
+    return $this->db->count_all_results($this->tb);
   }
 
 
-  public function get_list(array $ds = array(), $perpage = '', $offset = '')
+  public function get_list(array $ds = array(), $perpage = 20, $offset = 0)
   {
     $this->db->select('warehouse.*, warehouse_role.name AS role_name');
     $this->db->from('warehouse')->join('warehouse_role', 'warehouse.role = warehouse_role.id');
@@ -201,22 +177,9 @@ class Warehouse_model extends CI_Model
         ->group_end();
       }
     }
-
-
-    if( ! empty($perpage))
-    {
-      $offset = $offset === NULL ? 0 : $offset;
-      $this->db->limit($perpage, $offset);
-    }
-
-    $rs = $this->db->get();
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    
+    $rs = $this->db->limit($perpage, $offset)->get();
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
@@ -227,14 +190,9 @@ class Warehouse_model extends CI_Model
     ->where('active', 1)
     ->where('sell', 1)
     ->order_by('position', 'ASC')
-    ->get('warehouse');
+    ->get($this->tb);
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
   //--- เอาเฉพาะคลังที่สามารถยืมสินค้าได้
@@ -244,14 +202,9 @@ class Warehouse_model extends CI_Model
     ->where('active', 1)
     ->where('lend', 1)
     ->order_by('position', 'ASC')
-    ->get('warehouse');
+    ->get($this->tb);
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
@@ -260,27 +213,17 @@ class Warehouse_model extends CI_Model
     $rs = $this->db
     ->where('active', 1)
     ->order_by('code', 'ASC')
-    ->get('warehouse');
+    ->get($this->tb);
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
   ///---- คลังฝากขายทั้งหมด
   public function get_consign_warehouse_list()
   {
-    $rs = $this->db->where('role', 2)->where('active', 1)->get('warehouse');
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    $rs = $this->db->where('role', 2)->where('active', 1)->get($this->tb);
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
@@ -290,14 +233,9 @@ class Warehouse_model extends CI_Model
     ->where('role', 7)
     ->where('active', 1)
     ->order_by('position', 'ASC')
-    ->get('warehouse');
+    ->get($this->tb );
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
@@ -312,13 +250,9 @@ class Warehouse_model extends CI_Model
     ->group_end()
     ->where('active', 1)
     ->order_by('code', 'ASC')
-    ->get('warehouse');
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
+    ->get($this->tb);
 
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
@@ -329,13 +263,9 @@ class Warehouse_model extends CI_Model
     ->where('role', 2)
     ->where('is_consignment', 1)
     ->where('active', 1)
-    ->get('warehouse');
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
+    ->get($this->tb);
 
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
@@ -344,14 +274,9 @@ class Warehouse_model extends CI_Model
 		$rs = $this->db
 		->where_in('role', array(1, 3, 4, 5))
 		->where('active', 1)
-		->get('warehouse');
+		->get($this->tb);
 
-		if($rs->num_rows() > 0)
-		{
-			return $rs->result();
-		}
-
-		return NULL;
+		return $rs->num_rows() > 0 ? $rs->result() : NULL;
 	}
 
 
@@ -360,14 +285,9 @@ class Warehouse_model extends CI_Model
 		$rs = $this->db
 		->where('role', 8)
 		->where('active', 1)
-		->get('warehouse');
+		->get($this->tb);
 
-		if($rs->num_rows() > 0)
-		{
-			return $rs->result();
-		}
-
-		return NULL;
+		return $rs->num_rows() > 0 ? $rs->result() : NULL;
 	}
 
 
@@ -379,40 +299,27 @@ class Warehouse_model extends CI_Model
 
   public function get_role_name($id)
   {
-    $rs = $this->db->select('name')->where('id', $id)->get('warehouse_role');
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row()->name;
-    }
-
-    return NULL;
+    $rs = $this->db->select('name')->where('id', $id)->get($this->tr);
+    return $rs->num_rows() === 1 ? $rs->row()->name : "";
   }
 
 
   public function get_last_sync_date()
   {
-    $rs = $this->db->select_max('last_sync')->get('warehouse');
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row()->last_sync === NULL ? date('2019-01-01 00:00:00') : $rs->row()->last_sync;
-    }
-
-    return date('2019-01-01 00:00:00');
+    $rs = $this->db->select_max('last_sync')->get($this->tb);
+    return $rs->num_rows() === 1 ? ($rs->row()->last_sync === NULL ? date('2019-01-01 00:00:00') : $rs->row()->last_sync) : date('2019-01-01 00:00:00');
   }
 
 
   public function get_new_data($last_sync)
   {
-    $this->ms->select('WhsCode AS code, WhsName AS name, Inactive, U_OLDWHSCODE AS old_code, U_LIMIT_AMOUNT AS limit_amount');
-    $this->ms->where('createDate >=', sap_date($last_sync));
-    $this->ms->or_where('updateDate >=', sap_date($last_sync));
-    $rs = $this->ms->get('OWHS');
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
+    $rs = $this->ms
+    ->select('WhsCode AS code, WhsName AS name, Inactive, U_OLDWHSCODE AS old_code, U_LIMIT_AMOUNT AS limit_amount')
+    ->where('createDate >=', sap_date($last_sync))
+    ->or_where('updateDate >=', sap_date($last_sync))
+    ->get('OWHS');
 
-    return FALSE;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
@@ -421,96 +328,62 @@ class Warehouse_model extends CI_Model
     $this->ms->select('WhsCode AS code, WhsName AS name');
     $this->ms->select('createDate, updateDate');
     $rs = $this->ms->get('OWHS');
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return FALSE;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
   public function has_zone($code)
-  {
-    //--- return number of result rows like 25
-    $rs = $this->db->where('warehouse_code', $code)->count_all_results('zone');
-    if($rs > 0)
-    {
-      return TRUE;
-    }
-
-    return FALSE;
+  {    
+    return $this->db->where('warehouse_code', $code)->count_all_results('zone') > 0;
   }
 
 
   public function is_exists($code)
   {
-    $rs = $this->db->where('code', $code)->get('warehouse');
-    if($rs->num_rows() > 0)
-    {
-      return TRUE;
-    }
-
-    return FALSE;
+    return $this->db->where('code', $code)->count_all_results($this->tb) > 0;
   }
 
 
   public function is_sap_exists($code)
   {
-    $rs = $this->ms->select('WhsCode')->where('WhsCode', $code)->get('OWHS');
-    if($rs->num_rows() > 0)
-    {
-      return TRUE;
-    }
-
-    return FALSE;
+    return $this->ms->where('WhsCode', $code)->count_all_results('OWHS') > 0;
   }
 
 
   public function is_auz($code)
   {
-    $rs = $this->db->select('auz')->where('code', $code)->where('auz', 1)->get('warehouse');
-    if($rs->num_rows() === 1)
-    {
-      return TRUE;
-    }
-
-    return FALSE;
+    return $this->db->where('code', $code)->where('auz', 1)->count_all_results($this->tb) > 0;
   }
 
 
 	public function is_consignment($code)
 	{
-		$rs = $this->db->select('code')->where('code', $code)->where('is_consignment', 1)->get('warehouse');
-		if($rs->num_rows() === 1)
-		{
-			return TRUE;
-		}
-
-		return FALSE;
+		return $this->db->where('code', $code)->where('is_consignment', 1)->count_all_results($this->tb) > 0;
 	}
 
 
   public function is_stock_exists($role, $whsCode)
   {
-    $rows = 0;
+    if ($role === 'C')
+    {
+      $this->cn = $this->load->database('cn', TRUE);
+      return $this->cn->where('WhsCode', $whsCode)->where('OnHand >', 0)->count_all_results('OITW') > 0;
+    }
 
     if($role === 'N')
     {
-      $rows = $this->ms->where('WhsCode', $whsCode)->where('OnHand >', 0)->count_all_results('OITW');
-    }
-
-    if($role === 'C')
-    {
-      $rows = $this->cn->where('WhsCode', $whsCode)->where('OnHand >', 0)->count_all_results('OITW');
-    }
-
-    return $rows > 0 ? TRUE : FALSE;
+      return $this->ms->where('WhsCode', $whsCode)->where('OnHand >', 0)->count_all_results('OITW') > 0;
+    }      
   }
 
 
   public function get_balance_amount($role, $whsCode)
   {
+    if($role === 'C')
+    {
+      $this->cn = $this->load->database('cn', TRUE);
+    }
+    
     $qr  = "SELECT SUM(Amount) AS Amount FROM ";
     $qr .= "(SELECT (O.OnHand * P.Price) AS Amount FROM OITW AS O ";
     $qr .= "LEFT JOIN ITM1 AS P ON O.ItemCode = P.ItemCode ";
@@ -522,7 +395,7 @@ class Warehouse_model extends CI_Model
     }
 
     if($role === 'C')
-    {
+    {     
       $rs = $this->cn->query($qr);
     }
 
@@ -537,15 +410,7 @@ class Warehouse_model extends CI_Model
 
   public function get_limit_amount($whsCode)
   {
-    $rs = $this->db->select('limit_amount')->where('code', $whsCode)->get('warehouse');
-
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row()->limit_amount;
-    }
-
-    return 0.00;
+    $rs = $this->db->select('limit_amount')->where('code', $whsCode)->get($this->tb);
+    return $rs->num_rows() === 1 ? $rs->row()->limit_amount : 0.00;
   }
-
 }
- ?>

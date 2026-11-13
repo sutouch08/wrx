@@ -1,52 +1,39 @@
 <?php $this->load->view('include/header'); ?>
 <div class="row">
-	<div class="col-sm-6">
+  <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 padding-5 padding-top-5">
     <h3 class="title"><?php echo $this->title; ?></h3>
   </div>
-	<div class="col-sm-6">
-		<p class="pull-right">
-			<button type="button" class="btn btn-sm btn-warning" onclick="goBack()"><i class="fa fa-arrow-left"></i> Back</button>
-		</p>
-	</div>
-</div><!-- End Row -->
-<hr class="title-block"/>
-<form class="form-horizontal" id="addForm" method="post" action="<?php echo $this->home."/update"; ?>">
-
-	<div class="form-group">
-    <label class="col-sm-3 control-label no-padding-right">Code</label>
-    <div class="col-xs-12 col-sm-3">
-      <input type="text" name="code" id="code" class="width-100" value="<?php echo $code; ?>" autofocus required />
-    </div>
-    <div class="help-block col-xs-12 col-sm-reset inline red" id="code-error"></div>
+  <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 padding-5 text-right">
+    <button type="button" class="btn btn-white btn-default top-btn" onclick="goBack()"><i class="fa fa-arrow-left"></i> Back</button>
   </div>
-
-
+</div>
+<hr />
+<div class="form-horizontal margin-top-30">
+  <div class="form-group">
+    <label class="col-lg-3 col-md-3 col-sm-3 col-xs-12 control-label no-padding-right">รหัส</label>
+    <div class="col-lg-1-harf col-md-2 col-sm-2 col-xs-12">
+      <input type="text" id="code" class="form-control input-sm r" maxlength="10" value="<?php echo $code; ?>" disabled />
+    </div>
+  </div>
 
   <div class="form-group">
-    <label class="col-sm-3 control-label no-padding-right">Name</label>
-    <div class="col-xs-12 col-sm-3">
-			<input type="text" name="name" id="name" class="width-100" value="<?php echo $name; ?>" required />
+    <label class="col-lg-3 col-md-3 col-sm-3 col-xs-12 control-label no-padding-right">ชื่อ</label>
+    <div class="col-lg-5 col-md-5 col-sm-5 col-xs-12">
+      <input type="text" id="name" class="form-control input-sm r" maxlength="100" autocomplete="off" value="<?php echo escape_quotes($name); ?>" />
     </div>
-    <div class="help-block col-xs-12 col-sm-reset inline red" id="name-error"></div>
   </div>
 
-	<div class="divider-hidden">
+  <div class="divider-hidden"></div>
+  <div class="divider-hidden"></div>
+  <div class="divider-hidden"></div>
 
-	</div>
   <div class="form-group">
-    <label class="col-sm-3 control-label no-padding-right"></label>
-    <div class="col-xs-12 col-sm-3">
-      <p class="pull-right">
-        <button type="submit" class="btn btn-sm btn-success"><i class="fa fa-save"></i> Save</button>
-      </p>
-    </div>
-    <div class="help-block col-xs-12 col-sm-reset inline">
-      &nbsp;
+    <div class="col-lg-3 col-lg-offset-3 col-md-3 col-md-offset-3 col-sm-3 col-sm-offset-3 col-xs-12">
+      <button type="button" class="btn btn-white btn-success btn-100 btn-block-xs" onclick="update()"><i class="fa fa-save"></i>&nbsp; Update</button>
     </div>
   </div>
-	<input type="hidden" name="customer_kind_code" value="<?php echo $code; ?>" />
-	<input type="hidden" name="customer_kind_name" value="<?php echo $name; ?>" />
-</form>
+</div>
 
-<script src="<?php echo base_url(); ?>scripts/masters/customer_kind.js"></script>
+<script src="<?php echo base_url(); ?>scripts/masters/customer_kind.js?v=<?php echo date('Ymd'); ?>"></script>
+<script src="<?php echo base_url(); ?>scripts/code_validate.js?v=<?php echo date('Ymd'); ?>"></script>
 <?php $this->load->view('include/footer'); ?>

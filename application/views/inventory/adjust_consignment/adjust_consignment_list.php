@@ -68,8 +68,9 @@
     <button type="button" class="btn btn-xs btn-warning btn-block" onclick="clearFilter()"><i class="fa fa-retweet"></i> Reset</button>
   </div>
 </div>
-<hr class="margin-top-15">
+<input type="hidden" name="search" value="1" />
 </form>
+<hr class="margin-top-15">
 <?php echo $this->pagination->create_links(); ?>
 <div class="row">
 	<div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 padding-5">

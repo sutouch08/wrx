@@ -1,5 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class Temp_transfer_draft extends PS_Controller
 {
@@ -7,7 +9,7 @@ class Temp_transfer_draft extends PS_Controller
 	public $menu_group_code = 'TE';
   public $menu_sub_group_code = 'TETRANSFER';
 	public $title = 'ตรวจสอบ Transfer Draft';
-  public $filter;
+ 
   public function __construct()
   {
     parent::__construct();
@@ -19,40 +21,35 @@ class Temp_transfer_draft extends PS_Controller
   public function index()
   {
     $filter = array(
-      'code'          => get_filter('code', 'temp_tr_code', ''),
-      'customer'      => get_filter('customer', 'temp_tr_customer', ''),
-      'from_date'     => get_filter('from_date', 'temp_tr_from_date', ''),
-      'to_date'       => get_filter('to_date', 'temp_tr_to_date', ''),
-      'status'      => get_filter('status', 'temp_tr_status', 'all'),
+      'code' => get_filter('code', 'temp_tr_code', ''),
+      'customer' => get_filter('customer', 'temp_tr_customer', ''),
+      'from_date' => get_filter('from_date', 'temp_tr_from_date', ''),
+      'to_date' => get_filter('to_date', 'temp_tr_to_date', ''),
+      'status' => get_filter('status', 'temp_tr_status', 'all'),
       'is_received' => get_filter('is_received', 'temp_tr_is_received', 'all')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
+    if ($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+	
 		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
 		$segment  = 4; //-- url segment
-		$rows     = $this->temp_transfer_draft_model->count_rows($filter, 8);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$orders   = $this->temp_transfer_draft_model->get_list($filter, $perpage, $this->uri->segment($segment), 8);
-
-    $filter['orders'] = $orders;
-
+		$rows = $this->temp_transfer_draft_model->count_rows($filter, 8);	
+		$filter['orders'] = $this->temp_transfer_draft_model->get_list($filter, $perpage, $this->uri->segment($segment), 8);
+    $init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
     $this->load->view('inventory/temp_transfer_draft/temp_list', $filter);
   }
-
 
 
   public function get_detail($code)
   {
     $this->load->model('stock/stock_model');
     $detail = $this->temp_transfer_draft_model->get_detail($code);
+
     if(!empty($detail))
     {
       foreach($detail as $rs)
@@ -67,7 +64,6 @@ class Temp_transfer_draft extends PS_Controller
   }
 
 
-
   public function export_diff()
   {
     $this->load->model('stock/stock_model');
@@ -79,25 +75,24 @@ class Temp_transfer_draft extends PS_Controller
     $pd_title = 'ยอดติดลบคือยอดที่มีในโซนน้อยกว่าที่สั่งมา';
 
     //--- load excel library
-    $this->load->library('excel');
-
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Item Diff');
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
+    $sheet->setTitle('Item Diff');
 
     //--- set report title header
-    $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
-    $this->excel->getActiveSheet()->mergeCells('A1:G1');
-    $this->excel->getActiveSheet()->setCellValue('A2', $channels_title);
-    $this->excel->getActiveSheet()->mergeCells('A2:G2');
-    $this->excel->getActiveSheet()->setCellValue('A3', $pd_title);
-    $this->excel->getActiveSheet()->mergeCells('A3:G3');
-    $this->excel->getActiveSheet()->setCellValue('A4', 'วันที่เอกสาร : '.thai_date(now()));
-    $this->excel->getActiveSheet()->mergeCells('A4:G4');
+    $sheet->setCellValue('A1', $report_title);
+    $sheet->mergeCells('A1:G1');
+    $sheet->setCellValue('A2', $channels_title);
+    $sheet->mergeCells('A2:G2');
+    $sheet->setCellValue('A3', $pd_title);
+    $sheet->mergeCells('A3:G3');
+    $sheet->setCellValue('A4', 'วันที่เอกสาร : '.thai_date(now()));
+    $sheet->mergeCells('A4:G4');
 
-    $this->excel->getActiveSheet()->setCellValue('A5', 'ลำดับ');
-    $this->excel->getActiveSheet()->setCellValue('B5', 'BinCode');
-    $this->excel->getActiveSheet()->setCellValue('C5', 'ItemCode');
-    $this->excel->getActiveSheet()->setCellValue('D5', 'onhand - order');
+    $sheet->setCellValue('A5', 'ลำดับ');
+    $sheet->setCellValue('B5', 'BinCode');
+    $sheet->setCellValue('C5', 'ItemCode');
+    $sheet->setCellValue('D5', 'onhand - order');
 
     $ds = array();
     $orders = $this->temp_transfer_draft_model->get_error_list();
@@ -136,13 +131,13 @@ class Temp_transfer_draft extends PS_Controller
         {
           foreach($items as $item => $qty)
           {
-            $this->excel->getActiveSheet()->setCellValue('A'.$row, $no);
+            $sheet->setCellValue('A'.$row, $no);
 
-            $this->excel->getActiveSheet()->setCellValue('B'.$row, $bin);
+            $sheet->setCellValue('B'.$row, $bin);
 
-            $this->excel->getActiveSheet()->setCellValue('C'.$row, $item);
+            $sheet->setCellValue('C'.$row, $item);
 
-            $this->excel->getActiveSheet()->setCellValue('D'.$row, $qty);
+            $sheet->setCellValue('D'.$row, $qty);
 
             $no++;
             $row++;
@@ -155,7 +150,7 @@ class Temp_transfer_draft extends PS_Controller
     $file_name = "Transfer draft stock diff.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
   }
 
@@ -171,10 +166,6 @@ class Temp_transfer_draft extends PS_Controller
       'temp_tr_is_received'
     );
 
-    clear_filter($filter);
-
-    echo 'done';
+    return clear_filter($filter);
   }
-
-}//--- end class
-?>
+}

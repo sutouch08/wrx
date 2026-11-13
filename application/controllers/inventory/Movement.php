@@ -8,8 +8,7 @@ class Movement extends PS_Controller
   public $menu_code = 'ICCKMV';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'CHECK';
-	public $title = 'ตรวจสอบ Movement';  
-  public $error;
+	public $title = 'ตรวจสอบ Movement';    
   public $segment = 4;
 
   public function __construct()
@@ -148,6 +147,4 @@ class Movement extends PS_Controller
 
     return clear_filter($filter);
   }
-
-} // end class
-?>
+} 

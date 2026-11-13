@@ -6,8 +6,7 @@ class Qc extends PS_Controller
   public $menu_code = 'ICODQC';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'PICKPACK';
-	public $title = 'ตรวจสินค้า';
-  public $filter;
+	public $title = 'ตรวจสินค้า';  
   public $segment = 4;
   public $weight_on_pack = FALSE;
   public $video_on_pack = FALSE;
@@ -65,8 +64,8 @@ class Qc extends PS_Controller
       $perpage = get_rows();
       $state = 5; //---- รอตรวจ      
       $rows = $this->qc_model->count_rows($filter, $state);
-      $init = pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
       $filter['orders'] = $this->qc_model->get_list($filter, $state, $perpage, $this->uri->segment($this->segment));
+      $init = pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
       $this->pagination->initialize($init);
       $this->load->view('inventory/qc/qc_list', $filter);
     }
@@ -456,8 +455,7 @@ class Qc extends PS_Controller
 
   public function ship_order_porlor($code)
   {
-    $sc = TRUE;
-    $shipment = NULL;
+    $sc = TRUE;    
     $this->wms = $this->load->database('wms', TRUE);
     $this->load->model('address/address_model');
     $this->load->library('porlor_api');
@@ -839,6 +837,7 @@ class Qc extends PS_Controller
     $sc = TRUE;
     $code = $this->input->post('order_code');
     $state = $this->orders_model->get_state($code);
+
     if($state == 6)
     {      
       $ds = array(        
@@ -876,7 +875,7 @@ class Qc extends PS_Controller
   {
     $sc = TRUE;
 
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
     {
@@ -961,7 +960,7 @@ class Qc extends PS_Controller
       else
       {
         $sc = FALSE;
-        $this->eror = "Order number not found";
+        $this->error = "Order number not found";
       }
     }
     else
@@ -977,7 +976,7 @@ class Qc extends PS_Controller
   public function do_qc()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
     $result = array();
 
     if( ! empty($ds))
@@ -987,7 +986,6 @@ class Qc extends PS_Controller
         if($ds->qty > 0)
         {
           $this->load->model('inventory/buffer_model');
-
           $details = $this->orders_model->get_unvalid_qc_detail($ds->order_code, $ds->product_code);
 
           if( ! empty($details))
@@ -1007,7 +1005,6 @@ class Qc extends PS_Controller
                   $qcQty = $this->qc_model->get_sum_qty($detail->order_code, $detail->product_code, $detail->id); //-- 2
                   //--- ยอดที่จัดมาต้องน้อยกว่า หรือ เท่ากับยอดที่สั่ง
                   //--- ถ้ามากกว่าให้ใช้ยอดที่สั่งในการตรวจสอบ
-
                   //--- ยอดที่จะบันทึกตรวจต้องรวมกันแล้วไม่เกินยอดที่จัดและต้องไม่เกินยอดสั่ง
                   $updateQty = $qcQty + $Qty; //--- 2 + 3
 
@@ -1515,7 +1512,7 @@ class Qc extends PS_Controller
   public function update_weight()
   {
     $sc = TRUE;
-    $ds = json_decode(file_get_contents('php://input'));
+    $ds = json_decode(file_get_contents('php://input') ?? '{}');
 
     if( ! empty($ds))
     {
@@ -1545,6 +1542,7 @@ class Qc extends PS_Controller
     $code = $this->input->get('order_code');
     $item_code = $this->input->get('product_code');
     $list = $this->qc_model->get_checked_table($code, $item_code);
+
     if(!empty($list))
     {
       $ds = array();
@@ -1636,7 +1634,7 @@ class Qc extends PS_Controller
   {
     $sc = TRUE;
 
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds))
     {
@@ -2062,7 +2060,7 @@ class Qc extends PS_Controller
   public function add_video_log()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds))
     {
@@ -2145,6 +2143,4 @@ class Qc extends PS_Controller
 
     return clear_filter($filter);
   }
-
-} //--- end Qc
-?>
+}

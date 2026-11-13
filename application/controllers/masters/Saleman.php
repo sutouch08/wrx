@@ -5,6 +5,7 @@ class Saleman extends PS_Controller{
 	public $menu_code = 'DBSALE'; //--- Add/Edit Users
 	public $menu_group_code = 'DB'; //--- System security
 	public $title = 'พนักงานขาย';
+	public $segment = 4;
 
   public function __construct()
   {
@@ -13,8 +14,6 @@ class Saleman extends PS_Controller{
 		$this->load->model('masters/slp_model');
   }
 
-
-
   public function index()
   {
 		$filter = array(
@@ -22,38 +21,30 @@ class Saleman extends PS_Controller{
 			'active' => get_filter('active', 'active', 'all')
 		);
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_filter('set_rows', 'rows', 20);
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
+		if($this->input->post('search'))
 		{
-			$perpage = get_filter('rows', 'rows', 300);
+			redirect($this->home);
+			exit;
 		}
 
-		$segment = 4; //-- url segment
+		$perpage = get_rows();		
 		$rows = $this->slp_model->count_rows($filter);
-
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-
-		$rs = $this->slp_model->get_list($filter, $perpage, $this->uri->segment($segment));
-		$filter['data'] = $rs;
-
+		$filter['data'] = $this->slp_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
 		$this->pagination->initialize($init);
     $this->load->view('masters/saleman/saleman_view', $filter);
   }
 
 
-
 	public function syncData()
 	{
 		$ds = $this->slp_model->get_all_slp();
+
 		if(!empty($ds))
 		{
 			foreach($ds as $rs)
 			{
-				$ex = $this->slp_model->is_exists($rs->id);
-				if($ex)
+				if($this->slp_model->is_exists($rs->id))
 				{
 					$arr = array(
 						'name' => $rs->name,
@@ -62,7 +53,7 @@ class Saleman extends PS_Controller{
 
 					$this->slp_model->update($rs->id, $arr);
 				}
-				else
+				else 
 				{
 					$arr = array(
 						'id' => $rs->id,
@@ -71,22 +62,15 @@ class Saleman extends PS_Controller{
 					);
 
 					$this->slp_model->add($arr);
-				}
+				}				
 			}
 		}
 
 		echo 'success';
 	}
 
-
-
 	public function clear_filter()
 	{
-		$filter = array('name', 'active');
-		clear_filter($filter);
+		return clear_filter(['name', 'active']);
 	}
-
-}//--- end class
-
-
- ?>
+}

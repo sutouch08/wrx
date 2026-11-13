@@ -1,14 +1,13 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class Receive_material extends PS_Controller
 {
   public $menu_code = 'ICPURM';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'RECEIVE';
-	public $title = 'รับวัตถุดิบจากการซื้อ';
-  public $filter;
-  public $error;
+	public $title = 'รับวัตถุดิบจากการซื้อ';  
   public $is_mobile = FALSE;
   public $segment = 4;
 
@@ -65,70 +64,70 @@ class Receive_material extends PS_Controller
   {
     $ds = [];
     $count = 0;
-    $file = isset( $_FILES['uploadFile'] ) ? $_FILES['uploadFile'] : FALSE;
+    
+    if(! isset($_FILES['uploadFile']))
+    {
+      echo "No file uploaded";
+      return;
+    }
+    
+    $file = 'uploadFile';
     $path = $this->config->item('upload_path').'grpo-sticker/';
-    $file	= 'uploadFile';
-    $config = array(   // initial config for upload class
-      "allowed_types" => "xlsx",
-      "upload_path" => $path,
-      "file_name"	=> "import-file-".date('YmdHis'),
-      "max_size" => 5120,
-      "overwrite" => TRUE
+    $config = array(
+      'allowed_types' => 'xlsx',
+      'upload_path' => $path,
+      'file_name' => 'import-file-'.date('YmdHis'),
+      'max_size' => 5120,
+      'overwrite' => TRUE
     );
 
-    $this->load->library("upload", $config);
-    $this->load->library('excel');
+    $this->load->library('upload', $config);
 
     if( ! $this->upload->do_upload($file))
     {
       echo $this->upload->display_errors();
+      return;
     }
-    else
+
+    $info = $this->upload->data();
+    $excel = IOFactory::load($info['full_path']);
+    $collection = $excel->getActiveSheet()->toArray(NULL, TRUE, TRUE, TRUE);
+
+    if( ! empty($collection))
     {
-      $info = $this->upload->data();
-      /// read file
-      $excel = PHPExcel_IOFactory::load($info['full_path']);
-      //get only the Cell Collection
-      $collection	= $excel->getActiveSheet()->toArray(NULL, TRUE, TRUE, TRUE);
+      $isFirstRow = TRUE;
 
-      if( ! empty($collection))
+      foreach($collection as $rs)
       {
-        $i = 1;
-
-        foreach($collection as $rs)
+        if($isFirstRow)
         {
-          if($i == 1)
-          {
-            $i++;
-          }
-          else
-          {
-            $ds[] = (object)[
-              'sku' => trim($rs['A']),
-              'barcode' => trim($rs['B']),
-              'po' => trim($rs['C']),
-              'lot' => trim($rs['D']),
-              'pcsNo' => trim($rs['E']),
-              'grade' => trim($rs['F']),
-              'qty' => trim($rs['G']),
-              'unit' => 'kgs.'
-            ];
-
-            $count++;
-          }
+          $isFirstRow = FALSE;
+          continue;
         }
+
+        $ds[] = (object)[
+          'sku' => trim($rs['A'] ?? ''),
+          'barcode' => trim($rs['B'] ?? ''),
+          'po' => trim($rs['C'] ?? ''),
+          'lot' => trim($rs['D'] ?? ''),
+          'pcsNo' => trim($rs['E'] ?? ''),
+          'grade' => trim($rs['F'] ?? ''),
+          'qty' => trim($rs['G'] ?? ''),
+          'unit' => 'kgs.'
+        ];
+
+        $count++;
       }
-
-      $arr = array(
-        'ds' => $ds,
-        'total' => $count
-      );
-
-      $this->load->helper('print');
-      $this->load->view('inventory/receive_material/sticker', $arr);
     }
-  }
 
+    $arr = array(
+      'ds' => $ds,
+      'total' => $count
+    );
+
+    $this->load->helper('print');
+    $this->load->view('inventory/receive_material/sticker', $arr);
+  }
 
   public function add_new()
   {
@@ -140,7 +139,7 @@ class Receive_material extends PS_Controller
   public function add()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '');
     $code = NULL;
 
     if($this->pm->can_add)
@@ -208,7 +207,7 @@ class Receive_material extends PS_Controller
 
         if( ! empty($details))
         {
-          $ro = getConfig('RECEIVE_OVER_PO');
+          $ro = floatval(getConfig('RECEIVE_OVER_PO'));
     	    $rate = ($ro * 0.01);
 
           foreach($details as $rs)
@@ -258,7 +257,7 @@ class Receive_material extends PS_Controller
   {
     $sc = TRUE;
     $ex = 0;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '');
 
     if( ! empty($ds) && ! empty($ds->code))
     {
@@ -825,7 +824,7 @@ class Receive_material extends PS_Controller
   public function get_vendor()
   {
     $ds = [];
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $qr  = "SELECT CardCode, CardName FROM OCRD WHERE CardType = 'S' ";
 
@@ -853,7 +852,7 @@ class Receive_material extends PS_Controller
   public function get_po_code($vendor = NULL)
   {
     $ds = [];
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     //---- receive product if over due date or not
     $receive_due = getConfig('RECEIVE_OVER_DUE'); //--- 1 = receive , 0 = not receive
@@ -1007,7 +1006,7 @@ class Receive_material extends PS_Controller
   public function get_zone($warehouse_code = NULL)
   {
     $ds = [];
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
     $this->db->select('code, name');
 
     if( ! empty($warehouse_code))
@@ -1088,7 +1087,7 @@ class Receive_material extends PS_Controller
 
       flush();
       readfile($file_name);
-      die();
+      exit;
     }
     else
     {
@@ -1128,5 +1127,4 @@ class Receive_material extends PS_Controller
 
     return clear_filter($filter);
   }
-
-} //--- end class
+}

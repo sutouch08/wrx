@@ -1,17 +1,13 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class Receive_po extends PS_Controller
 {
   public $menu_code = 'ICPURC';
   public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'RECEIVE';
-  public $title = 'รับสินค้าจากการซื้อ';
-  public $filter;
-  public $error;
-  public $isAPI;
-  public $wmsApi = FALSE;
-  public $sokoApi = FALSE;
+  public $title = 'รับสินค้าจากการซื้อ';   
   public $required_remark = 1;
   public $is_mobile = FALSE;
 
@@ -24,11 +20,7 @@ class Receive_po extends PS_Controller
     $this->load->model('orders/orders_model');
     $this->load->model('masters/products_model');
     $this->load->library('user_agent');
-    $this->load->helper('receive_po');
-
-    $this->isAPI = FALSE; //is_true(getConfig('WMS_API'));
-    $this->wmsApi = FALSE; //is_true(getConfig('WMS_API'));
-    $this->sokoApi = FALSE; //is_true(getConfig('SOKOJUNG_API'));
+    $this->load->helper('receive_po');   
     $this->is_mobile = $this->agent->is_mobile();
   }
 
@@ -58,38 +50,32 @@ class Receive_po extends PS_Controller
     if ($this->input->post('search'))
     {
       redirect($this->home);
+      exit;
+    }
+    
+    $perpage = get_rows();
+    $segment = 4; 
+    $rows = $this->receive_po_model->count_rows($filter);    
+    $filter['document'] = $this->receive_po_model->get_list($filter, $perpage, $this->uri->segment($segment));
+
+    if (!empty($filter['document']))
+    {
+      foreach ($filter['document'] as $rs)
+      {
+        $rs->qty = $this->receive_po_model->get_sum_qty($rs->code);
+      }
+    }
+
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $segment);  
+    $this->pagination->initialize($init);
+
+    if ($this->is_mobile)
+    {
+      $this->load->view('inventory/receive_po/mobile/receive_po_list_mobile', $filter);
     }
     else
     {
-      //--- แสดงผลกี่รายการต่อหน้า
-      $perpage = get_rows();
-
-      $segment  = 4; //-- url segment
-      $rows     = $this->receive_po_model->count_rows($filter);
-      //--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-      $init      = pagination_config($this->home . '/index/', $rows, $perpage, $segment);
-      $document = $this->receive_po_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
-      if (!empty($document))
-      {
-        foreach ($document as $rs)
-        {
-          $rs->qty = $this->receive_po_model->get_sum_qty($rs->code);
-        }
-      }
-
-      $filter['document'] = $document;
-
-      $this->pagination->initialize($init);
-
-      if ($this->is_mobile)
-      {
-        $this->load->view('inventory/receive_po/mobile/receive_po_list_mobile', $filter);
-      }
-      else
-      {
-        $this->load->view('inventory/receive_po/receive_po_list', $filter);
-      }
+      $this->load->view('inventory/receive_po/receive_po_list', $filter);
     }
   }
 
@@ -100,7 +86,6 @@ class Receive_po extends PS_Controller
     $this->load->helper('zone');
     $this->load->helper('warehouse');
     $this->load->helper('currency');
-
     $doc = $this->receive_po_model->get($code);
 
     if (! empty($doc))
@@ -206,7 +191,7 @@ class Receive_po extends PS_Controller
   public function save_receive_rows()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '');
 
     if (! empty($ds) && ! empty($ds->code) && ! empty($ds->rows))
     {
@@ -306,7 +291,7 @@ class Receive_po extends PS_Controller
   {
     $sc = TRUE;
     $ex = 1;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if (! empty($ds) && ! empty($ds->code))
     {
@@ -523,7 +508,7 @@ class Receive_po extends PS_Controller
               {
                 $sc = FALSE;
                 $ex = 0;
-                $this->error = "บันทึกสำเร็จ แต่ส่งข้อมูลเข้า SAP ไม่สำเร็จ <br/> " . trim($this->export->error);
+                $this->error = "บันทึกสำเร็จ แต่ส่งข้อมูลเข้า SAP ไม่สำเร็จ <br/> " . $this->export->error;
               }
             }
           }
@@ -560,7 +545,7 @@ class Receive_po extends PS_Controller
     $this->load->model('inventory/movement_model');
     $sc = TRUE;
     $ex = 1;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if (! empty($ds))
     {
@@ -723,7 +708,7 @@ class Receive_po extends PS_Controller
             {
               $sc = FALSE;
               $ex = 0;
-              $this->error = "บันทึกสำเร็จ แต่ส่งข้อมูลเข้า SAP ไม่สำเร็จ <br/> " . trim($this->export->error);
+              $this->error = "บันทึกสำเร็จ แต่ส่งข้อมูลเข้า SAP ไม่สำเร็จ <br/> " . $this->export->error;
             }
           }
         }
@@ -755,138 +740,130 @@ class Receive_po extends PS_Controller
 
 
   public function import_data()
-  {
-    $this->load->library('excel');
-    ini_set('max_execution_time', 1200);
+  {    
+    if(! isset($_FILES['uploadFile']))
+    {      
+      echo "No file uploaded";
+      return;
+    }
 
-    $sc = TRUE;
-    $import = 0;
-    $file = isset($_FILES['uploadFile']) ? $_FILES['uploadFile'] : FALSE;
+    $file = 'uploadFile';
     $path = $this->config->item('upload_path') . 'receive_po/';
-    $file  = 'uploadFile';
-    $config = array(   // initial config for upload class
-      "allowed_types" => "xlsx",
-      "upload_path" => $path,
-      "file_name"  => "import-receive",
-      "max_size" => 5120,
-      "overwrite" => TRUE
+    $config = array(
+      'allowed_types' => 'xlsx',
+      'upload_path' => $path,
+      'file_name' => 'import-receive',
+      'max_size' => 5120,
+      'overwrite' => TRUE
     );
 
-    $this->load->library("upload", $config);
+    $this->load->library('upload', $config);
 
     if (! $this->upload->do_upload($file))
     {
       echo $this->upload->display_errors();
+      return;
     }
-    else
+
+    $info = $this->upload->data();
+    $excel = IOFactory::load($info['full_path']);
+    $sheet = $excel->getActiveSheet();
+    $ds = $sheet->toArray(NULL, TRUE, TRUE, TRUE);
+
+    $rows = count($ds ?? []);
+    $limit = intval(getConfig('IMPORT_ROWS_LIMIT')) + 1;    
+    $rate = floatval(getConfig('RECEIVE_OVER_PO')) * 0.01;
+
+    if($rows > $limit)
+    {      
+      echo "Exceeds import limit ".number($limit)." rows";      
+      return;
+    }
+
+    $po_code = isset($ds[1]['C']) ? $ds[1]['C'] : NULL;
+
+    if (empty($po_code))
     {
-      $info = $this->upload->data();
-      /// read file
-      $excel = PHPExcel_IOFactory::load($info['full_path']);
-      //get only the Cell Collection
-      $cs  = $excel->getActiveSheet()->toArray(NULL, TRUE, TRUE, TRUE);
+      echo "Invalid PO No. or missing PO No.";
+      return;
+    }
+    
+    $vendor = $this->receive_po_model->get_vender_by_po($po_code);
+    $cur = $this->receive_po_model->get_po_currency($po_code);
+    $po = $this->receive_po_model->get_po($po_code);
 
-      $i = 1;
-      $count = count($cs);
-      $limit = intval(getConfig('IMPORT_ROWS_LIMIT')) + 1;
-      $allow = is_true(getConfig('ALLOW_RECEIVE_OVER_PO'));
-      $ro = getConfig('RECEIVE_OVER_PO');
-      $rate = ($ro * 0.01);
+    if(empty($vendor) || empty($po))
+    {
+      echo "Invalid PO No.";
+      return;
+    }
 
-      if ($count <= $limit)
+    $ps = array(
+      "po_code" => $po_code,
+      "invoice_code" => isset($ds[2]['C']) ? $ds[2]['C'] : NULL,
+      "vendor_code" => $vendor->CardCode,
+      "vendor_name" => $vendor->CardName,
+      "DiscPrcnt" => number($po->DiscPrcnt, 2),
+      "DocCur" => empty($cur) ? "THB" : $cur->DocCur,
+      "DocRate" => empty($cur) ? 1.00 : $cur->DocRate,
+      "details" => []
+    );
+    
+    $i = 1;
+    $no = 1;
+
+    foreach($ds as $rs)
+    {
+      if($i > 7 && ! empty($rs['C']))
       {
-        $po_code = $cs[1]['C'];
+        $detail = $this->receive_po_model->get_po_detail($po_code, $rs['C']);
 
-        if (! empty($po_code))
+        if(! empty($detail))
         {
-          $vendor = $this->receive_po_model->get_vender_by_po($po_code);
-          $cur = $this->receive_po_model->get_po_currency($po_code);
-          $po = $this->receive_po_model->get_po($po_code);
+          $dif = $detail->Quantity - $detail->OpenQty;
+          $qty = floatval($rs['E']);
+          $amount = $qty * $detail->Price;
 
-          if (! empty($vendor))
-          {
-            $ds = array(
-              "po_code" => $po_code,
-              "invoice_code" => $cs[2]['C'],
-              "vendor_code" => $vendor->CardCode,
-              "vendor_name" => $vendor->CardName,
-              "DiscPrcnt" => number($po->DiscPrcnt, 2),
-              "DocCur" => empty($cur) ? "THB" : $cur->DocCur,
-              "DocRate" => empty($cur) ? 1.00 : $cur->DocRate
-            );
+          $ps['details'][] = array(
+            "no" => $no,
+            "uid" => $detail->DocEntry . $detail->LineNum,
+            "baseCode" => $po_code,
+            "baseEntry" => $detail->DocEntry,
+            "baseLine" => $detail->LineNum,
+            "pdCode" => $detail->ItemCode,
+            "pdName" => $detail->Dscription,
+            "PriceBefDi" => $detail->PriceBefDi,
+            "PriceBefDiLabel" => number($detail->PriceBefDi, 4),
+            "PriceAfDisc" => $detail->Price,
+            "PriceAfDiscLabel" => number($detail->Price, 4),
+            "Price" => round($detail->Price, 4),
+            "PriceAfVAT" => $detail->PriceAfVAT,
+            "DiscPrcnt" => number($detail->DiscPrcnt, 2),
+            "priceLabel" => number($detail->Price, 4),
+            "currency" => $detail->Currency,
+            "Rate" => empty($detail->Rate) ? 1 : round($detail->Rate, 2),
+            "vatCode" => $detail->VatGroup,
+            "vatRate" => $detail->VatPrcnt,
+            "qty" => number($qty, 2),
+            "vatAmount" => $qty * ($detail->PriceAfVAT - $detail->Price),
+            "amount" => $amount,
+            "amountLabel" => number($amount, 4),
+            "UomCode" => $detail->UomCode,
+            "unitMsr" => $detail->unitMsr,
+            "limit" => ($detail->Quantity + ($detail->Quantity * $rate)) - $dif,
+            "backlogsLabel" => number($detail->OpenQty, 2),
+            "backlogs" => round($detail->OpenQty, 2),
+            "isOpen" => $detail->LineStatus === 'O' ? TRUE : FALSE
+          );
 
-            $line = array();
-            $no = 1;            
-
-            foreach ($cs as $rs)
-            {
-              if ($i > 7 && !empty($rs['C']))
-              {
-                $detail = $this->receive_po_model->get_po_detail($po_code, $rs['C']);
-
-                if (!empty($detail))
-                {
-                  $dif = $detail->Quantity - $detail->OpenQty;
-                  $qty = floatval($rs['E']);
-                  $amount = $qty * $detail->Price;
-
-                  $arr = array(
-                    'no' => $no,
-                    'uid' => $detail->DocEntry . $detail->LineNum,
-                    'baseCode' => $po_code,
-                    'baseEntry' => $detail->DocEntry,
-                    'baseLine' => $detail->LineNum,
-                    'pdCode' => $detail->ItemCode,
-                    'pdName' => $detail->Dscription,
-                    'PriceBefDi' => $detail->PriceBefDi,
-                    'PriceBefDiLabel' => number($detail->PriceBefDi, 4),
-                    'PriceAfDisc' => $detail->Price,
-                    'PriceAfDiscLabel' => number($detail->Price, 4),
-                    'Price' => round($detail->Price, 4),
-                    'PriceAfVAT' => $detail->PriceAfVAT,
-                    'DiscPrcnt' => number($detail->DiscPrcnt, 2),
-                    'priceLabel' => number($detail->Price, 4),
-                    'currency' => $detail->Currency,
-                    'Rate' => empty($detail->Rate) ? 1 : round($detail->Rate, 2),
-                    'vatCode' => $detail->VatGroup,
-                    'vatRate' => $detail->VatPrcnt,
-                    'qty' => number($qty, 2),
-                    'vatAmount' => $qty * ($detail->PriceAfVAT - $detail->Price),
-                    'amount' => $amount,
-                    'amountLabel' => number($amount, 4),
-                    'UomCode' => $detail->UomCode,
-                    'unitMsr' => $detail->unitMsr,
-                    'limit' => ($detail->Quantity + ($detail->Quantity * $rate)) - $dif,
-                    'backlogsLabel' => number($detail->OpenQty, 2),
-                    'backlogs' => round($detail->OpenQty, 2),
-                    'isOpen' => $detail->LineStatus === 'O' ? TRUE : FALSE
-                  );
-
-                  array_push($line, $arr);
-                  $no++;
-                }
-              }
-
-              $i++;
-            } //--- endforeach
-
-            $ds['details'] = $line;
-          }
-          else
-          {
-            $sc = FALSE;
-            $this->error = "Invalid PO No";
-          }
-        }
-        else
-        {
-          $sc = FALSE;
-          $this->error = "Invalid PO No.";
+          $no++;
         }
       }
-    }
 
-    echo $sc === TRUE ? json_encode($ds) : $this->error;
+      $i++;
+    } // end foreach $ds
+
+    echo json_encode($ps);
   }
 
 
@@ -907,7 +884,7 @@ class Receive_po extends PS_Controller
 
       flush();
       readfile($file_name);
-      die();
+      exit;
     }
     else
     {
@@ -980,7 +957,7 @@ class Receive_po extends PS_Controller
   {
     $sc = TRUE;
     $ex = 1;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if (! empty($ds))
     {
@@ -990,7 +967,6 @@ class Receive_po extends PS_Controller
       $this->load->model('inventory/movement_model');
 
       $doc = $this->receive_po_model->get($ds->code);
-
       $movement_date = getConfig('ORDER_SOLD_DATE') == 'D' ? db_date($ds->doc_date, TRUE) : now();
 
       if (! empty($ds->rows))
@@ -1006,11 +982,10 @@ class Receive_po extends PS_Controller
         $date_add = db_date($ds->doc_date, TRUE);
         $due_date = empty($ds->due_date) ? $date_add : db_date($ds->due_date, FALSE);
         $posting_date = empty($ds->posting_date) ? NULL : db_date($ds->posting_date, TRUE);
-        $remark = get_null(trim($ds->remark));
+        $remark = get_null(trim($ds->remark ?? ''));
 
         if ($sc === TRUE)
-        {
-          $approver = get_null($ds->approver);
+        {          
           $must_accept = empty($zone->user_id) ? 0 : 1;
 
           $arr = array(
@@ -1213,7 +1188,7 @@ class Receive_po extends PS_Controller
             {
               $sc = FALSE;
               $ex = 0;
-              $this->error = "บันทึกสำเร็จ แต่ส่งข้อมูลเข้า SAP ไม่สำเร็จ <br/> " . trim($this->export->error);
+              $this->error = "บันทึกสำเร็จ แต่ส่งข้อมูลเข้า SAP ไม่สำเร็จ <br/> " . $this->export->error;
             }
           }
         }
@@ -1397,7 +1372,7 @@ class Receive_po extends PS_Controller
           {
             $sc = FALSE;
             $ex = 0;
-            $this->error = "บันทึกสำเร็จ แต่ส่งข้อมูลเข้า SAP ไม่สำเร็จ <br/> " . trim($this->export->error);
+            $this->error = "บันทึกสำเร็จ แต่ส่งข้อมูลเข้า SAP ไม่สำเร็จ <br/> " . $this->export->error;
           }
 
           $sync_api_stock = is_true(getConfig('SYNC_IX_STOCK'));
@@ -1472,7 +1447,7 @@ class Receive_po extends PS_Controller
   public function pull_back()
   {
     $sc = TRUE;
-    $code = trim($this->input->post('code'));
+    $code = trim($this->input->post('code') ?? '');
 
     if ($this->_SuperAdmin)
     {
@@ -1632,132 +1607,6 @@ class Receive_po extends PS_Controller
   }
 
 
-  public function send_to_wms($code)
-  {
-    $sc = TRUE;
-
-    if ($this->wmsApi)
-    {
-      $doc = $this->receive_po_model->get($code);
-
-      if (!empty($doc))
-      {
-        if ($doc->status == 3)
-        {
-          if ($doc->is_wms == 1)
-          {
-            $details = $this->receive_po_model->get_details($code);
-
-            if (!empty($details))
-            {
-              $this->wms = $this->load->database('wms', TRUE);
-              $this->load->library('wms_receive_api');
-
-              $ex = $this->wms_receive_api->export_receive_po($doc, $doc->po_code, $doc->invoice_code, $details);
-
-              if (!$ex)
-              {
-                $sc = FALSE;
-                $this->error = "ส่งข้อมูลไป Pioneer ไม่สำเร็จ <br/>{$this->wms_receive_api->error}";
-              }
-            }
-            else
-            {
-              $sc = FALSE;
-              $this->error = "No items in document";
-            }
-          }
-          else
-          {
-            $sc = FALSE;
-            $this->error = "Invalid Fulfillment API";
-          }
-        }
-        else
-        {
-          $sc = FALSE;
-          $this->error = "Invalid document status";
-        }
-      }
-      else
-      {
-        $sc = FALSE;
-        $this->error = "Invalid document code";
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      $this->error = "API not enabled";
-    }
-
-    echo $sc === TRUE ? 'success' : $this->error;
-  }
-
-
-  public function send_to_soko($code)
-  {
-    $sc = TRUE;
-
-    if ($this->sokoApi)
-    {
-      $doc = $this->receive_po_model->get($code);
-
-      if (! empty($doc))
-      {
-        if ($doc->status == 3)
-        {
-          if ($doc->is_wms == 2)
-          {
-            $details = $this->receive_po_model->get_details($code);
-
-            if (! empty($details))
-            {
-              $this->wms = $this->load->database('wms', TRUE);
-              $this->load->library('soko_receive_api');
-
-              $ex = $this->soko_receive_api->create_receive_po($doc, $doc->po_code, $doc->invoice_code, $details);
-
-              if (! $ex)
-              {
-                $sc = FALSE;
-                $this->error = "ส่งข้อมูลไป soko chan ไม่สำเร็จ <br/>{$this->soko_receive_api->error}";
-              }
-            }
-            else
-            {
-              $sc = FALSE;
-              $this->error = "No items in document";
-            }
-          }
-          else
-          {
-            $sc = FALSE;
-            $this->error = "Invalid Fulfillment API";
-          }
-        }
-        else
-        {
-          $sc = FALSE;
-          $this->error = "Invalid document status";
-        }
-      }
-      else
-      {
-        $sc = FALSE;
-        $this->error = "Invalid document code";
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      $this->error = "Api is not enabled";
-    }
-
-    echo $sc === TRUE ? 'success' : $this->error;
-  }
-
-
   public function do_export($code)
   {
     $sc = TRUE;
@@ -1788,7 +1637,7 @@ class Receive_po extends PS_Controller
     if (! $this->export->export_receive($code))
     {
       $sc = FALSE;
-      $this->error = trim($this->export->error);
+      $this->error = $this->export->error;
     }
 
     return $sc;
@@ -1802,9 +1651,8 @@ class Receive_po extends PS_Controller
     if ($this->input->post('receive_code'))
     {
       $this->load->model('inventory/movement_model');
-      $code = $this->input->post('receive_code');
-      $reason = $this->input->post('reason');
-      $force_cancel = $this->input->post('force_cancel') == 1 ? TRUE : FALSE;
+      $code = $this->input->post('receive_code') ?? '';
+      $reason = $this->input->post('reason') ?? '';      
 
       $doc = $this->receive_po_model->get($code);
 
@@ -1953,6 +1801,7 @@ class Receive_po extends PS_Controller
     $sc = TRUE;
 
     $middle = $this->receive_po_model->get_middle_receive_po($code);
+
     if (!empty($middle))
     {
       foreach ($middle as $rs)
@@ -1968,18 +1817,14 @@ class Receive_po extends PS_Controller
   public function get_po_detail()
   {
     $sc = TRUE;
-    $ds = array();
+    $ds = [];
 
     $po_code = $this->input->get('po_code');
-
     $po = $this->receive_po_model->get_po($po_code);
 
     if (! empty($po))
-    {
-      $ro = getConfig('RECEIVE_OVER_PO');
-
-      $rate = ($ro * 0.01);
-
+    {      
+      $rate = floatval(getConfig('RECEIVE_OVER_PO')) * 0.01;
       $details = $this->receive_po_model->get_po_details($po_code);
 
       if (! empty($details))
@@ -1995,7 +1840,7 @@ class Receive_po extends PS_Controller
 
             $qty = $rs->OpenQty - $onOrder;
 
-            $arr = array(
+            $ds[] = array(
               'no' => $no,
               'uid' => $rs->DocEntry . $rs->LineNum,
               'baseCode' => $po_code,
@@ -2022,8 +1867,7 @@ class Receive_po extends PS_Controller
               'limit' => ($rs->Quantity + ($rs->Quantity * $rate)) - $dif,
               'isOpen' => $rs->LineStatus === 'O' ? TRUE : FALSE
             );
-
-            array_push($ds, $arr);
+            
             $no++;
           }
         }
@@ -2071,13 +1915,11 @@ class Receive_po extends PS_Controller
       {
         $doc->zone_name = empty($doc->zone_code) ? NULL : zone_name($doc->zone_code);
         $doc->allow_over_po = getConfig('ALLOW_RECEIVE_OVER_PO');
-
         $details = $this->receive_po_model->get_details($code);
 
         if (! empty($details))
-        {
-          $ro = getConfig('RECEIVE_OVER_PO');
-          $rate = ($ro * 0.01);
+        {          
+          $rate = floatval(getConfig('RECEIVE_OVER_PO')) * 0.01;
 
           foreach ($details as $rs)
           {
@@ -2122,8 +1964,7 @@ class Receive_po extends PS_Controller
 
   public function get_po_currency()
   {
-    $po_code = $this->input->get('po_code');
-
+    $po_code = $this->input->get('po_code') ?? '';
     $rs = $this->receive_po_model->get_po_currency($po_code);
 
     if (!empty($rs))
@@ -2148,6 +1989,7 @@ class Receive_po extends PS_Controller
   public function is_exists($code)
   {
     $ext = $this->receive_po_model->is_exists($code);
+
     if ($ext)
     {
       echo 'เลขที่เอกสารซ้ำ';
@@ -2163,7 +2005,7 @@ class Receive_po extends PS_Controller
   {
     $sc = TRUE;
     $code = NULL;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if (empty($ds) || empty($ds->date_add) || empty($ds->vendor_code))
     {
@@ -2233,9 +2075,8 @@ class Receive_po extends PS_Controller
     $date_add = db_date($this->input->post('date_add'), TRUE);
     $due_date = empty($this->input->post('due_date')) ? $date_add : db_date($this->input->post('due_date'), FALSE);
     $posting_date = empty($this->input->post('posting_date')) ? $due_date : db_date($this->input->post('posting_date', TRUE));
-    $remark = get_null(trim($this->input->post('remark')));
-    $is_wms = $this->input->post('is_wms');
-
+    $remark = get_null(trim($this->input->post('remark') ?? ''));
+    
     if (!empty($code))
     {
       $doc = $this->receive_po_model->get($code);
@@ -2248,8 +2089,7 @@ class Receive_po extends PS_Controller
             'date_add' => $date_add,
             'due_date' => $due_date,
             'shipped_date' => $posting_date,
-            'remark' => $remark,
-            'is_wms' => $is_wms
+            'remark' => $remark            
           );
 
           if (! $this->receive_po_model->update($code, $arr))
@@ -2286,24 +2126,7 @@ class Receive_po extends PS_Controller
     $reserv_stock = $this->orders_model->get_reserv_stock($item_code, $warehouse, $zone);
     $availableStock = $sell_stock - $reserv_stock;
     return $availableStock < 0 ? 0 : $availableStock;
-  }
-
-
-  public function get_wms_zone($is_wms, $zone_code)
-  {
-    if ($is_wms == 1 && $this->wmsApi)
-    {
-      return getConfig('WMS_ZONE');
-    }
-
-    if ($is_wms == 2 && $this->sokoApi)
-    {
-      return getConfig('SOKOJUNG_ZONE');
-    }
-
-    return $zone_code;
-  }
-
+  } 
 
   public function get_new_code($date)
   {
@@ -2314,6 +2137,7 @@ class Receive_po extends PS_Controller
     $run_digit = getConfig('RUN_DIGIT_RECEIVE_PO');
     $pre = $prefix . '-' . $Y . $M;
     $code = $this->receive_po_model->get_max_code($pre);
+
     if (!empty($code))
     {
       $run_no = mb_substr($code, ($run_digit * -1), NULL, 'UTF-8') + 1;
@@ -2346,14 +2170,14 @@ class Receive_po extends PS_Controller
       'receive_must_accept'
     );
 
-    clear_filter($filter);
-    echo "done";
+    return clear_filter($filter);    
   }
 
 
   public function get_vender_by_po($po_code)
   {
     $rs = $this->receive_po_model->get_vender_by_po($po_code);
+
     if (!empty($rs))
     {
       $arr = array(
@@ -2371,14 +2195,12 @@ class Receive_po extends PS_Controller
 
   public function get_po_code_and_vendor($vendor = NULL)
   {
-    $ds = [];
-
-    $txt = trim($_REQUEST['term']);
+    $sc = [];
+    $txt = trim($_REQUEST['term'] ?? '');
 
     //---- receive product if over due date or not
     //--- 1 = receive , 0 = not receive
     $receive_due = getConfig('RECEIVE_OVER_DUE');
-
     $this->ms->select('DocNum, CardCode, CardName')->where('DocStatus', 'O');
 
     if (! empty($vendor) && $vendor != 'no_vendor')
@@ -2418,4 +2240,4 @@ class Receive_po extends PS_Controller
 
     echo json_encode($sc);
   }
-} //--- end class
+} 

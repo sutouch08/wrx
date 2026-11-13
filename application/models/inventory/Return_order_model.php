@@ -334,7 +334,7 @@ class Return_order_model extends CI_Model
     $qr = "SELECT ivd.DocEntry, ivd.LineNum, ivd.U_ECOMNO AS order_code, iv.DocNum, iv.NumAtCard,
     ivd.ItemCode AS product_code, ivd.Dscription AS product_name,
     (SELECT SUM(Quantity) FROM INV1 WHERE DocEntry = ivd.DocEntry AND ItemCode = ivd.ItemCode AND U_ECOMNO = ivd.U_ECOMNO GROUP BY U_ECOMNO) AS qty,
-    ivd.PriceBefDi AS price, ivd.DiscPrcnt AS discount
+    ivd.PriceBefDi AS price, ivd.VatPrcnt AS vat_rate, ivd.DiscPrcnt AS discount
     FROM INV1 AS ivd
     LEFT JOIN OINV AS iv ON ivd.DocEntry = iv.DocEntry
     WHERE iv.DocNum = '{$invoice}'";
@@ -354,7 +354,7 @@ class Return_order_model extends CI_Model
     $this->ms
     ->select('ivd.DocEntry, ivd.LineNum, ivd.U_ECOMNO AS order_code')
     ->select('ivd.ItemCode AS product_code, ivd.Dscription AS product_name')
-    ->select('ivd.Quantity AS qty, ivd.PriceBefDi AS price, ivd.DiscPrcnt AS discount')
+    ->select('ivd.Quantity AS qty, ivd.PriceBefDi AS price, ivd.VatPrcnt AS vat_rate, ivd.DiscPrcnt AS discount')
     ->select('iv.DocNum AS code, iv.CardCode AS customer_code, iv.CardName AS customer_name')
     ->from('INV1 AS ivd')
     ->join('OINV AS iv', 'ivd.DocEntry = iv.DocEntry')
@@ -386,7 +386,7 @@ class Return_order_model extends CI_Model
     $rs = $this->ms
     ->select('ivd.DocEntry, ivd.LineNum, ivd.U_ECOMNO AS order_code')
     ->select('ivd.ItemCode AS product_code, ivd.Dscription AS product_name')
-    ->select('ivd.Quantity AS qty, ivd.PriceBefDi AS price, ivd.DiscPrcnt AS discount')
+    ->select('ivd.Quantity AS qty, ivd.PriceBefDi AS price, ivd.VatPrcnt AS vat_rate, ivd.DiscPrcnt AS discount')
     ->select('iv.DocNum AS code, iv.CardCode AS customer_code, iv.CardName AS customer_name, iv.NumAtCard')
     ->from('INV1 AS ivd')
     ->join('OINV AS iv', 'ivd.DocEntry = iv.DocEntry')

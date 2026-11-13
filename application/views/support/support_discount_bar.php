@@ -7,11 +7,8 @@
 			<?php endif; ?>
 		<?php endif; ?>
 	</div>
-	<div class="col-lg-11 col-md-10 col-sm-10 col-xs-8 padding-5">
-		<?php if($is_api && $order->is_wms != 0 && $order->is_api == 0 && $order->state >= 3 && $order->state != 9 && $order->wms_export != 1) : ?>
-			<?php 	$this->load->view('wms_error_watermark'); ?>
-		<?php endif; ?>
-		<?php if($is_api && $order->is_wms == 2 && $order->is_api == 0 && $order->state == 3 && $order->wms_export = 1 && $order->is_backorder == 1) : ?>
+	<div class="col-lg-11 col-md-10 col-sm-10 col-xs-8 padding-5">		
+		<?php if($order->is_backorder == 1) : ?>
 			<?php 	$this->load->view('backorder_watermark'); ?>
 		<?php endif; ?>
 	</div>
@@ -21,4 +18,4 @@
 
 <?php $this->load->view('validate_credentials'); ?>
 
-<script src="<?php echo base_url(); ?>scripts/orders/order_discount.js"></script>
+<script src="<?php echo base_url(); ?>scripts/orders/order_discount.js?v=<?php echo date('Ymd'); ?>"></script>

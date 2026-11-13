@@ -7,8 +7,7 @@ class Check_stock_diff extends PS_Controller
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = '';
 	public $title = 'ตรวจนับสต็อก(เก็บยอดต่าง)';
-  public $filter;
-  public $error;
+  
   public function __construct()
   {
     parent::__construct();
@@ -31,27 +30,21 @@ class Check_stock_diff extends PS_Controller
       'to_date' => get_filter('to_date', 'check_to_date', ''),
       'user' => get_filter('user', 'check_user', '')
     );
-
-		//--- แสดงผลกี่รายการต่อหน้า
+    
+    if($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+		
 		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
-		$segment  = 4; //-- url segment
-		$rows     = $this->check_stock_diff_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$ds   = $this->check_stock_diff_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
-    $filter['data'] = $ds;
-
+		$segment  = 4;
+		$rows = $this->check_stock_diff_model->count_rows($filter);
+		$filter['data'] = $this->check_stock_diff_model->get_list($filter, $perpage, $this->uri->segment($segment));	
+		$init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
     $this->load->view('inventory/check_stock_diff/stock_diff_view', $filter);
   }
-
 
   //---- สำหรับโหลดยอดต่างเข้าเอกสาร ปรับยอด
   public function diff_list($adjust_code)
@@ -61,34 +54,20 @@ class Check_stock_diff extends PS_Controller
       'zone_code' => get_filter('zone_code', 'check_zone_code', ''),
       'status' => 0
     );
-
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
+		
+		$perpage = get_rows();		
 		$segment  = 4; //-- url segment
-		$rows     = $this->check_stock_diff_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/diff_list/', $rows, $perpage, $segment);
-		$ds   = $this->check_stock_diff_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
-    $filter['data'] = $ds;
+		$rows = $this->check_stock_diff_model->count_rows($filter);		
+		$filter['data'] = $this->check_stock_diff_model->get_list($filter, $perpage, $this->uri->segment($segment));
     $filter['adjust_code'] = $adjust_code;
-
+		$init = pagination_config($this->home.'/diff_list/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
     $this->load->view('inventory/check_stock_diff/diff_list_view', $filter);
   }
 
 
-
-
   public function check($zone_code = NULL, $is_checked = NULL)
-  {
-    //print_r($this->input->post());
+  {    
     $zone_code = empty($zone_code) ? $this->input->post('zone_code') : $zone_code;
     $product_code = $this->input->post('product_code');
     $zone = !empty($zone_code) ? $this->zone_model->get($zone_code) : NULL;
@@ -97,6 +76,7 @@ class Check_stock_diff extends PS_Controller
     {
       $details = $this->check_stock_diff_model->get_stock_and_diff($zone_code, $product_code);
       $pd_in = array();
+
       if(!empty($details))
       {
         //---- loop and add diff qty
@@ -112,6 +92,7 @@ class Check_stock_diff extends PS_Controller
       }
 
       $ex_diff = $this->check_stock_diff_model->get_active_diff_not_in_stock($zone_code, $pd_in, $product_code);
+
       if(!empty($ex_diff))
       {
         foreach($ex_diff as $rs)
@@ -144,7 +125,6 @@ class Check_stock_diff extends PS_Controller
   }
 
 
-
   public function check_barcode($zone_code = NULL, $is_checked = NULL)
   {
     $zone_code = empty($zone_code) ? $this->input->post('zone_code') : $zone_code;
@@ -155,6 +135,7 @@ class Check_stock_diff extends PS_Controller
     {
       $details = $this->check_stock_diff_model->get_stock_and_diff($zone_code, $product_code);
       $pd_in = array();
+
       if(!empty($details))
       {
         //---- loop and add diff qty
@@ -165,8 +146,8 @@ class Check_stock_diff extends PS_Controller
           $rs->old_code = $item->old_code;
           $onHandQty = $this->stock_model->get_stock_zone($zone_code, $rs->product_code);
           $buffer_qty = $this->buffer_model->get_buffer_zone($zone_code, $rs->product_code);
-
           $diff_qty = $this->check_stock_diff_model->get_active_diff($zone_code, $rs->product_code);
+
           if(!empty($diff_qty))
           {
             $rs->diff_qty = $diff_qty;
@@ -180,12 +161,12 @@ class Check_stock_diff extends PS_Controller
             $rs->diff_qty = $rs->count_qty - $rs->OnHandQty;
           }
 
-
           $pd_in[] = $rs->product_code;
         }
       }
 
       $ex_diff = $this->check_stock_diff_model->get_active_diff_not_in_stock($zone_code, $pd_in, $product_code);
+
       if(!empty($ex_diff))
       {
         foreach($ex_diff as $rs)
@@ -216,48 +197,11 @@ class Check_stock_diff extends PS_Controller
     $this->load->view('inventory/check_stock_diff/check_process', $ds);
   }
 
-
-  // public function check_barcode($zone_code = NULL, $is_checked = NULL)
-  // {
-  //   $zone_code = empty($zone_code) ? $this->input->post('zone_code') : $zone_code;
-  //   $zone = !empty($zone_code) ? $this->zone_model->get($zone_code) : NULL;
-  //
-  //   if(!empty($zone))
-  //   {
-  //     $details = $this->check_stock_diff_model->get_active_diff_zone($zone_code);
-  //     if(!empty($details))
-  //     {
-  //       //---- loop and add diff qty
-  //       foreach($details as $rs)
-  //       {
-  //         $item = $this->products_model->get($rs->product_code);
-  //         $rs->barcode = $item->barcode;
-  //         $rs->old_code = $item->old_code;
-  //         $diff_qty = $rs->qty;
-  //         $onHandQty = $this->stock_model->get_stock_zone($zone_code, $rs->product_code);
-  //         $buffer_qty = $this->buffer_model->get_buffer_zone($zone_code, $rs->product_code);
-  //         $rs->diff_qty = $diff_qty;
-  //         $rs->count_qty = ($onHandQty - $buffer_qty) + $diff_qty;
-  //         $rs->OnHandQty = ($onHandQty - $buffer_qty);
-  //       }
-  //     }
-  //   }
-  //
-  //   $ds['zone_code'] = !empty($zone) ? $zone->code : NULL;
-  //   $ds['product_code'] = NULL;
-  //   $ds['zone_name'] = !empty($zone) ? $zone->name : NULL;
-  //   $ds['details'] = !empty($details) ? $details : NULL;
-  //   $ds['checked'] = $is_checked;
-  //   $ds['enable_search'] = FALSE;
-  //   $ds['enable_barcode'] = TRUE;
-  //   $this->load->view('inventory/check_stock_diff/check_process', $ds);
-  // }
-
-
   ///----- check zone_exists or not
   public function is_exists_zone()
   {
     $zone_code = $this->input->get('zone_code');
+    
     if($this->zone_model->is_exists($zone_code))
     {
       echo "ok";
@@ -278,8 +222,8 @@ class Check_stock_diff extends PS_Controller
     $stock = $this->input->post('stock');
     $count = $this->input->post('count');
     $diff = $count - $stock;
-
     $item = $this->products_model->get($product_code);
+
     if(empty($item))
     {
       $sc = FALSE;
@@ -288,6 +232,7 @@ class Check_stock_diff extends PS_Controller
     else
     {
       $zone = $this->zone_model->get($zone_code);
+
       if(empty($zone))
       {
         $sc = FALSE;
@@ -297,6 +242,7 @@ class Check_stock_diff extends PS_Controller
       {
         //--- check if active diff exists
         $row = $this->check_stock_diff_model->get_active_diff_detail($zone_code, $product_code);
+
         if(!empty($row))
         {
           if($diff != 0)
@@ -343,8 +289,6 @@ class Check_stock_diff extends PS_Controller
   }
 
 
-
-
   function save_all()
   {
     $sc = TRUE;
@@ -353,8 +297,8 @@ class Check_stock_diff extends PS_Controller
     $stock = $this->input->post('stock');
     $count = $this->input->post('qty');
     $is_barcode = $this->input->post('is_barcode');
-
     $zone = $this->zone_model->get($zone_code);
+
     if(!empty($zone))
     {
       if(!empty($items))
@@ -376,13 +320,12 @@ class Check_stock_diff extends PS_Controller
 
               //--- check if active diff exists
               $row = $this->check_stock_diff_model->get_active_diff_detail($zone_code, $item);
+
               if(!empty($row))
               {
                 if($diff != 0)
                 {
-                  $arr = array(
-                    'qty' => $diff
-                  );
+                  $arr = array('qty' => $diff);
 
                   if(! $this->check_stock_diff_model->update($row->id, $arr))
                   {
@@ -448,15 +391,16 @@ class Check_stock_diff extends PS_Controller
     {
       set_error($this->error);
     }
+
     $page = $is_barcode == 1 ? 'check_barcode' : 'check';
     redirect("{$this->home}/{$page}/{$zone_code}/Y");
   }
 
 
-
   function remove_diff($id)
   {
     $sc = TRUE;
+
     if(! $this->check_stock_diff_model->delete($id))
     {
       $sc = FALSE;
@@ -474,6 +418,7 @@ class Check_stock_diff extends PS_Controller
     $qty = $this->input->get('qty');
     $no = $this->input->get('topRow');
     $item = $this->products_model->get_product_by_barcode($barcode);
+
     if(!empty($item))
     {
       $arr = array(
@@ -494,9 +439,8 @@ class Check_stock_diff extends PS_Controller
   }
 
 
-
-
-  function clear_filter(){
+  function clear_filter()
+  {
     $filter = array(
       'check_product_code',
       'check_zone_code',
@@ -506,9 +450,6 @@ class Check_stock_diff extends PS_Controller
       'check_user'
     );
 
-    clear_filter($filter);
-    echo 'done';
+    return clear_filter($filter);    
   }
-
-} //--- end class
-?>
+} 

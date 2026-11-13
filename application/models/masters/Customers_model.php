@@ -1,49 +1,27 @@
 <?php
 class Customers_model extends CI_Model
 {
+  private $tb = "customers";
+
   public function __construct()
   {
     parent::__construct();
   }
 
-
-
   public function add_sap_customer(array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->mc->insert('OCRD', $ds);
-    }
-
-    return FALSE;
+    return ! empty($ds) ? $this->mc->insert('OCRD', $ds) : FALSE;    
   }
-
-
 
   public function update_sap_customer($code, $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->mc->where('CardCode', $code)->update('OCRD', $ds);
-    }
-
-    return FALSE;
+    return ! empty($ds) ? $this->mc->where('CardCode', $code)->update('OCRD', $ds) : FALSE;    
   }
-
 
   public function sap_customer_exists($code)
   {
-    $rs = $this->mc->where('CardCode', $code)->get('OCRD');
-    if($rs->num_rows() === 1)
-    {
-      return TRUE;
-    }
-
-    return FALSE;
+    return $this->mc->where('CardCode', $code)->count_all_results('OCRD') > 0;    
   }
-
-
-
 
   public function get_credit($code)
   {
@@ -51,78 +29,36 @@ class Customers_model extends CI_Model
     ->select('CreditLine, Balance, DNotesBal, OrdersBal')
     ->where('CardCode', $code)
     ->get('OCRD');
-    if($rs->num_rows() === 1)
-    {
-      //$balance = $rs->row()->CreditLine - ($rs->row()->Balance + $rs->row()->DNotesBal + $rs->row()->OrdersBal);
-      $balance = $rs->row()->CreditLine - ($rs->row()->Balance + $rs->row()->DNotesBal);
-      return $balance;
-    }
 
-    return 0.00;
+    return $rs->num_rows() === 1 ? (floatval($rs->row()->CreditLine) - (floatval($rs->row()->Balance) + floatval($rs->row()->DNotesBal) + floatval($rs->row()->OrdersBal))) : 0.00;    
   }
-
-
 
   public function add(array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return  $this->db->insert('customers', $ds);
-    }
-
-    return FALSE;
+    return ! empty($ds) ? $this->db->insert($this->tb, $ds) : FALSE;
   }
-
-
 
   public function update($code, array $ds = array())
   {
-    if(!empty($ds))
-    {
-      $this->db->where('code', $code);
-      return $this->db->update('customers', $ds);
-    }
-
-    return FALSE;
+    return ! empty($ds) ? $this->db->where('code', $code)->update($this->tb, $ds) : FALSE;    
   }
-
 
   public function delete($code)
   {
-    $rs = $this->db->where('code', $code)->delete('customers');
-    if(!$rs)
-    {
-      return $this->db->error();
-    }
-
-    return TRUE;
+    return $this->db->where('code', $code)->delete($this->tb);    
   }
-
 
   public function get($code)
   {
-    $rs = $this->db->where('code', $code)->get('customers');
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row();
-    }
-
-    return FALSE;
+    $rs = $this->db->where('code', $code)->get($this->tb);
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
   }
-
-
 
   public function get_name($code)
   {
-    $rs = $this->db->select('name')->where('code', $code)->get('customers');
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row()->name;
-    }
-
-    return NULL;
+    $rs = $this->db->select('name')->where('code', $code)->get($this->tb);
+    return $rs->num_rows() === 1 ? $rs->row()->name : '';
   }
-
 
   public function count_rows(array $ds = array())
   {
@@ -169,7 +105,6 @@ class Customers_model extends CI_Model
       {
         $this->db->where('type_code', $ds['type']);
       }
-
     }
 
     if($ds['class'] != "all")
@@ -182,7 +117,6 @@ class Customers_model extends CI_Model
       {
         $this->db->where('class_code', $ds['class']);
       }
-
     }
 
     if($ds['area'] != 'all')
@@ -202,9 +136,8 @@ class Customers_model extends CI_Model
       $this->db->where('active', $ds['status']);
     }
 
-    return $this->db->count_all_results('customers');
+    return $this->db->count_all_results($this->tb);
   }
-
 
 
   public function get_list(array $ds = array(), $perpage = 20, $offset = 0)
@@ -261,7 +194,6 @@ class Customers_model extends CI_Model
       {
         $this->db->where('cu.type_code', $ds['type']);
       }
-
     }
 
     if($ds['class'] != "all")
@@ -274,7 +206,6 @@ class Customers_model extends CI_Model
       {
         $this->db->where('cu.class_code', $ds['class']);
       }
-
     }
 
     if($ds['area'] != 'all')
@@ -295,160 +226,26 @@ class Customers_model extends CI_Model
     }
 
     $rs = $this->db->order_by('cu.code', 'ASC')->limit($perpage, $offset)->get();
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
-
-  public function get_data($code = '', $name = '', $group = '', $kind = '', $type = '', $class = '', $area = '', $perpage = '', $offset = '')
-  {
-    if($code != '')
-    {
-      $this->db->group_start();
-      $this->db->like('code', $code);
-      $this->db->or_like('old_code', $code);
-      $this->db->group_end();
-    }
-
-    if($name != '')
-    {
-      $this->db->like('name', $name);
-    }
-
-
-    if(!empty($group))
-    {
-      if($group === "NULL")
-      {
-        $this->db->where('group_code IS NULL', NULL, FALSE);
-      }
-      else
-      {
-        $this->db->where('group_code', $group);
-      }
-
-    }
-
-
-    if(!empty($kind))
-    {
-      if($kind === "NULL")
-      {
-        $this->db->where('kind_code IS NULL', NULL, FALSE);
-      }
-      else
-      {
-        $this->db->where('kind_code', $kind);
-      }
-    }
-
-    if(!empty($type))
-    {
-      if($type === "NULL")
-      {
-        $this->db->where('type_code IS NULL', NULL, FALSE);
-      }
-      else
-      {
-        $this->db->where('type_code', $type);
-      }
-
-    }
-
-    if(!empty($class))
-    {
-      if($class === 'NULL')
-      {
-        $this->db->where('class_code IS NULL', NULL, FALSE);
-      }
-      else
-      {
-        $this->db->where('class_code', $class);
-      }
-
-    }
-
-    if(! empty($area))
-    {
-      if($area === "NULL")
-      {
-        $this->db->where('area_code IS NULL', NULL, FALSE);
-      }
-      else
-      {
-        $this->db->where('area_code', $area);
-      }
-
-    }
-
-    if($perpage != '')
-    {
-      $offset = $offset === NULL ? 0 : $offset;
-      $this->db->limit($perpage, $offset);
-    }
-
-    $rs = $this->db->get('customers');
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return FALSE;
-  }
-
-
-
 
   public function is_exists($code, $old_code = '')
   {
-    if($old_code != '')
-    {
-      $this->db->where('code !=', $old_code);
-    }
-
-    $count = $this->db->where('code', $code)->count_all_results('customers');
-
-    return $count > 0 ? TRUE : FALSE;
+    if($old_code != '') $this->db->where('code !=', $old_code);
+    return $this->db->where('code', $code)->count_all_results($this->tb) > 0;
   }
 
-
-
-  public function is_exists_name($name, $old_name = '')
+  public function is_exists_name($name, $code = '')
   {
-    if($old_name != '')
-    {
-      $this->db->where('name !=', $old_name);
-    }
-
-    $rs = $this->db->where('name', $name)->get('customers');
-
-    if($rs->num_rows() > 0)
-    {
-      return TRUE;
-    }
-
-    return FALSE;
+    if(!empty($code)) $this->db->where('code !=', $code);
+    return $this->db->where('name', $name)->count_all_results($this->tb) > 0;
   }
-
-
 
   public function get_sale_code($code)
   {
-    $rs = $this->db->select('sale_code')->where('code', $code)->get('customers');
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row()->sale_code;
-    }
-
-    return NULL;
+    $rs = $this->db->select('sale_code')->where('code', $code)->get($this->tb);
+    return $rs->num_rows() === 1 ? $rs->row()->sale_code : '';
   }
-
 
   public function get_update_data($last_sync)
   {
@@ -469,33 +266,14 @@ class Customers_model extends CI_Model
     ->group_end()
     ->get('OCRD');
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return FALSE;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
-
-
 
   public function search($txt)
   {
-    $qr = "SELECT code FROM customers WHERE code LIKE '%".$txt."%' OR name LIKE '%".$txt."%'";
-    $rs = $this->db->query($qr);
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-    else
-    {
-      return array();
-    }
-
+    $rs = $this->select('code')->like('code', $txt)->or_like('name', $txt)->get($this->tb);
+    return $rs->num_rows() > 0 ? $rs->result() : [];
   }
-
-
 
   public function getGroupCode()
   {
@@ -504,16 +282,8 @@ class Customers_model extends CI_Model
     ->where('GroupType', 'C')
     ->get('OCRG');
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
-
-
 
   public function getGroupNum()
   {
@@ -522,14 +292,8 @@ class Customers_model extends CI_Model
     ->order_by('GroupNum', 'ASC')
     ->get('OCTG');
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
 
   public function getDebPayAcct()
   {
@@ -538,15 +302,8 @@ class Customers_model extends CI_Model
     ->order_by('AcctCode', 'ASC')
     ->get('OACT');
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;      
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;      
   }
-
-
 
   public function getSlp()
   {
@@ -555,18 +312,13 @@ class Customers_model extends CI_Model
     ->where('Active', 'Y')
     ->get('OSLP');
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
 
   public function get_last_sync_date()
   {
     $rs = $this->db->select_max('last_sync')->get('customers');
+
     if($rs->num_rows() === 1)
     {
       return $rs->row()->last_sync === NULL ? date('2019-01-01 00:00:00') : from_date($rs->row()->last_sync);
@@ -575,5 +327,8 @@ class Customers_model extends CI_Model
     return date('2019-01-01 00:00:00');
   }
 
+  public function has_transection($code)
+  {
+    return $this->db->where('customer_code', $code)->count_all_results('orders') > 0;
+  }
 }
-?>

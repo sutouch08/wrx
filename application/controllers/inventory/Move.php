@@ -20,7 +20,6 @@ class Move extends PS_Controller
     $this->load->model('stock/stock_model');
     $this->load->helper('warehouse');
     $this->load->library('user_agent');
-
     $this->is_mobile = $this->agent->is_mobile();
   }
 
@@ -41,23 +40,22 @@ class Move extends PS_Controller
     if($this->input->post('search'))
     {
       redirect($this->home);
+      exit;
+    }
+
+    $perpage = get_rows();
+    $rows = $this->move_model->count_rows($filter);
+    $filter['list'] = $this->move_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $this->pagination->initialize($init);
+
+    if ($this->is_mobile)
+    {
+      $this->load->view('move/move_list_mobile', $filter);
     }
     else
     {
-      $perpage = get_rows();
-      $rows = $this->move_model->count_rows($filter);
-      $filter['list'] = $this->move_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
-      $init = pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
-      $this->pagination->initialize($init);
-
-      if($this->is_mobile)
-      {
-        $this->load->view('move/move_list_mobile', $filter);
-      }
-      else
-      {
-        $this->load->view('move/move_list', $filter);
-      }
+      $this->load->view('move/move_list', $filter);
     }
   }
 
@@ -65,7 +63,6 @@ class Move extends PS_Controller
   public function view_detail($code)
   {
     $doc = $this->move_model->get($code);
-
     $details = $this->move_model->get_details($code);
 
     if(!empty($details))
@@ -100,7 +97,7 @@ class Move extends PS_Controller
 
     if($this->pm->can_add)
     {
-      $ds = json_decode($this->input->post('data'));
+      $ds = json_decode($this->input->post('data') ?? '{}');
 
       if( ! empty($ds))
       {
@@ -120,10 +117,10 @@ class Move extends PS_Controller
           $arr = array(
             'code' => $code,
             'bookcode' => $bookcode,
-            'reference' => get_null(trim($ds->reference)),
+            'reference' => get_null(trim($ds->reference ?? '')),
             'from_warehouse' => $ds->warehouse_code,
             'to_warehouse' => $ds->warehouse_code,
-            'remark' => get_null(trim($ds->remark)),
+            'remark' => get_null(trim($ds->remark ?? '')),
             'user' => $this->_user->uname
           );
 
@@ -163,7 +160,7 @@ class Move extends PS_Controller
     if($doc->status == 1)
     {
       redirect($this->home."/view_detail/{$code}");
-      exit();
+      exit;
     }
 
     $details = $this->is_mobile ? NULL : $this->move_model->get_details($code);
@@ -422,7 +419,6 @@ class Move extends PS_Controller
             if($sc === TRUE)
             {
               $this->load->model('inventory/movement_model');
-
               $details = $this->move_model->get_details($code);
 
               if( ! empty($details))
@@ -696,10 +692,10 @@ class Move extends PS_Controller
 
   public function add_to_move()
   {
-    $this->load->model('masters/products_model');
-
     $sc = TRUE;
+    $this->load->model('masters/products_model');
     $code = $this->input->post('move_code');
+
     if( ! empty($code))
     {
       $doc = $this->move_model->get($code);
@@ -719,8 +715,7 @@ class Move extends PS_Controller
             if( ! empty($fzone) && ! empty($tzone))
             {
               $must_accept = empty($tzone->user_id) ? 0 : 1;
-
-              $items = json_decode($this->input->post('items'));
+              $items = json_decode($this->input->post('items') ?? '{}');
 
               if( ! empty($items))
               {
@@ -765,10 +760,7 @@ class Move extends PS_Controller
 
                 if($sc === TRUE && $must_accept == 1)
                 {
-                  $arr = array(
-                    'must_accept' => 1
-                  );
-
+                  $arr = array('must_accept' => 1);
                   $this->move_model->update($code, $arr);
                 }
 
@@ -801,7 +793,6 @@ class Move extends PS_Controller
                 $this->error = "โซนปลายทางไม่ถูกต้อง";
               }
             }
-
           }
           else
           {
@@ -839,13 +830,12 @@ class Move extends PS_Controller
     {
       $this->load->model('masters/products_model');
       $this->load->model('inventory/buffer_model');
-
       $code = $this->input->post('move_code');
       $zone_code = $this->input->post('from_zone');
-      $barcode = trim($this->input->post('barcode'));
+      $barcode = trim($this->input->post('barcode') ?? '');
       $qty = $this->input->post('qty');
-
       $item = $this->products_model->get_product_by_barcode($barcode);
+
       if(!empty($item))
       {
         $product_code = $item->code;
@@ -871,46 +861,44 @@ class Move extends PS_Controller
           if($this->move_model->update_temp($arr) === FALSE)
           {
             $sc = FALSE;
-            $message = 'ย้ายสินค้าเข้า temp ไม่สำเร็จ';
+            $this->error = 'ย้ายสินค้าเข้า temp ไม่สำเร็จ';
           }
-
         }
         else
         {
           $sc = FALSE;
-          $message = 'ยอดในโซนไม่เพียงพอ';
+          $this->error = 'ยอดในโซนไม่เพียงพอ';
         }
       }
       else
       {
         $sc = FALSE;
-        $message = 'บาร์โค้ดไม่ถูกต้อง';
+        $this->error = 'บาร์โค้ดไม่ถูกต้อง';
       }
     }
     else
     {
       $sc = FALSE;
-      $message = 'ไม่พบเลขที่เอกสาร';
+      $this->error = 'ไม่พบเลขที่เอกสาร';
     }
 
-    echo $sc === TRUE ? 'success' : $message;
+    echo $sc === TRUE ? 'success' : $this->error;
   }
 
 
   public function move_to_zone()
   {
     $sc = TRUE;
+
     if($this->input->post('move_code'))
     {
       $this->load->model('masters/products_model');
-
       $code = $this->input->post('move_code');
-      $barcode = trim($this->input->post('barcode'));
+      $barcode = trim($this->input->post('barcode') ?? '');
       $to_zone = $this->input->post('zone_code');
       $zone = $this->zone_model->get($to_zone);
       $must_accept = empty($zone->user_id) ? 0 : 1;
-      $qty = $this->input->post('qty');
-
+      $qty = $this->input->post('qty') ?? 0;
       $item = $this->products_model->get_product_by_barcode($barcode);
 
       if(!empty($item))
@@ -947,7 +935,7 @@ class Move extends PS_Controller
                   if($this->move_model->update_qty($id, $temp_qty) === FALSE)
                   {
                     $sc = FALSE;
-                    $message = 'แก้ไขยอดในรายการไม่สำเร็จ';
+                    $this->error = 'แก้ไขยอดในรายการไม่สำเร็จ';
                     break;
                   }
                 }
@@ -967,7 +955,7 @@ class Move extends PS_Controller
                   if($this->move_model->add_detail($ds) === FALSE)
                   {
                     $sc = FALSE;
-                    $message = 'เพิ่มรายการไม่สำเร็จ';
+                    $this->error = 'เพิ่มรายการไม่สำเร็จ';
                     break;
                   }
                 }
@@ -975,7 +963,7 @@ class Move extends PS_Controller
                 if($this->move_model->update_temp_qty($rs->id, ($temp_qty * -1)) === FALSE)
                 {
                   $sc = FALSE;
-                  $message = 'แก้ไขยอดใน temp ไม่สำเร็จ';
+                  $this->error = 'แก้ไขยอดใน temp ไม่สำเร็จ';
                   break;
                 }
 
@@ -990,15 +978,12 @@ class Move extends PS_Controller
             else
             {
               $sc = FALSE;
-              $message = 'โซนต้นทาง - ปลายทาง ต้องไม่ใช่โซนเดียวกัน';
+              $this->error = 'โซนต้นทาง - ปลายทาง ต้องไม่ใช่โซนเดียวกัน';
             }
-
 
             //--- ลบ temp ที่ยอดเป็น 0
             $this->move_model->drop_zero_temp();
           } //--- end foreach
-
-
 
 
           //--- เมื่อทำงานจนจบแล้ว ถ้ายังเหลือยอด แสดงว่ายอดที่ต้องการย้ายเข้า มากกว่ายอดที่ย้ายออกมา
@@ -1008,7 +993,7 @@ class Move extends PS_Controller
             if($qty > 0)
             {
               $sc = FALSE;
-              $message = 'ยอดที่ย้ายเข้ามากกว่ายอดที่ย้ายออกมา';
+              $this->error = 'ยอดที่ย้ายเข้ามากกว่ายอดที่ย้ายออกมา';
             }
           }
 
@@ -1037,28 +1022,29 @@ class Move extends PS_Controller
         else
         {
           $sc = FALSE;
-          $message = 'ไม่พบรายการใน temp';
+          $this->error = 'ไม่พบรายการใน temp';
         }
       }
       else
       {
         $sc = FALSE;
-        $message = 'บาร์โค้ดไม่ถูกต้อง';
+        $this->error = 'บาร์โค้ดไม่ถูกต้อง';
       }
     }
     else
     {
       $sc = FALSE;
-      $message = 'ไม่พบเลขที่เอกสาร';
+      $this->error = 'ไม่พบเลขที่เอกสาร';
     }
 
-    echo $sc === TRUE ? 'success' : $message;
+    echo $sc === TRUE ? 'success' : $this->error;
   }
 
 
   public function is_exists($code, $old_code = NULL)
   {
     $exists = $this->move_model->is_exists($code, $old_code);
+
     if($exists)
     {
       echo 'เลขที่เอกสารซ้ำ';
@@ -1090,9 +1076,11 @@ class Move extends PS_Controller
   {
     $ds = array();
     $temp = $this->move_model->get_move_temp($code);
+
     if(!empty($temp))
     {
       $no = 1;
+
       foreach($temp as $rs)
       {
         $btn_delete = '';
@@ -1178,6 +1166,7 @@ class Move extends PS_Controller
     $txt = $_REQUEST['term'];
     $sc = array();
     $zone = $this->zone_model->search($txt, $warehouse);
+
     if(!empty($zone))
     {
       foreach($zone as $rs)
@@ -1196,8 +1185,7 @@ class Move extends PS_Controller
 
   public function get_to_zone()
   {
-    $sc = TRUE;
-    $move_code = $this->input->get('move_code');
+    $sc = TRUE;    
     $zone_code = $this->input->get('zone_code');
     $whs_code = $this->input->get('warehouse_code');
 
@@ -1247,10 +1235,8 @@ class Move extends PS_Controller
             $temp_qty = $this->move_model->get_temp_qty($move_code, $rs->product_code, $zone_code);
             //--- จำนวนที่อยู่ใน move_detail และยังไม่ valid
             $move_qty = $this->move_model->get_move_qty($move_code, $rs->product_code, $zone_code);
-
             //--- buffer qty  สำหรับตัดรายการที่ถูกจัดไปแล้วแต่ยังไม่เปิดบิล
             $buffer_qty = $this->buffer_model->get_buffer_zone($zone_code, $rs->product_code);
-
             //--- จำนวนที่โอนได้คงเหลือ
             $qty = $rs->qty - ($temp_qty + $move_qty + $buffer_qty);
 
@@ -1303,7 +1289,6 @@ class Move extends PS_Controller
     {
       $this->load->model('masters/products_model');
       $this->load->model('inventory/buffer_model');
-
       $zone_code = $this->input->get('zone_code');
       $move_code = $this->input->get('move_code');
       $stock = $this->stock_model->get_all_stock_in_zone($zone_code);
@@ -1350,14 +1335,13 @@ class Move extends PS_Controller
     $sc = TRUE;
     $ds = [];
 
-    $barcode = trim($this->input->post('barcode'));
-    $warehouse_code = trim($this->input->post('warehouse_code'));
+    $barcode = trim($this->input->post('barcode') ?? '');
+    $warehouse_code = trim($this->input->post('warehouse_code') ?? '');
 
     if( ! empty($barcode) && ! empty($warehouse_code))
     {
       $this->load->model('masters/products_model');
       $this->load->model('inventory/buffer_model');
-
       $pd = $this->products_model->get_product_by_barcode($barcode);
 
       if( ! empty($pd))
@@ -1427,6 +1411,7 @@ class Move extends PS_Controller
     $run_digit = getConfig('RUN_DIGIT_MOVE');
     $pre = $prefix .'-'.$Y.$M;
     $code = $this->move_model->get_max_code($pre);
+
     if(! is_null($code))
     {
       $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
@@ -1439,8 +1424,6 @@ class Move extends PS_Controller
 
     return $new_code;
   }
-
-
 
 
   public function delete_detail()
@@ -1486,8 +1469,7 @@ class Move extends PS_Controller
 
   public function delete_temp()
   {
-    $sc = TRUE;
-    $code = $this->input->post('code');
+    $sc = TRUE;    
     $id = $this->input->post('id');
 
     $this->db->trans_begin();
@@ -1497,7 +1479,6 @@ class Move extends PS_Controller
       $sc = FALSE;
       $this->error = "Failed to delete temp";
     }
-
 
     if( $sc === TRUE)
     {
@@ -1516,7 +1497,6 @@ class Move extends PS_Controller
   {
     $sc = TRUE;
     $this->load->model('inventory/movement_model');
-
     $move = $this->move_model->get($code);
 
     if(!empty($move))
@@ -1572,7 +1552,7 @@ class Move extends PS_Controller
             $arr = array(
               'status' => 2,
               'inv_code' => NULL,
-              'cancle_reason' => trim($this->input->post('reason')),
+              'cancle_reason' => trim($this->input->post('reason') ?? ''),
               'cancle_user' => $this->_user->uname
             );
 
@@ -1613,6 +1593,7 @@ class Move extends PS_Controller
   {
     $this->load->library('printer');
     $doc = $this->move_model->get($code);
+
     if(!empty($doc))
     {
       $doc->from_warehouse_name = $this->warehouse_model->get_name($doc->from_warehouse);
@@ -1623,9 +1604,7 @@ class Move extends PS_Controller
     if(!empty($details))
     {
       foreach($details as $rs)
-      {
-        // $rs->from_zone_name = $this->zone_model->get_name($rs->from_zone);
-        // $rs->to_zone_name = $this->zone_model->get_name($rs->to_zone);
+      {        
         $rs->temp_qty = $this->move_model->get_temp_qty($code, $rs->product_code, $rs->from_zone);
       }
     }
@@ -1643,10 +1622,11 @@ class Move extends PS_Controller
   {
     $sc = TRUE;
     $this->load->library('export');
+
     if(! $this->export->export_move($code))
     {
       $sc = FALSE;
-      $this->error = trim($this->export->error);
+      $this->error = $this->export->error;
     }
 
     return $sc;
@@ -1679,9 +1659,6 @@ class Move extends PS_Controller
       'move_must_accept'
     );
 
-    clear_filter($filter);
-    echo 'done';
+    return clear_filter($filter);    
   }
-
-} //--- end class
-?>
+}

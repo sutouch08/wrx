@@ -1,5 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class Temp_return_order extends PS_Controller
 {
@@ -7,7 +9,7 @@ class Temp_return_order extends PS_Controller
 	public $menu_group_code = 'TE';
   public $menu_sub_group_code = 'TERETURN';
 	public $title = 'ตรวจสอบ ลดหนี้ขาย - ถังกลาง';
-  public $filter;
+  
   public function __construct()
   {
     parent::__construct();
@@ -19,33 +21,27 @@ class Temp_return_order extends PS_Controller
   public function index()
   {
     $filter = array(
-      'code'          => get_filter('code', 'temp_return_code', ''),
-      'customer'      => get_filter('customer', 'temp_return_customer', ''),
-      'from_date'     => get_filter('from_date', 'temp_return_from_date', ''),
-      'to_date'       => get_filter('to_date', 'temp_return_to_date', ''),
-      'status'      => get_filter('status', 'temp_return_status', 'all')
+      'code' => get_filter('code', 'temp_return_code', ''),
+      'customer' => get_filter('customer', 'temp_return_customer', ''),
+      'from_date' => get_filter('from_date', 'temp_return_from_date', ''),
+      'to_date' => get_filter('to_date', 'temp_return_to_date', ''),
+      'status' => get_filter('status', 'temp_return_status', 'all')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
+    if ($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+
 		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
 		$segment  = 4; //-- url segment
-		$rows     = $this->temp_return_order_model->count_rows($filter, 8);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$orders   = $this->temp_return_order_model->get_list($filter, $perpage, $this->uri->segment($segment), 8);
-
-    $filter['orders'] = $orders;
-
+		$rows = $this->temp_return_order_model->count_rows($filter, 8);	
+		$filter['orders'] = $this->temp_return_order_model->get_list($filter, $perpage, $this->uri->segment($segment), 8);
+    $init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
     $this->load->view('inventory/temp_return_order/temp_list', $filter);
   }
-
 
 
   public function get_detail($id)
@@ -58,7 +54,6 @@ class Temp_return_order extends PS_Controller
   }
 
 
-
   public function export_diff()
   {
     $this->load->model('stock/stock_model');
@@ -69,29 +64,29 @@ class Temp_return_order extends PS_Controller
     $channels_title = 'ยอดต่าง = ยอดในโซน - ยอดที่ออเดอร์';
     $pd_title = 'ยอดติดลบคือยอดที่มีในโซนน้อยกว่าที่สั่งมา';
 
-    //--- load excel library
-    $this->load->library('excel');
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
 
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Item Diff');
+    $sheet->setTitle('Item Diff');
 
     //--- set report title header
-    $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
-    $this->excel->getActiveSheet()->mergeCells('A1:G1');
-    $this->excel->getActiveSheet()->setCellValue('A2', $channels_title);
-    $this->excel->getActiveSheet()->mergeCells('A2:G2');
-    $this->excel->getActiveSheet()->setCellValue('A3', $pd_title);
-    $this->excel->getActiveSheet()->mergeCells('A3:G3');
-    $this->excel->getActiveSheet()->setCellValue('A4', 'วันที่เอกสาร : '.thai_date(now()));
-    $this->excel->getActiveSheet()->mergeCells('A4:G4');
+    $sheet->setCellValue('A1', $report_title);
+    $sheet->mergeCells('A1:G1');
+    $sheet->setCellValue('A2', $channels_title);
+    $sheet->mergeCells('A2:G2');
+    $sheet->setCellValue('A3', $pd_title);
+    $sheet->mergeCells('A3:G3');
+    $sheet->setCellValue('A4', 'วันที่เอกสาร : '.thai_date(now()));
+    $sheet->mergeCells('A4:G4');
 
-    $this->excel->getActiveSheet()->setCellValue('A5', 'ลำดับ');
-    $this->excel->getActiveSheet()->setCellValue('B5', 'BinCode');
-    $this->excel->getActiveSheet()->setCellValue('C5', 'ItemCode');
-    $this->excel->getActiveSheet()->setCellValue('D5', 'onhand - order');
+    $sheet->setCellValue('A5', 'ลำดับ');
+    $sheet->setCellValue('B5', 'BinCode');
+    $sheet->setCellValue('C5', 'ItemCode');
+    $sheet->setCellValue('D5', 'onhand - order');
 
     $ds = array();
     $orders = $this->temp_return_order_model->get_error_list();
+
     if(!empty($orders))
     {
       foreach($orders as $order)
@@ -128,15 +123,15 @@ class Temp_return_order extends PS_Controller
           foreach($items as $item => $qty)
           {
             //--- ลำดับ
-            $this->excel->getActiveSheet()->setCellValue('A'.$row, $no);
+            $sheet->setCellValue('A'.$row, $no);
 
-            $this->excel->getActiveSheet()->setCellValue('B'.$row, $bin);
+            $sheet->setCellValue('B'.$row, $bin);
 
             //--- เลขที่เอกสาร (SO)
-            $this->excel->getActiveSheet()->setCellValue('C'.$row, $item);
+            $sheet->setCellValue('C'.$row, $item);
 
             //--- เลขที่อ้างอิง
-            $this->excel->getActiveSheet()->setCellValue('D'.$row, $qty);
+            $sheet->setCellValue('D'.$row, $qty);
 
             $no++;
             $row++;
@@ -149,7 +144,7 @@ class Temp_return_order extends PS_Controller
     $file_name = "Stock Diff.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
   }
 

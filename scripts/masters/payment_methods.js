@@ -1,49 +1,40 @@
-var HOME = BASE_URL + 'masters/payment_methods/';
 function addNew(){
-  window.location.href = BASE_URL + 'masters/payment_methods/add_new';
+  window.location.href = `${HOME}add_new`;
 }
 
-
-
-function goBack(){
-  window.location.href = HOME;
+function edit(code) {
+  window.location.href = `${HOME}edit/${code}`;
 }
 
-
-function getEdit(code){
-  window.location.href = BASE_URL + 'masters/payment_methods/edit/'+code;
-}
-
+let click = false;
 
 function add() {
-  let code = $('#code').val();
-  let name = $('#name').val();
+  if(click) {
+    return;
+  }
+  click = true;
+  clearErrorByClass('r');
+
+  let code = $('#code').val().trim();
+  let name = $('#name').val().trim();
   let role = $('#role').val();
 
-  if(code.length == 0) {
-    $('#code-error').text('Required');
-    $('#code').addClass('has-error');
-    return false;
-  }
-  else {
-    $('#code-error').text('');
-    $('#code').removeClass('has-error');
+  if(code === '') {
+    $('#code').hasError();
+    click = false;
+    return;
   }
 
-  if(name.lenght == 0) {
-    $('#name-error').text('Required');
-    $('#name').addClass('has-error');
-    return false;
-  }
-  else {
-    $('#name-error').text('');
-    $('#name').removeClass('has-error');
+  if(name === '') {
+    $('#name').hasError();
+    click = false;
+    return;
   }
 
   load_in();
 
   $.ajax({
-    url:HOME + 'add',
+    url:`${HOME}add`,
     type:'POST',
     cache:false,
     data:{
@@ -53,60 +44,56 @@ function add() {
     },
     success:function(rs) {
       load_out();
+      click = false;
 
-      if(rs === 'success') {
+      if(rs.trim() === 'success') {
         swal({
           title:'Success',
           type:'success',
           timer: 1000
         });
 
-        setTimeout(() => {
-          addNew();
-        }, 1200);
+        setTimeout(() => { addNew(); }, 1200);
       }
       else {
-        swal({
-          title:'Error!',
-          text:rs,
-          type:'error'
-        });
+        showError(rs);
       }
+    },
+    error:function(rs) {
+      showError(rs);
+      click = false;
     }
   });
 }
 
 
 function update() {
+  if(click) {
+    return;
+  }
+  click = true;
+  clearErrorByClass('r');
   let id = $('#id').val();
-  let code = $('#code').val();
-  let name = $('#name').val();
+  let code = $('#code').val().trim();
+  let name = $('#name').val().trim();
   let role = $('#role').val();
 
-  if(code.length == 0) {
-    $('#code-error').text('Required');
-    $('#code').addClass('has-error');
-    return false;
-  }
-  else {
-    $('#code-error').text('');
-    $('#code').removeClass('has-error');
+  if(code === '') {
+    $('#code').hasError();
+    click = false;
+    return;
   }
 
-  if(name.lenght == 0) {
-    $('#name-error').text('Required');
-    $('#name').addClass('has-error');
-    return false;
-  }
-  else {
-    $('#name-error').text('');
-    $('#name').removeClass('has-error');
+  if(name === '') {
+    $('#name').hasError();
+    click = false;
+    return;
   }
 
   load_in();
 
   $.ajax({
-    url:HOME + 'update',
+    url:`${HOME}update`,
     type:'POST',
     cache:false,
     data:{
@@ -117,8 +104,9 @@ function update() {
     },
     success:function(rs) {
       load_out();
+      click = false;
 
-      if(rs === 'success') {
+      if(rs.trim() === 'success') {
         swal({
           title:'Success',
           type:'success',
@@ -126,55 +114,52 @@ function update() {
         });
       }
       else {
-        swal({
-          title:'Error!',
-          text:rs,
-          type:'error'
-        });
+        showError(rs);
       }
+    },
+    error:function(rs) {
+      showError(rs);
+      click = false;
     }
   });
 }
 
-function clearFilter(){
-  var url = BASE_URL + 'masters/payment_methods/clear_filter';
-  var page = BASE_URL + 'masters/payment_methods';
-  $.get(url, function(rs){
-    window.location.href = page;
-  });
-}
-
-
-function getDelete(code, name){
+function confirmDelete(code, name, id) {
   swal({
     title:'Are sure ?',
-    text:'ต้องการลบ ' + name + ' หรือไม่ ?',
+    text:`ต้องการลบ ${name} หรือไม่ ?`,
     type:'warning',
     showCancelButton: true,
 		confirmButtonColor: '#FA5858',
 		confirmButtonText: 'ใช่, ฉันต้องการลบ',
 		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: false
-  },function(){
-    window.location.href = BASE_URL + 'masters/payment_methods/delete/' + code;
+		closeOnConfirm: true
+  },function() {
+    load_in();
+
+    setTimeout(() => {
+      $.ajax({
+        url:`${HOME}delete`,
+        type:'POST',
+        cache:false,
+        data:{
+          'code' : code
+        },
+        success:function(rs) {
+          load_out();
+
+          if(rs.trim() === 'success') {
+            $(`#row-${id}`).remove();
+            reIndex();
+          }
+          else {
+            showError(rs);
+          }
+        },
+        error:function(rs) {
+          showError(rs);
+        }
+      })
+    }, 100);    
   })
-}
-
-
-
-function getSearch(){
-  $('#searchForm').submit();
-}
-
-
-
-function check(){
-  if($('#term-check').is(":checked")){
-    $('#term').val(1);
-  }else{
-    $('#term').val(0);
-  }
-
-  //console.log($('#term').val());
-  getSearch();
 }

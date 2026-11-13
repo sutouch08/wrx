@@ -51,24 +51,23 @@ class Pick_list extends PS_Controller
     if($this->input->post('search'))
     {
       redirect($this->home);
+      exit;
+    }
+
+    $perpage = get_rows();
+    $rows = $this->pick_list_model->count_rows($filter, $this->is_mobile);
+    $filter['list'] = $this->pick_list_model->get_list($filter, $perpage, $this->uri->segment($this->segment), $this->is_mobile);
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $this->pagination->initialize($init);
+
+    if ($this->is_mobile)
+    {
+      $this->title = "Pick List - รอจัด";
+      $this->load->view('inventory/pick_list/mobile/pick_list_mobile', $filter);
     }
     else
     {
-  		$perpage = get_rows();
-  		$rows = $this->pick_list_model->count_rows($filter, $this->is_mobile);
-      $filter['list'] = $this->pick_list_model->get_list($filter, $perpage, $this->uri->segment($this->segment), $this->is_mobile);
-  		$init = pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
-      $this->pagination->initialize($init);
-
-      if($this->is_mobile)
-      {
-        $this->title = "Pick List - รอจัด";
-        $this->load->view('inventory/pick_list/mobile/pick_list_mobile', $filter);
-      }
-      else
-      {
-        $this->load->view('inventory/pick_list/pick_list', $filter);
-      }
+      $this->load->view('inventory/pick_list/pick_list', $filter);
     }
   }
 
@@ -143,7 +142,7 @@ class Pick_list extends PS_Controller
   {
     $sc = TRUE;
 
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '');
 
     if( ! empty($ds))
     {
@@ -510,8 +509,8 @@ class Pick_list extends PS_Controller
   {
     $ds = array();
     $sc = TRUE;
-    $zone_code = trim($this->input->get('zone_code'));
-    $warehouse_code = trim($this->input->get('warehouse_code'));
+    $zone_code = trim($this->input->get('zone_code') ?? '');
+    $warehouse_code = trim($this->input->get('warehouse_code') ?? '');
 
     if($zone_code)
     {
@@ -812,7 +811,7 @@ class Pick_list extends PS_Controller
     }
     else
     {
-      $this->deny_page();
+      $this->deny_page(TRUE);
     }
   }
 
@@ -823,7 +822,7 @@ class Pick_list extends PS_Controller
 
     if($this->pm->can_add)
     {
-      $ds = json_decode($this->input->post('data'));
+      $ds = json_decode($this->input->post('data') ?? '');
 
       if( ! empty($ds))
       {
@@ -888,7 +887,7 @@ class Pick_list extends PS_Controller
     }
     else
     {
-      $this-page_error();
+      $this->page_error();
     }
   }
 
@@ -899,7 +898,7 @@ class Pick_list extends PS_Controller
 
     if($this->pm->can_add OR $this->pm->can_edit)
     {
-      $ds = json_decode($this->input->post('data'));
+      $ds = json_decode($this->input->post('data') ?? '');
 
       if( ! empty($ds))
       {
@@ -1043,7 +1042,7 @@ class Pick_list extends PS_Controller
     }
     else
     {
-      $this-page_error();
+      $this->page_error();
     }
   }
 
@@ -1052,7 +1051,7 @@ class Pick_list extends PS_Controller
   {
     $sc = TRUE;
 
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '');
 
     if( ! empty($ds))
     {
@@ -1183,7 +1182,6 @@ class Pick_list extends PS_Controller
   {
     $sc = TRUE;
     $code = $this->input->post('code');
-
     $doc = $this->pick_list_model->get($code);
 
     if( ! empty($doc))
@@ -1283,7 +1281,6 @@ class Pick_list extends PS_Controller
   public function unrelease_pick_list($code)
   {
     $sc = TRUE;
-
     $doc = $this->pick_list_model->get($code);
 
     if( ! empty($doc))
@@ -1339,7 +1336,7 @@ class Pick_list extends PS_Controller
   {
     $ds = [];
 
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $rs = $this->db
     ->select('code')
@@ -1366,7 +1363,7 @@ class Pick_list extends PS_Controller
   public function get_order_list()
   {
     $sc = TRUE;
-    $filter = json_decode($this->input->post('filter'));
+    $filter = json_decode($this->input->post('filter') ?? '');
     $res = [];
 
     if( ! empty($filter))
@@ -1433,7 +1430,7 @@ class Pick_list extends PS_Controller
   {
     $sc = TRUE;
 
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '');
 
     if( ! empty($ds))
     {
@@ -1613,7 +1610,4 @@ class Pick_list extends PS_Controller
 
     return clear_filter($filter);
   }
-
-
-} //--- end class
-?>
+}

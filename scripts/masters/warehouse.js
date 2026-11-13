@@ -1,29 +1,8 @@
-var HOME = BASE_URL + 'masters/warehouse';
-
-function goBack(){
-  window.location.href = HOME;
-}
-
-function getSearch(){
-  $('#searchForm').submit();
-}
-
-
-function clearFilter(){
-  $.get(HOME +'/clear_filter', function(){
-    goBack();
-  });
-}
-
-
-
 function getEdit(code){
-  window.location.href = HOME + '/edit/'+code;
+  window.location.href = `${HOME}/edit/${code}`;
 }
 
-
-
-function getDelete(code){
+function getDelete(code) {
   swal({
     title:'Are sure ?',
     text:'ต้องการลบ ' + code + ' หรือไม่ ?',
@@ -32,33 +11,39 @@ function getDelete(code){
 		confirmButtonColor: '#FA5858',
 		confirmButtonText: 'ใช่, ฉันต้องการลบ',
 		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: false
+		closeOnConfirm: true
   },function(){
-    $.ajax({
-      url: HOME + '/delete/' + code,
-      type:'GET',
-      cache:false,
-      success:function(rs){
-        if(rs === 'success'){
-          swal({
-            title:'Deleted',
-            text:'ลบคลัง '+code+' เรียบร้อยแล้ว',
-            type:'success',
-            timer:1000
-          });
-          $('#row-'+code).remove();
-          reIndex();
-        }else{
-          swal({
-            title:'Error!',
-            text:rs,
-            type:'error'
-          });
-        }
-      }
-    })
+    load_in();
 
-  })
+    setTimeout(() => {
+      $.ajax({
+        url: `${HOME}/delete/${code}`,
+        type: 'GET',
+        cache: false,
+        success: function (rs) {
+          load_out();
+
+          if (rs.trim() === 'success') {
+            swal({
+              title: 'Deleted',
+              text: 'ลบคลัง ' + code + ' เรียบร้อยแล้ว',
+              type: 'success',
+              timer: 1000
+            });
+
+            $(`#row-${code}`).remove();
+            reIndex();
+          } 
+          else {
+            showError(rs);
+          }
+        },
+        error:function(rs) {
+          showError(rs);
+        }
+      });
+    }, 100); 
+  });
 }
 
 function toggleConsignment(option)
@@ -167,7 +152,7 @@ function toggleActive(option)
 
 function syncData(){
   load_in();
-  $.get(HOME +'/syncData', function(){
+  $.get(`${HOME}/syncData`, function(){
     load_out();
     swal({
       title:'Completed',
@@ -184,7 +169,7 @@ function syncData(){
 function syncAllData() {
   load_in();
 
-  $.get(HOME + '/syncAllData', function() {
+  $.get(`${HOME}/syncAllData`, function() {
     load_out();
     swal({
       title:'Completed',

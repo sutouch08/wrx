@@ -1536,6 +1536,16 @@ td.one-attribute{
     padding-right : 15px !important;
   }
 
+	.btn-block-xs {
+		display:block;
+		width:100%;
+	}
+
+	.btn-xs-block {
+		display:block;
+		width:100%;
+	}
+
 	.cart-modal {
 		width:100%;
 		height: 100%;

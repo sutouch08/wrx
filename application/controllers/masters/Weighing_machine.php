@@ -16,7 +16,6 @@ class Weighing_machine extends PS_Controller
     $this->load->model('masters/weighing_machine_model');
   }
 
-
   public function index()
   {
     $filter = array(
@@ -26,6 +25,12 @@ class Weighing_machine extends PS_Controller
       'active' => get_filter('active', 'wm_active', 'all')     
     );
 		
+    if($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+
 		$perpage = get_rows();		
 		$rows = $this->weighing_machine_model->count_rows($filter);
     $filter['data'] = $this->weighing_machine_model->get_list($filter, $perpage, $this->uri->segment($this->segment));		
@@ -38,7 +43,7 @@ class Weighing_machine extends PS_Controller
   public function add()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
     $res = [];
 
     if(!empty($ds))
@@ -144,7 +149,7 @@ class Weighing_machine extends PS_Controller
   public function update()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
     $res = [];
 
     if(!empty($ds))
@@ -241,4 +246,4 @@ class Weighing_machine extends PS_Controller
   {
     return clear_filter(array('wm_device_id', 'wm_code', 'wm_name', 'wm_active'));
   }  
-} //--- end class
+} 

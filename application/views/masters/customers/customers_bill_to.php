@@ -1,96 +1,72 @@
-<?php
-$action = empty($bill) ? $this->home.'/add_bill_to/'.$ds->code : $this->home.'/update_bill_to/'.$ds->code;
-$em = empty($bill) ? TRUE : FALSE;
-
-$branch_code = $em ? '0000' : $bill->branch_code;
-$branch_name = $em ? 'สำนักงานใหญ่' : $bill->branch_name;
-$address = $em ? '' : $bill->address;
-$sub_district = $em ? '' : $bill->sub_district;
-$district = $em ? '' : $bill->district;
-$province = $em ? '' : $bill->province;
-$postcode = $em ? '' : $bill->postcode;
-$country = $em ? 'TH' : $bill->country;
-$phone = $em ? '' : $bill->phone;
-?>
-
-
-<form class="form-horizontal" id="billToForm" method="post" action="<?php echo $action; ?>">
+<div class="form-horizontal">
 	<div class="form-group">
-    <label class="col-sm-2 control-label no-padding-right">รหัสสาขา</label>
-    <div class="col-xs-6 col-sm-1 col-1-harf">
-      <input type="text" name="branch_code" id="bill_branch_code" class="form-control input-sm" placeholder="0000" value="<?php echo $branch_code; ?>" />
-    </div>
-  </div>
-
-
-  <div class="form-group">
-    <label class="col-sm-2 control-label no-padding-right">ชื่อสาขา</label>
-    <div class="col-xs-6 col-sm-3">
-      <input type="text" name="branch_name" id="bill_branch_name" class="form-control input-sm" placeholder="สำนักงานใหญ่" value="<?php echo $branch_name; ?>" />
+    <label class="col-lg-2 col-md-2 col-sm-2 col-xs-12 control-label no-padding-right">รหัสสาขา</label>
+    <div class="col-lg-1-harf col-md-1-harf col-sm-1-harf col-xs-12">
+      <input type="text" id="b-branch-code" class="form-control input-sm r" placeholder="0000" value="<?php echo $bill->branch_code ?? '0000'; ?>" />
     </div>
   </div>
 
   <div class="form-group">
-    <label class="col-sm-2 control-label no-padding-right">ที่อยู่</label>
-    <div class="col-xs-12 col-sm-10">
-      <input type="text" name="address" id="bill_address" class="form-control input-sm" placeholder="อาคาร/หมู่ที่/ถนน **ต้องการ" value="<?php echo $address; ?>" required/>
+    <label class="col-lg-2 col-md-2 col-sm-2 col-xs-12 control-label no-padding-right">ชื่อสาขา</label>
+    <div class="col-lg-3 col-md-3 col-sm-3 col-xs-12">
+      <input type="text" id="b-branch-name" class="form-control input-sm r" placeholder="สำนักงานใหญ่" value="<?php echo $bill->branch_name ?? 'สำนักงานใหญ่'; ?>" />
     </div>
   </div>
 
   <div class="form-group">
-    <label class="col-sm-2 control-label no-padding-right">ตำบล/แขวง</label>
-    <div class="col-xs-12 col-sm-4">
-      <input type="text" name="sub_district" id="bill_sub_district" class="form-control input-sm" placeholder="ตำบล/แขวง **ต้องการ" value="<?php echo $sub_district; ?>" required/>
+    <label class="col-lg-2 col-md-2 col-sm-2 col-xs-12 control-label no-padding-right">ที่อยู่</label>
+    <div class="col-lg-6 col-md-6 col-sm-8 col-xs-12">
+      <input type="text" id="b-address" class="form-control input-sm r" placeholder="อาคาร/หมู่ที่/ถนน **ต้องการ" value="<?php echo $bill->address ?? ''; ?>" required/>
     </div>
   </div>
 
   <div class="form-group">
-    <label class="col-sm-2 control-label no-padding-right">อำเภอ/เขต</label>
-    <div class="col-xs-12 col-sm-4">
-      <input type="text" name="district" id="bill_district" class="form-control input-sm" placeholder="อำเภอ/เขต **ต้องการ" value="<?php echo $district; ?>" required/>
+    <label class="col-lg-2 col-md-2 col-sm-2 col-xs-12 control-label no-padding-right">ตำบล/แขวง</label>
+    <div class="col-lg-4 col-md-4 col-sm-4 col-xs-12">
+      <input type="text" id="b-sub-district" class="form-control input-sm r" placeholder="ตำบล/แขวง **ต้องการ" value="<?php echo $bill->sub_district ?? ''; ?>" required/>
     </div>
   </div>
 
   <div class="form-group">
-    <label class="col-sm-2 control-label no-padding-right">จังหวัด</label>
-    <div class="col-xs-12 col-sm-4">
-      <input type="text" name="province" id="bill_province" class="form-control input-sm" placeholder="จังหวัด **ต้องการ" value="<?php echo $province; ?>" required/>
+    <label class="col-lg-2 col-md-2 col-sm-2 col-xs-12 control-label no-padding-right">อำเภอ/เขต</label>
+    <div class="col-lg-4 col-md-4 col-sm-4 col-xs-12">
+      <input type="text" id="b-district" class="form-control input-sm r" placeholder="อำเภอ/เขต **ต้องการ" value="<?php echo $bill->district ?? ''; ?>" required/>
     </div>
   </div>
 
   <div class="form-group">
-    <label class="col-sm-2 control-label no-padding-right">รหัสไปรษณีย์</label>
-    <div class="col-xs-6 col-sm-1 col-1-harf">
-      <input type="text" name="postcode" id="bill_postcode" class="form-control input-sm" placeholder="10110" value="<?php echo $postcode; ?>" />
+    <label class="col-lg-2 col-md-2 col-sm-2 col-xs-12 control-label no-padding-right">จังหวัด</label>
+    <div class="col-lg-4 col-md-4 col-sm-4 col-xs-12">
+      <input type="text" id="b-province" class="form-control input-sm r" placeholder="จังหวัด **ต้องการ" value="<?php echo $bill->province ?? ''; ?>" required/>
     </div>
   </div>
 
   <div class="form-group">
-    <label class="col-sm-2 control-label no-padding-right">รหัสประเทศ</label>
-    <div class="col-xs-6 col-sm-1 col-1">
-      <input type="text" name="country" id="bill_country" class="form-control input-sm text-center" placeholder="TH" value="<?php echo $country; ?>" />
+    <label class="col-lg-2 col-md-2 col-sm-2 col-xs-12 control-label no-padding-right">รหัสไปรษณีย์</label>
+    <div class="col-lg-1 col-md-1 col-sm-1 col-1-harf col-xs-12">
+      <input type="text" id="b-postcode" class="form-control input-sm r" placeholder="10110" value="<?php echo $bill->postcode ?? ''; ?>" />
     </div>
   </div>
 
   <div class="form-group">
-    <label class="col-sm-2 control-label no-padding-right">โทรศัพท์</label>
-    <div class="col-xs-6 col-sm-3">
-      <input type="text" name="phone" id="bill_phone" class="form-control input-sm" placeholder="000 000 0000" value="<?php echo $phone; ?>" />
+    <label class="col-lg-2 col-md-2 col-sm-2 col-xs-12 control-label no-padding-right">รหัสประเทศ</label>
+    <div class="col-lg-1 col-md-1 col-sm-1 col-1 col-xs-12">
+      <input type="text" id="b-country" class="form-control input-sm r text-center" placeholder="TH" value="<?php echo $bill->country ?? 'TH'; ?>" />
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="col-lg-2 col-md-2 col-sm-2 col-xs-12 control-label no-padding-right">โทรศัพท์</label>
+    <div class="col-lg-3 col-md-3 col-sm-3 col-xs-12">
+      <input type="text" id="b-phone" class="form-control input-sm r" placeholder="000 000 0000" value="<?php echo $bill->phone ?? ''; ?>" />
     </div>
   </div>
   <div class="divider-hidden">
 
 	</div>
-  <div class="form-group">
-    <label class="col-sm-3 control-label no-padding-right"></label>
-    <div class="col-xs-12 col-sm-3">
-      <p class="pull-right">
-        <button type="submit" class="btn btn-sm btn-success"><i class="fa fa-save"></i>&nbsp;&nbsp;Save</button>
-      </p>
-    </div>
-    <div class="help-block col-xs-12 col-sm-reset inline">
-      &nbsp;
-    </div>
+  <div class="form-group">    
+    <div class="col-lg-3 col-lg-offset-2 col-md-3 col-md-offset-2 col-sm-3 col-sm-offset-2 col-xs-12">
+      <button type="button" class="btn btn-white btn-success btn-100 btn-block-xs" onclick="saveBillTo()"><i class="fa fa-save"></i>&nbsp;&nbsp;Save</button>      
+    </div>  
   </div>
-
-</form>
+</div>

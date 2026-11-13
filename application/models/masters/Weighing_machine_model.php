@@ -12,110 +12,58 @@ class Weighing_machine_model extends CI_Model
   public function get($code)
   {
     $rs = $this->db->where('code', $code)->get($this->tb);
-
-    if ($rs->num_rows() === 1) 
-    {
-      return $rs->row();
-    }
-
-    return NULL;
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
   }
 
   public function get_by_device_id($device_id)
   {
     $rs = $this->db->where('device_id', $device_id)->get($this->tb);
-
-    if ($rs->num_rows() === 1) 
-    {
-      return $rs->row();
-    }
-
-    return NULL;
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
   }
 
 
   public function get_by_id($id)
   {
     $rs = $this->db->where('id', $id)->get($this->tb);
-
-    if ($rs->num_rows() === 1) 
-    {
-      return $rs->row();
-    }
-
-    return NULL;
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
   }
 
   public function get_all_active()
   {
     $rs = $this->db->where('active', 1)->get($this->tb);
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
   public function get_all_exclude($excludes = array())
   {
-    if(!empty($excludes))
-    {
-      $this->db->where_not_in('device_id', $excludes);
-    }
-
+    if(!empty($excludes)) $this->db->where_not_in('device_id', $excludes);
     $rs = $this->db->get($this->tb);
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 
   public function is_exists($code, $id = NULL)
   {
-    if(!empty($id))
-    {
-      $this->db->where('id !=', $id);
-    }
-
+    if(!empty($id)) $this->db->where('id !=', $id);
     return $this->db->where('code', $code)->count_all_results($this->tb) > 0;
   }
 
 
   public function add(array $ds = array())
   {
-    if(!empty($ds))
-    {
-      if($this->db->insert($this->tb, $ds))
-      {
-        return $this->db->insert_id();
-      }
-    }
-
-    return FALSE;
+    return !empty($ds) && $this->db->insert($this->tb, $ds) ? $this->db->insert_id() : FALSE;
   }
 
 
   public function update($id, array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->db->where('id', $id)->update($this->tb, $ds);
-    }
-
-    return FALSE;
+    return !empty($ds) && $this->db->where('id', $id)->update($this->tb, $ds);
   }
 
   public function delete($id)
   {
     return $this->db->where('id', $id)->delete($this->tb);
   }
-
 
   public function count_rows(array $ds = array())
   {
@@ -165,16 +113,7 @@ class Weighing_machine_model extends CI_Model
       $this->db->where('active', $ds['active']);
     }
 
-    $rs = $this->db
-    ->order_by('code', 'ASC')
-    ->limit($perpage, $offset)
-    ->get($this->tb);
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    $rs = $this->db->order_by('code', 'ASC')->limit($perpage, $offset)->get($this->tb);
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 }

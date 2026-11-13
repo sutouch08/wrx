@@ -1,9 +1,12 @@
 <?php
 class Adjust_consignment_model extends CI_Model
 {
+  protected $cn;
+
   public function __construct()
   {
-    parent::__construct();
+    parent::__construct();    
+    $this->cn = $this->load->database('cn', TRUE);
   }
 
 

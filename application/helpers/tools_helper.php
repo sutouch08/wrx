@@ -179,7 +179,7 @@ function get_filter($postName = NULL, $cookieName = NULL, $defaultValue = "")
 
   if($ci->input->post($postName) !== NULL)
   {
-    $sc = trim($ci->input->post($postName));
+    $sc = trim($ci->input->post($postName) ?? '');
     $ci->input->set_cookie(array('name' => $cookieName, 'value' => $sc, 'expire' => 3600 , 'path' => '/'));
   }
   else if($ci->input->cookie($cookieName) !== NULL)
@@ -308,45 +308,21 @@ function getPorlorApiConfig()
 	return $ds;
 }
 
+
 function get_vat_amount($amount, $vat = NULL, $type = 'I')
 {
 	//--- type I = include, E = exclude
-	$re_vat = 0;
-
-	if($amount > 0)
-	{
-		if($vat === NULL)
-		{
-			$vat = getConfig('SALE_VAT_RATE');
-		}
-
-		if($type == 'E')
-		{
-			$re_vat = $amount * ($vat * 0.01);
-		}
-		else
-		{
-			$re_vat = ($amount * $vat) / (100+$vat);
-		}
-	}
-
-	return round($re_vat,6);
+	$amount = floatval($amount);
+	$vat = $vat === NULL ? floatval(getConfig('SALE_VAT_RATE')) : floatval($vat);
+	return $type == 'E' ? round($amount * ($vat * 0.01), 6) : round(($amount * $vat) / (100 + $vat), 6);	
 }
+
 
 function remove_vat($amount, $vat = NULL)
 {
-	if($vat === NULL)
-	{
-		$vat = getConfig('SALE_VAT_RATE'); //-- 7
-	}
-
-	if( $vat != 0 )
-	{
-		$re_vat	= ($vat + 100) / 100;
-		return round($amount/$re_vat, 6);
-	}
-
-	return round($amount, 6);
+	$amount = floatval($amount);
+	$vat = $vat === NULL ? floatval(getConfig('SALE_VAT_RATE')) : floatval($vat);
+	return $vat > 0 ? round(($amount * 100) / (100 + $vat), 6) : round($amount, 6);
 }
 
 //---- remove discount percent return price after discount
@@ -354,14 +330,8 @@ function get_price_after_discount($price, $disc = 0)
 {
 	$find = array('%', ' ');
 	$replace = array('', '');
-	$disc = str_replace($find, $replace, $disc);
-
-	if($disc > 0 && $disc <= 100)
-	{
-		$price = $price - ($price *($disc * 0.01));
-	}
-
-	return $price;
+	$disc = floatval(str_replace($find, $replace, $disc));
+	return ($disc > 0 && $disc <= 100) ? floatval($price) * (1 - ($disc * 0.01)) : floatval($price);	
 }
 
 //--- return discount amount calculate from price and discount percentage
@@ -371,7 +341,7 @@ function get_discount_amount($price, $disc = 0)
 	$find = array('%', ' ');
 	$replace = array('', '');
 	$disc = floatval(str_replace($find, $replace, $disc));
-	return ($disc > 0 && $disc <= 100) ? $price * ($disc * 0.01) : 0;	
+	return ($disc > 0 && $disc <= 100) ? floatval($price) * ($disc * 0.01) : 0;	
 }
 
 function add_vat($amount, $vat = NULL)
@@ -394,17 +364,50 @@ function set_error($key, $name = "data")
 		'exists' => "'{$name}' already exists.",
 		'status' => "Invalid document status",
 		'notfound' => "Document number not found",
-		'transection' => "Unable to delete {$name} because transections exists or link to other module."
+		'not_found' => "Document number not found",
+		'transection' => "Unable to delete {$name} because transactions exists or link to other module.",
+		'transaction' => "Unable to delete {$name} because transactions exists or link to other module.",
+		'has_transection' => "Unable to delete {$name} because transactions exists or link to other module.",
+		'has_transaction' => "Unable to delete {$name} because transactions exists or link to other module."
 	);
 
 	$ci =& get_instance();
 	$ci->error = ! empty($error[$key]) ? $error[$key] : ($key === 'x' ? "Unknown error." : $key);
 }
 
+function get_error($key, $name = "data")
+{
+	$key = $key ?? 'x';
+
+	$error = array(
+		'insert' => "Insert {$name} failed.",
+		'update' => "Update {$name} failed.",
+		'delete' => "Delete {$name} failed.",
+		'permission' => "You don't have permission to perform this operation.",
+		'required' => "Missing required parameter.",
+		'exists' => "'{$name}' already exists.",
+		'status' => "Invalid document status",
+		'notfound' => "Document number not found",
+		'not_found' => "Document number not found",
+		'transection' => "Unable to delete {$name} because transactions exists or link to other module.",
+		'transaction' => "Unable to delete {$name} because transactions exists or link to other module.",
+		'has_transection' => "Unable to delete {$name} because transactions exists or link to other module.",
+		'has_transaction' => "Unable to delete {$name} because transactions exists or link to other module."
+	);
+
+	return ! empty($error[$key]) ? $error[$key] : ($key === 'x' ? "Unknown error." : $key);
+}
+
 function set_message($message)
 {
   $ci =& get_instance();
   $ci->session->set_flashdata('success', $message);
+}
+
+function set_error_message($message)
+{
+  $ci =& get_instance();
+  $ci->session->set_flashdata('error', $message);
 }
 
 //--- return null if blank value
@@ -472,6 +475,11 @@ function convert($txt)
 {
 	//return iconv('UTF-8', 'CP850', $txt);
 	return $txt;
+}
+
+function escape_quotes($txt)
+{	
+	return ($txt == '' OR is_null($txt)) ? '' : str_replace('"', '&quot;', $txt);
 }
 
 

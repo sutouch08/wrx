@@ -76,7 +76,7 @@ function select_customer_group($code = "")
   $sc = '';
   $ci =& get_instance();
   $ci->load->model('masters/customer_group_model');
-  $options = $ci->customer_group_model->get_data();
+  $options = $ci->customer_group_model->get_all();
 
   if (!empty($options))
   {
@@ -94,7 +94,7 @@ function select_customer_kind($code = "")
   $sc = '';
   $ci =& get_instance();
   $ci->load->model('masters/customer_kind_model');
-  $options = $ci->customer_kind_model->get_data();
+  $options = $ci->customer_kind_model->get_all();
 
   if (!empty($options))
   {
@@ -112,7 +112,7 @@ function select_customer_type($code = "")
   $sc = '';
   $ci =& get_instance();
   $ci->load->model('masters/customer_type_model');
-  $options = $ci->customer_type_model->get_data();
+  $options = $ci->customer_type_model->get_all();
 
   if (!empty($options))
   {
@@ -130,7 +130,7 @@ function select_customer_class($code = "")
   $sc = '';
   $ci =& get_instance();
   $ci->load->model('masters/customer_class_model');
-  $options = $ci->customer_class_model->get_data();
+  $options = $ci->customer_class_model->get_all();
 
   if (!empty($options))
   {
@@ -148,7 +148,7 @@ function select_customer_area($code = "")
   $sc = '';
   $ci =& get_instance();
   $ci->load->model('masters/customer_area_model');
-  $options = $ci->customer_area_model->get_data();
+  $options = $ci->customer_area_model->get_all();
 
   if (!empty($options))
   {

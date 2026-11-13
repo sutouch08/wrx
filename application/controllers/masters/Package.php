@@ -16,7 +16,6 @@ class Package extends PS_Controller
     $this->load->model('masters/package_model');
   }
 
-
   public function index()
   {
     $filter = array(
@@ -25,49 +24,46 @@ class Package extends PS_Controller
       'active' => get_filter('active', 'package_active', 'all')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-
-		$segment = 4; //-- url segment
-		$rows = $this->package_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$filter['data'] = $this->package_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
+    if($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+		
+		$perpage = get_rows();		
+		$rows = $this->package_model->count_rows($filter);		
+		$filter['data'] = $this->package_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
 		$this->pagination->initialize($init);
-
     $this->load->view('masters/package/package_list', $filter);
   }
 
 
   public function add()
-  {
-    $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
-
-    if( ! empty($ds))
+  {   
+    $ds = json_decode($this->input->post('data') ?? '{}');
+    
+    if(empty($ds))
     {
-      $arr = array(
-        'name' => $ds->name,
-        'type' => $ds->type,
-        'width' => $ds->w,
-        'length' => $ds->l,
-        'height' => $ds->h
-      );
-
-      if( ! $this->package_model->add($arr))
-      {
-        $sc = FALSE;
-        set_error('insert');
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      set_error('required');
+      echo get_error('required');
+      exit;
     }
 
-    $this->_response($sc);
+    $arr = array(
+      'name' => $ds->name,
+      'type' => $ds->type,
+      'width' => $ds->w,
+      'length' => $ds->l,
+      'height' => $ds->h
+    );
+
+    if (! $this->package_model->add($arr))
+    {
+      echo get_error('insert');
+      exit;
+    }
+
+    echo 'success';    
   }
 
 
@@ -93,64 +89,54 @@ class Package extends PS_Controller
 
 
   public function update()
-  {
-    $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+  {    
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
-    if( ! empty($ds))
+    if(empty($ds))
     {
-      $arr = array(
-        'name' => $ds->name,
-        'type' => $ds->type,
-        'width' => $ds->w,
-        'length' => $ds->l,
-        'height' => $ds->h,
-        'active' => $ds->active == 0 ? 0 : 1
-      );
-
-      if( ! $this->package_model->update($ds->id, $arr))
-      {
-        $sc = FALSE;
-        set_error('update');
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      set_error('required');
+      echo get_error('required');
+      exit;
     }
 
-    $this->_response($sc);
+    $arr = array(
+      'name' => $ds->name,
+      'type' => $ds->type,
+      'width' => $ds->w,
+      'length' => $ds->l,
+      'height' => $ds->h,
+      'active' => $ds->active == 0 ? 0 : 1
+    );
+
+    if( ! $this->package_model->update($ds->id, $arr))
+    {
+      echo get_error('update');
+      exit;
+    }
+
+    echo 'success';
   }
 
 
   public function delete($id)
   {
-    $sc = TRUE;
-
-    if($this->pm->can_delete)
+    if( ! $this->pm->can_delete)
     {
-      if( ! $this->package_model->delete($id))
-      {
-        $sc = FALSE;
-        set_error('delete');
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      set_error('permission');
+      echo get_error('permission');
+      exit;
     }
 
-    $this->_response($sc);
+    if (! $this->package_model->delete($id))
+    {      
+      echo get_error('delete');
+      exit;
+    }
+
+    echo 'success';
   }
 
 
   public function clear_filter()
 	{
-		$filter = array('package_name', 'package_type', 'package_active');
-    return clear_filter($filter);
-	}
-
-}//--- end class
- ?>
+    return clear_filter(['package_name', 'package_type', 'package_active']);
+  }
+}

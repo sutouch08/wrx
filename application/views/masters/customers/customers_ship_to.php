@@ -1,145 +1,114 @@
-<div class='row'>
-  <div class="col-sm-12">
-    <div class="table-responsive">
-      <table class='table table-bordered' style="margin-bottom:0px;">
-        <thead>
-          <tr>
-            <td colspan="6" align="center">ที่อยู่สำหรับจัดส่ง
-              <p class="pull-right top-p">
-                <button type="button" class="btn btn-info btn-xs" onClick="addNewAddress()"> เพิ่มที่อยู่ใหม่</button>
-              </p>
-            </td>
-          </tr>
-          <tr style="font-size:12px;">
-            <td class="fix-width-100"></td>
-            <td class="fix-width-150">ชื่อเรียก</td>
-            <td class="fix-width-150">ผู้รับ</td>
-            <td class="min-width-350">ที่อยู่</td>
-            <td class="fix-width-150">อีเมล์</td>
-            <td class="fix-width-150">โทรศัพท์</td>
-          </tr>
-        </thead>
-        <tbody id="adrs">
-          <?php if (!empty($addr)) : ?>
-            <?php foreach ($addr as $rs) : ?>
-              <tr class="font-size-11" id="<?php echo $rs->id; ?>">
-                <td>
-                  <button type="button" class="btn btn-minier btn-address <?php echo $rs->is_default == 1 ? 'btn-success' : ''; ?>" id="btn-<?php echo $rs->id; ?>" onClick="setDefaultShippingAddress('<?php echo $ds->code; ?>', '<?php echo $rs->id; ?>')">
-                    <i class="fa fa-check"></i>
-                  </button>
-                  <button type="button" class="btn btn-minier btn-warning" onClick="editAddress(<?php echo $rs->id; ?>)"><i class="fa fa-pencil"></i></button>
-                  <button type="button" class="btn btn-minier btn-danger" onClick="removeAddress(<?php echo $rs->id; ?>)"><i class="fa fa-trash"></i></button>
-                </td>
-                <td align="center"><?php echo $rs->alias; ?></td>
-                <td><?php echo $rs->name; ?></td>
-                <td><?php echo $rs->address . ' ' . $rs->sub_district . ' ' . $rs->district . ' ' . $rs->province . ' ' . $rs->postcode; ?></td>
-                <td><?php echo $rs->email; ?></td>
-                <td><?php echo $rs->phone; ?></td>
-
-              </tr>
-            <?php endforeach; ?>
-          <?php else : ?>
-            <tr>
-              <td colspan="6" class="font-size-11 text-center">ไม่พบที่อยู่</td>
+<div class="row">
+  <div class="col-lg-7 col-md-6 col-sm-6 col-xs-12 padding-5 table-responsive">
+    <table class="table table-striped table-medium border-1" style="min-width:600px;">
+      <thead>
+        <tr>
+          <th class="fix-width-100"></th>
+          <th class="fix-width-100">ชื่อเรียก</th>
+          <th class="fix-width-100">ชื่อผู้รับ</th>
+          <th class="min-width-300">ที่อยู่</th>          
+        </tr>
+      </thead>
+      <tbody id="adrs">
+        <?php if (!empty($addr)) : ?>
+          <?php foreach ($addr as $rs) : ?>
+            <tr id="<?php echo $rs->id; ?>">
+              <td>
+                <button type="button" 
+                  class="btn btn-minier btn-address <?php echo $rs->is_default == 1 ? 'btn-success' : ''; ?>" 
+                  id="btn-<?php echo $rs->id; ?>" data-default="<?php echo $rs->is_default; ?>"
+                  onclick="setDefault('<?php echo $ds->code; ?>', '<?php echo $rs->id; ?>')">
+                  <i class="fa fa-check"></i>
+                </button>
+                <button type="button" class="btn btn-minier btn-warning" onClick="getShipTo(<?php echo $rs->id; ?>)"><i class="fa fa-pencil"></i></button>
+                <button type="button" class="btn btn-minier btn-danger" onClick="deleteShipTo(<?php echo $rs->id; ?>)"><i class="fa fa-trash"></i></button>
+              </td>
+              <td><?php echo $rs->alias; ?></td>
+              <td><?php echo $rs->name; ?></td>
+              <td><?php echo parse_address($rs); ?></td>
             </tr>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
+          <?php endforeach; ?>
+        <?php else : ?>
+          <tr>
+            <td colspan="6" class="text-center">ไม่พบที่อยู่</td>
+          </tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
   </div>
-</div><!-- /row-->
-
-
-<!--  Add New Address Modal  --------->
-<div class="modal fade" id="addressModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-  <div class="modal-dialog" style="max-width:500px;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-        <h4 class="modal-title-site text-center">เพิ่ม/แก้ไข ที่อยู่สำหรับจัดส่ง</h4>
+  <div class="col-lg-5 col-md-6 col-sm-6 col-xs-12">
+    <div class="form-horizontal margin-top-30">
+      <div class="form-group margin-top-30">
+        <label class="col-lg-3 col-md-3 col-sm-3 control-label no-padding-right">ชื่อเรียก</label>
+        <div class="col-lg-8 col-md-8 col-sm-8 col-xs-12 padding-5">
+          <input type="text" class="form-control input-sm r" id="s-alias" placeholder="ชื่อเรียก เช่น บ้าน ที่ทำงาน (จำเป็น)" />
+        </div>
       </div>
-      <div class="modal-body">
-        <form id="addAddressForm">
-          <input type="hidden" name="id_address" id="id_address" />
-          <input type="hidden" name="customer_ref" id="customer_ref" value="<?php echo $ds->code; ?>" />
-          <div class="row">
-            <div class="col-sm-12 col-xs-12">
-              <label class="input-label">ชื่อ</label>
-              <input type="text" class="form-control input-sm" name="Fname" id="Fname" placeholder="ชื่อผู้รับ (จำเป็น)" />
-            </div>
-            <div class="col-sm-12 col-xs-12">
-              <label class="input-label">ที่อยู่</label>
-              <input type="text" class="form-control input-sm" name="address" id="address1" placeholder="เลขที่, หมู่บ้าน, ถนน (จำเป็น)" />
-            </div>
-
-            <div class="col-sm-6 col-xs-12">
-              <label class="input-label">ตำบล/แขวง</label>
-              <input type="text" class="form-control input-sm" name="sub_district" id="sub_district" placeholder="ตำบล" />
-            </div>
-            <div class="col-sm-6 col-xs-12">
-              <label class="input-label">อำเภอ/เขต</label>
-              <input type="text" class="form-control input-sm" name="district" id="district" placeholder="อำเภอ (จำเป็น)" />
-            </div>
-            <div class="col-sm-6 col-xs-12">
-              <label class="input-label">จังหวัด</label>
-              <input type="text" class="form-control input-sm" name="province" id="province" placeholder="จังหวัด (จำเป็น)" />
-            </div>
-            <div class="col-sm-6 col-xs-12">
-              <label class="input-label">รหัสไปรษณีย์</label>
-              <input type="text" class="form-control input-sm" name="postcode" id="postcode" placeholder="รหัสไปรษณีย์" />
-            </div>
-            <div class="col-sm-6 col-xs-12">
-              <label class="input-label">เบอร์โทรศัพท์</label>
-              <input type="text" class="form-control input-sm" name="phone" id="phone" placeholder="000 000 0000" />
-            </div>
-            <div class="col-sm-6 col-xs-12">
-              <label class="input-label">อีเมล์</label>
-              <input type="text" class="form-control input-sm" name="email" id="email" placeholder="someone@somesite.com" />
-            </div>
-            <div class="col-sm-6 col-xs-12">
-              <label class="input-label">ชื่อเรียก</label>
-              <input type="text" class="form-control input-sm" name="alias" id="alias" placeholder="ใช้เรียกที่อยู่ เช่น บ้าน, ที่ทำงาน (จำเป็น)" />
-            </div>
-          </div>
-        </form>
+      <div class="form-group">
+        <label class="col-lg-3 col-md-3 col-sm-3 control-label no-padding-right">ชื่อผู้รับ</label>
+        <div class="col-lg-8 col-md-8 col-sm-8 col-xs-12 padding-5">
+          <input type="text" class="form-control input-sm r" id="s-name" placeholder="ชื่อผู้รับ" />
+        </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-sm btn-success" onClick="saveShipTo()"><i class="fa fa-save"></i> บันทึก</button>
+      <div class="form-group">
+        <label class="col-lg-3 col-md-3 col-sm-3 control-label no-padding-right">ที่อยู่</label>
+        <div class="col-lg-8 col-md-8 col-sm-8 col-xs-12 padding-5">
+          <input type="text" class="form-control input-sm r" id="s-address" placeholder="เลขที่/หมู่/ซอย/ถนน" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-lg-3 col-md-3 col-sm-3 control-label no-padding-right">ตำบล/แขวง</label>
+        <div class="col-lg-8 col-md-8 col-sm-8 col-xs-12 padding-5">
+          <input type="text" class="form-control input-sm r" id="s-sub-district" placeholder="ตำบล/แขวง" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-lg-3 col-md-3 col-sm-3 control-label no-padding-right">อำเภอ/เขต</label>
+        <div class="col-lg-8 col-md-8 col-sm-8 col-xs-12 padding-5">
+          <input type="text" class="form-control input-sm r" id="s-district" placeholder="อำเภอ/เขต" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-lg-3 col-md-3 col-sm-3 control-label no-padding-right">จังหวัด</label>
+        <div class="col-lg-8 col-md-8 col-sm-8 col-xs-12 padding-5">
+          <input type="text" class="form-control input-sm r" id="s-province" placeholder="จังหวัด" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-lg-3 col-md-3 col-sm-3 control-label no-padding-right">รหัสไปรษณีย์</label>
+        <div class="col-lg-8 col-md-8 col-sm-8 col-xs-12 padding-5">
+          <input type="text" class="form-control input-sm r" id="s-postcode" placeholder="รหัสไปรษณีย์" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-lg-3 col-md-3 col-sm-3 control-label no-padding-right">โทรศัพท์</label>
+        <div class="col-lg-8 col-md-8 col-sm-8 col-xs-12 padding-5">
+          <input type="text" class="form-control input-sm r" id="s-phone" placeholder="โทรศัพท์" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-lg-3 col-md-3 col-sm-3 control-label no-padding-right">อีเมล์</label>
+        <div class="col-lg-8 col-md-8 col-sm-8 col-xs-12 padding-5">
+          <input type="text" class="form-control input-sm r" id="s-email" placeholder="อีเมล์" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-lg-3 col-md-3 col-sm-3 control-label no-padding-right">&nbsp;</label>
+        <div class="col-lg-8 col-md-8 col-sm-8 col-xs-12 padding-5">
+          <label>
+            <input type="checkbox" id="s-default" class="ace" value="1" />
+            <span class="lbl"> ตั้งเป็นที่อยู่เริ่มต้น</span>
+          </label>
+        </div>
+      </div>
+      <input type="hidden" id="s-id" value=""/><!-- address id -->
+      <div class="divider-hidden"></div>      
+      <div class="form-group">
+        <div class="col-lg-8 col-lg-offset-3 col-md-8 col-md-offset-3 col-sm-8 col-sm-offset-3 col-xs-12 padding-5">
+          <button type="button" class="btn btn-white btn-default" onclick="clearShipTo()">Clear</button>
+          <button type="button" class="btn btn-white btn-success btn-100 pull-right" onclick="saveShipTo()">Save</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
-
-<script id="addressTemplate" type="text/x-handlebars-template">
-  <tr class="font-size-11" id="{{ id }}">
-    <td>
-      <button type="button" class="btn btn-minier btn-address {{#if default}}btn-success{{/if}}" id="btn-{{ id }}" onClick="setDefault('{{customer_code}}','{{ id }}')"><i class="fa fa-check"></i></button>        
-      <button type="button" class="btn btn-minier btn-warning" onClick="editAddress('{{ id }}')"><i class="fa fa-pencil"></i></button>
-      <button type="button" class="btn btn-minier btn-danger" onClick="removeShipTo('{{ id }}')"><i class="fa fa-trash"></i></button>
-    </td>
-    <td>{{ alias }}</td>
-    <td>{{ name }}</td>
-    <td>{{ address }}</td>
-    <td>{{ email }}</td>
-    <td>{{ phone }}</td>
-  </tr>
-</script>
-
-
-
-<script id="addressTableTemplate" type="text/x-handlebars-template">
-  {{#each this}}
-    <tr class="font-size-11" id="{{ id }}">
-      <td>
-        <button type="button" class="btn btn-minier btn-address {{#if default}}btn-success{{/if}}" id="btn-{{ id }}" onClick="setDefault('{{customer_code}}','{{ id }}')"><i class="fa fa-check"></i></button>
-        <button type="button" class="btn btn-minier btn-warning" onClick="editAddress('{{ id }}')"><i class="fa fa-pencil"></i></button>
-        <button type="button" class="btn btn-minier btn-danger" onClick="removeShipTo('{{ id }}')"><i class="fa fa-trash"></i></button>
-      </td>
-      <td>{{ alias }}</td>
-      <td>{{ name }}</td>
-      <td>{{ address }}</td>
-      <td>{{ email }}</td>
-      <td>{{ phone }}</td>
-    </tr>
-  {{/each}}
-</script>

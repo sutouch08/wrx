@@ -1,49 +1,82 @@
-var HOME = BASE_URL + 'masters/product_collection/';
-
-function addNew(){
-  window.location.href = HOME + 'add_new';
+function addNew() {
+  window.location.href = `${HOME}add_new`;
 }
 
-
-
-function goBack(){
-  window.location.href = HOME;
+function edit(id) {
+  window.location.href = `${HOME}edit/${id}`;
 }
 
+function confirmDelete(id, name) {
+  swal({
+    title: 'Are you sure?',
+    text: `Do you want to delete '${name}' ?`,
+    type: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#FA5858',
+    confirmButtonText: 'Yes, delete it!',
+    cancelButtonText: 'Cancel',
+    closeOnConfirm: true
+  }, function() {
+    load_in();
+    setTimeout(() => {
+      $.ajax({
+        url:`${HOME}delete`,
+        type: 'POST',
+        cache: false,
+        data: {
+          'id' : id
+        },
+        success: function(rs) {
+          load_out();
 
-function getEdit(id){
-  window.location.href = HOME + 'edit/'+id;
+          if(rs.trim() === 'success') {
+            swal({
+              title: 'Success',
+              type: 'success',
+              timer: 1000
+            });
+
+            $(`#row-${id}`).remove();
+            reIndex();
+          }
+          else {
+            showError(rs);
+          }
+        },
+        error:function(rs) {
+          showError(rs);
+        }
+      });
+    },100);    
+  });
 }
 
-
-function clearFilter(){
-  $.get(HOME + 'clear_filter', function() {
-    goBack();
-  })
-}
+let click = false;
 
 function add() {
-  $('.r').removeClass('has-error');
-  $('.e').text('');
+  if(click) return;
+  click = true;
+  clearErrorByClass('r');
+  let code = $('#code').val().trim();
+  let name = $('#name').val().trim();
+  let active = $('#active').is(':checked') ? 1 : 0;
 
-  let code = $.trim($('#code').val());
-  let name = $.trim($('#name').val());
-  let active = $('#active').val() == '0' ? 0 : 1;
-
-  if(code.length == 0) {
-    $('#code').addClass('has-error');
-    $('#code-error').text('Required');
-    return false;
+  if(code === '') {
+    $('#code').hasError();
+    click = false;
+    return;
   }
 
-  if(name.length == 0) {
-    $('#name').addClass('has-error');
-    $('#name-error').text('Required');
-    return false;
+  if(name === '') {
+    $('#name').hasError();
+    click = false;
+    return;
   }
+
+  load_in();
 
   $.ajax({
-    url:HOME + 'add',
+    url:`${HOME}add`,
     type:'POST',
     cache:false,
     data:{
@@ -52,56 +85,53 @@ function add() {
       'active' : active
     },
     success:function(rs) {
-      if(isJson(rs)) {
-        let ds = JSON.parse(rs);
-        if(ds.status == 'success') {
-          swal({
-            title:'Success',
-            type:'success',
-            timer:1000
-          });
+      click = false;
+      load_out();
+      if(rs.trim() === 'success') {
+        swal({
+          title: 'Success',
+          type: 'success',
+          timer: 1000
+        });
 
-          setTimeout(() => {
-            addNew();
-          }, 1200);
-        }
-        else {
-          swal({
-            title:'Error!',
-            text:ds.message,
-            type:'error'
-          });
-        }
+        setTimeout(() => { addNew(); }, 1200);
       }
       else {
-        swal({
-          title:'Error',
-          text:rs,
-          type:'error'
-        })
+        showError(rs);
       }
+    },
+    error:function(rs) {
+      showError(rs);
+      click = false;
     }
-  })
+  });
 }
 
-
 function update() {
-  $('.r').removeClass('has-error');
-  $('.e').text('');
-
+  if(click) return;
+  click = true;
+  clearErrorByClass('r');
   let id = $('#id').val();
-  let code = $.trim($('#code').val());
-  let name = $.trim($('#name').val());
-  let active = $('#active').val() == '0' ? 0 : 1;
+  let code = $('#code').val().trim();
+  let name = $('#name').val().trim();
+  let active = $('#active').is(':checked') ? 1 : 0;
 
-  if(name.length == 0) {
-    $('#name').addClass('has-error');
-    $('#name-error').text('Required');
-    return false;
+  if(code === '') {
+    $('#code').hasError();
+    click = false;
+    return;
   }
 
+  if(name === '') {
+    $('#name').hasError();
+    click = false;
+    return;
+  }
+
+  load_in();
+
   $.ajax({
-    url:HOME + 'update',
+    url:`${HOME}update`,
     type:'POST',
     cache:false,
     data:{
@@ -111,86 +141,22 @@ function update() {
       'active' : active
     },
     success:function(rs) {
-      if(isJson(rs)) {
-        let ds = JSON.parse(rs);
-        if(ds.status == 'success') {
-          swal({
-            title:'Success',
-            type:'success',
-            timer:1000
-          });
-        }
-        else {
-          swal({
-            title:'Error!',
-            text:ds.message,
-            type:'error'
-          });
-        }
+      click = false;
+      load_out();
+      if(rs.trim() === 'success') {
+        swal({
+          title: 'Success',
+          type: 'success',
+          timer: 1000
+        });
       }
       else {
-        swal({
-          title:'Error',
-          text:rs,
-          type:'error'
-        })
+        showError(rs);
       }
+    },
+    error:function(rs) {
+      showError(rs);
+      click = false;
     }
   })
-}
-
-
-function getDelete(id, name){
-  swal({
-    title:'Are sure ?',
-    text:'ต้องการลบ ' + name + ' หรือไม่ ?',
-    type:'warning',
-    showCancelButton: true,
-		confirmButtonColor: '#FA5858',
-		confirmButtonText: 'ใช่, ฉันต้องการลบ',
-		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: false
-  },function() {
-    $.ajax({
-      url:HOME + 'delete/'+id,
-      type:'POST',
-      cache:false,
-      success:function(rs) {
-        if(isJson(rs)) {
-          let ds = JSON.parse(rs);
-
-          if(ds.status == 'success') {
-            swal({
-              title:'Success',
-              type:'success',
-              timer:1000
-            });
-
-            $('#row-'+id).remove();
-            reIndex();
-          }
-          else {
-            swal({
-              title:'Error!',
-              text:ds.message,
-              type:'error'
-            })
-          }
-        }
-        else {
-          swal({
-            title:'Error!',
-            text:rs,
-            type:'error'
-          })
-        }
-      }
-    })
-  })
-}
-
-
-
-function getSearch(){
-  $('#searchForm').submit();
 }

@@ -6,10 +6,9 @@ class Cancle extends PS_Controller
   public $menu_code = 'ICCKCN';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'CHECK';
-	public $title = 'ตรวจสอบ CANCLE ZONE';
-  public $filter;
-  public $error;
-  public $segment = 4; //-- url segment
+	public $title = 'ตรวจสอบ CANCLE ZONE';  
+  public $segment = 4; 
+
   public function __construct()
   {
     parent::__construct();
@@ -30,7 +29,12 @@ class Cancle extends PS_Controller
       'to_date' => get_filter('to_date', 'to_date', '')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
+    if($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+
 		$perpage = get_rows();	
 		$rows = $this->cancle_model->count_rows($filter);
     $filter['data'] = $this->cancle_model->get_list($filter, $perpage, $this->uri->segment($this->segment));		
@@ -45,6 +49,7 @@ class Cancle extends PS_Controller
     $sc = TRUE;
     $this->load->model('stock/stock_model');
     $rs = $this->cancle_model->get($id);
+
     if(!empty($rs))
     {
       $this->db->trans_begin();
@@ -75,21 +80,16 @@ class Cancle extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
   //--- Just delete
   public function delete($id)
   {
     $rs = $this->cancle_model->delete($id);
-
     echo $rs === TRUE ? 'success' : 'failed';
   }
 
 
   function clear_filter(){
     $filter = array('order_code', 'pd_code', 'zone_code', 'from_date', 'to_date');
-    clear_filter($filter);
+    return clear_filter($filter);
   }
-
-
-} //--- end class
-?>
+}

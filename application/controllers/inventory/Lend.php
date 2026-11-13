@@ -6,12 +6,8 @@ class Lend extends PS_Controller
   public $menu_code = 'ICLEND';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'REQUEST';
-	public $title = 'เบิกยืมสินค้า';
-  public $filter;
-  public $error;
-	public $wmsApi;
-  public $sokoApi;
-
+	public $title = 'เบิกยืมสินค้า';  
+	
   public function __construct()
   {
     parent::__construct();
@@ -30,10 +26,7 @@ class Lend extends PS_Controller
     $this->load->helper('users');
     $this->load->helper('state');
     $this->load->helper('product_images');
-    $this->load->helper('warehouse');
-
-		$this->wmsApi = is_true(getConfig('WMS_API'));
-    $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
+    $this->load->helper('warehouse');		
   }
 
 
@@ -50,8 +43,7 @@ class Lend extends PS_Controller
 			'warehouse' => get_filter('warehouse', 'lend_warehouse', ''),
 			'notSave' => get_filter('notSave', 'lend_notSave', NULL),
       'onlyMe' => get_filter('onlyMe', 'lend_onlyMe', NULL),
-      'isExpire' => get_filter('isExpire', 'lend_isExpire', NULL),
-			'wms_export' => get_filter('wms_export', 'lend_wms_export', 'all'),
+      'isExpire' => get_filter('isExpire', 'lend_isExpire', NULL),			
       'is_backorder' => get_filter('is_backorder', 'lend_is_backorder', 'all'),
       'sap_status' => get_filter('sap_status', 'lend_sap_status', 'all')
     );
@@ -86,32 +78,21 @@ class Lend extends PS_Controller
     $button['not_save'] = empty($filter['notSave']) ? '' : 'btn-info';
     $button['only_me'] = empty($filter['onlyMe']) ? '' : 'btn-info';
     $button['is_expire'] = empty($filter['isExpire']) ? '' : 'btn-info';
-
-
     $filter['state_list'] = empty($state_list) ? NULL : $state_list;
+		
+		$perpage = get_rows();		
+    $role = 'L'; //--- L = เบิกยืมสินค้า
+		$segment = 4; //-- url segment
+		$rows = $this->orders_model->count_rows($filter, $role);		
+		$orders = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($segment), $role);
+    $ds = array();
 
-
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
-    $role     = 'L'; //--- L = เบิกยืมสินค้า
-		$segment  = 4; //-- url segment
-		$rows     = $this->orders_model->count_rows($filter, $role);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$orders   = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($segment), $role);
-    $ds       = array();
     if(!empty($orders))
     {
       foreach($orders as $rs)
       {
-        $rs->total_amount  = $this->orders_model->get_order_total_amount($rs->code);
-        $rs->state_name    = get_state_name($rs->state);
+        $rs->total_amount = $this->orders_model->get_order_total_amount($rs->code);
+        $rs->state_name = get_state_name($rs->state);
         $ds[] = $rs;
       }
     }
@@ -119,7 +100,7 @@ class Lend extends PS_Controller
     $filter['orders'] = $ds;
 		$filter['state'] = $state;
     $filter['btn'] = $button;
-
+		$init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
     $this->load->view('lend/lend_list', $filter);
   }
@@ -131,39 +112,23 @@ class Lend extends PS_Controller
   }
 
 
-
   public function add()
   {
     $sc = TRUE;
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
     {
 			$this->load->model('masters/warehouse_model');
-
-      $book_code = getConfig('BOOK_CODE_LEND');
-
-      $wmsWh = getConfig('WMS_WAREHOUSE');
-      $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
-
+      $book_code = getConfig('BOOK_CODE_LEND');      
       $date_add = db_date($data->date_add);
       $code = $this->get_new_code($date_add);
-
-      $role = 'L'; //--- L = ยืมสินค้า
-
-      $has_term = 1; //--- ถือว่าเป็นเครดิต
-
+      $role = 'L'; //--- L = ยืมสินค้า     
       $zone = $this->zone_model->get($data->zone_code);
-
 			$wh = $this->warehouse_model->get($data->warehouse_code);
 
       if( ! empty($wh))
-      {
-        $isSoko = $wh->code == $sokoWh ? TRUE : FALSE;
-        $isWms = $wh->code == $wmsWh ? TRUE : FALSE;
-
-        $is_wms = $isWms ? 1 : ($isSoko ? 2 : 0);
-
+      {       
         $ds = array(
           'date_add' => $date_add,
           'code' => $code,
@@ -175,9 +140,8 @@ class Lend extends PS_Controller
           'remark' => get_null($data->remark),
           'empID' => $data->empID,
           'empName' => $data->empName,
-          'zone_code' => $zone->code, //---- zone ที่จะโอนสินค้าไปเก็บ
-          'warehouse_code' => $wh->code, //--- คลังที่จะจัดสินค้าออก
-  				'is_wms' => $is_wms
+          'zone_code' => $zone->code, 
+          'warehouse_code' => $wh->code
         );
 
         if($this->orders_model->add($ds))
@@ -185,7 +149,7 @@ class Lend extends PS_Controller
           $arr = array(
             'order_code' => $code,
             'state' => 1,
-            'update_user' => get_cookie('uname')
+            'update_user' => $this->_user->uname
           );
 
           $this->order_state_model->add_state($arr);
@@ -218,7 +182,6 @@ class Lend extends PS_Controller
   }
 
 
-
   public function edit_order($code, $approve_view = NULL)
   {
     $this->load->model('approve_logs_model');
@@ -227,16 +190,18 @@ class Lend extends PS_Controller
 
     $ds = array();
     $rs = $this->orders_model->get($code);
+
     if(!empty($rs))
     {
-      $rs->total_amount  = $this->orders_model->get_order_total_amount($rs->code);
-      $rs->user          = $this->user_model->get_name($rs->user);
-      $rs->state_name    = get_state_name($rs->state);
-      $rs->zone_name     = $this->zone_model->get_name($rs->zone_code);
+      $rs->total_amount = $this->orders_model->get_order_total_amount($rs->code);
+      $rs->user = $this->user_model->get_name($rs->user);
+      $rs->state_name = get_state_name($rs->state);
+      $rs->zone_name = $this->zone_model->get_name($rs->zone_code);
     }
 
     $state = $this->order_state_model->get_order_state($code);
     $ost = array();
+
     if(!empty($state))
     {
       foreach($state as $st)
@@ -252,19 +217,17 @@ class Lend extends PS_Controller
 		$ds['addr'] = $this->address_model->get_ship_to_address($rs->empID);
 		$ds['cancle_reason'] = ($rs->state == 9 ? $this->orders_model->get_cancle_reason($code) : NULL);
     $ds['approve_view'] = $approve_view;
-    $ds['approve_logs'] = $this->approve_logs_model->get($code);
-    $ds['is_api'] = is_api($rs->is_wms, $this->wmsApi, $this->sokoApi);
+    $ds['approve_logs'] = $this->approve_logs_model->get($code);    
     $ds['tracking'] = $this->orders_model->get_order_tracking($code);
     $ds['backlogs'] = $rs->is_backorder == 1 ? $this->orders_model->get_backlog_details($rs->code) : NULL;
     $this->load->view('lend/lend_edit', $ds);
   }
 
 
-
   public function update_order()
   {
     $sc = TRUE;
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
     {
@@ -276,7 +239,7 @@ class Lend extends PS_Controller
         if($order->state > 1)
         {
           $ds = array(
-            'remark' => get_null(trim($data->remark))
+            'remark' => get_null(trim($data->remark ?? ''))
           );
         }
         else
@@ -285,23 +248,15 @@ class Lend extends PS_Controller
 					$wh = $this->warehouse_model->get($data->warehouse_code);
 
           if( ! empty($wh))
-          {
-            $wmsWh = getConfig('WMS_WAREHOUSE');
-            $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
-            $isSoko = $wh->code == $sokoWh ? TRUE : FALSE;
-            $isWms = $wh->code == $wmsWh ? TRUE : FALSE;
-
-            $is_wms = $isWms ? 1 : ($isSoko ? 2 : 0);
-
+          {            
             $ds = array(
               'empID' => $data->empID,
               'empName' => $data->empName,
               'date_add' => db_date($data->date_add),
               'user_ref' => $data->user_ref,
               'zone_code' => $data->zone_code,
-              'remark' => get_null(trim($data->remark)),
-              'warehouse_code' => $wh->code,
-  						'is_wms' => $is_wms,
+              'remark' => get_null(trim($data->remark ?? '')),
+              'warehouse_code' => $wh->code,  						
   						'id_address' => NULL,
   						'id_sender' => NULL,
               'status' => 0
@@ -339,12 +294,12 @@ class Lend extends PS_Controller
   }
 
 
-
   public function edit_detail($code)
   {
     $this->load->helper('product_tab');
     $ds = array();
     $rs = $this->orders_model->get($code);
+
     if($rs->state <= 3)
     {
       $rs->zone_name = $this->zone_model->get_name($rs->zone_code);
@@ -356,25 +311,10 @@ class Lend extends PS_Controller
   }
 
 
-
   public function save($code)
-  {
-    $sc = TRUE;
-    $order = $this->orders_model->get($code);
-
-    if($sc === TRUE)
-    {
-      $rs = $this->orders_model->set_status($code, 1);
-      if($rs === FALSE)
-      {
-        $sc = FALSE;
-        $message = 'บันทึกออเดอร์ไม่สำเร็จ';
-      }
-    }
-
-    echo $sc === TRUE ? 'success' : $message;
+  {    
+    echo $this->orders_model->set_status($code, 1) ? 'success' : 'บันทึกออเดอร์ไม่สำเร็จ';
   }
-
 
 
   public function get_new_code($date)
@@ -386,6 +326,7 @@ class Lend extends PS_Controller
     $run_digit = getConfig('RUN_DIGIT_LEND');
     $pre = $prefix .'-'.$Y.$M;
     $code = $this->orders_model->get_max_code($pre);
+
     if(! is_null($code))
     {
       $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
@@ -398,7 +339,6 @@ class Lend extends PS_Controller
 
     return $new_code;
   }
-
 
 
   public function set_never_expire()
@@ -416,6 +356,7 @@ class Lend extends PS_Controller
     $rs = $this->orders_model->un_expired($code);
     echo $rs === TRUE ? 'success' : 'ทำรายการไม่สำเร็จ';
   }
+
 
   public function clear_filter()
   {
@@ -448,4 +389,3 @@ class Lend extends PS_Controller
     clear_filter($filter);
   }
 }
-?>

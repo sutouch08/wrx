@@ -1,46 +1,40 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
 class Cancel_reason extends PS_Controller
 {
   public $menu_code = 'SCODCR';
-	public $menu_group_code = 'SC';
-	public $title = 'เหตุผลในการยกเลิก';
+  public $menu_group_code = 'SC';
+  public $title = 'เหตุผลในการยกเลิก';
   public $segment = 4;
 
   public function __construct()
   {
     parent::__construct();
-    $this->home = base_url().'masters/cancel_reason';
+    $this->home = base_url() . 'masters/cancel_reason';
     $this->load->model('masters/cancel_reason_model');
   }
 
 
   public function index()
   {
-		$filter = array(
+    $filter = array(
       'name' => get_filter('name', 'cancel_name', ''),
       'active' => get_filter('active', 'cancel_active', 'all')
     );
 
-
-    if($this->input->post('search'))
+    if ($this->input->post('search'))
     {
       redirect($this->home);
+      exit;
     }
-    else
-    {
-      //--- แสดงผลกี่รายการต่อหน้า
-  		$perpage = get_rows();
-
-  		$rows = $this->cancel_reason_model->count_rows($filter);
-  		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-  		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
-  		$filter['data'] = $this->cancel_reason_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
-
-  		$this->pagination->initialize($init);
-      $this->load->view('masters/cancel_reason/cancel_reason_list', $filter);
-    }
+    
+    $perpage = get_rows();
+    $rows = $this->cancel_reason_model->count_rows($filter);    
+    $filter['data'] = $this->cancel_reason_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $this->pagination->initialize($init);
+    $this->load->view('masters/cancel_reason/cancel_reason_list', $filter);
   }
 
 
@@ -54,14 +48,14 @@ class Cancel_reason extends PS_Controller
   {
     $sc = TRUE;
 
-    if($this->pm->can_add)
+    if ($this->pm->can_add)
     {
-      $name = trim($this->input->post('name'));
+      $name = trim($this->input->post('name') ?? '');
       $active = $this->input->post('active');
 
-      if( ! empty($name))
+      if (! empty($name))
       {
-        if( ! $this->cancel_reason_model->is_exists($name))
+        if (! $this->cancel_reason_model->is_exists($name))
         {
           $arr = array(
             'name' => $name,
@@ -69,7 +63,7 @@ class Cancel_reason extends PS_Controller
             'user' => $this->_user->uname
           );
 
-          if( ! $this->cancel_reason_model->add($arr))
+          if (! $this->cancel_reason_model->add($arr))
           {
             $sc = FALSE;
             set_error('insert');
@@ -97,14 +91,13 @@ class Cancel_reason extends PS_Controller
   }
 
 
-
   public function edit($id)
   {
-    if($this->pm->can_edit)
+    if ($this->pm->can_edit)
     {
       $rs = $this->cancel_reason_model->get($id);
 
-      if( ! empty($rs))
+      if (! empty($rs))
       {
         $this->load->view('masters/cancel_reason/cancel_reason_edit', $rs);
       }
@@ -125,19 +118,19 @@ class Cancel_reason extends PS_Controller
   {
     $sc = TRUE;
 
-    if($this->pm->can_edit)
+    if ($this->pm->can_edit)
     {
       $id = $this->input->post('id');
-      $name = trim($this->input->post('name'));
+      $name = trim($this->input->post('name') ?? '');
       $active = $this->input->post('active');
 
-      if( ! empty($name))
+      if (! empty($name))
       {
         $row = $this->cancel_reason_model->get($id);
 
-        if( ! empty($row))
+        if (! empty($row))
         {
-          if( ! $this->cancel_reason_model->is_exists($name, $id))
+          if (! $this->cancel_reason_model->is_exists($name, $id))
           {
             $arr = array(
               'name' => $name,
@@ -147,7 +140,7 @@ class Cancel_reason extends PS_Controller
               'prev_name' => $row->name
             );
 
-            if( ! $this->cancel_reason_model->update($id, $arr))
+            if (! $this->cancel_reason_model->update($id, $arr))
             {
               $sc = FALSE;
               set_error('update');
@@ -181,14 +174,13 @@ class Cancel_reason extends PS_Controller
   }
 
 
-
   public function get($id)
   {
     $sc = TRUE;
 
     $row = $this->cancel_reason_model->get($id);
 
-    if( ! empty($row))
+    if (! empty($row))
     {
       $row->date_add = thai_date($row->date_add, TRUE);
       $row->date_upd = empty($row->date_upd) ? NULL : thai_date($row->date_upd, TRUE);
@@ -214,17 +206,16 @@ class Cancel_reason extends PS_Controller
   {
     $sc = TRUE;
 
-    if($this->pm->can_delete)
+    if ($this->pm->can_delete)
     {
       $id = $this->input->post('id');
-
       $row = $this->cancel_reason_model->get($id);
 
-      if( ! empty($row))
+      if (! empty($row))
       {
-        if( ! $this->cancel_reason_model->has_transection($id))
+        if (! $this->cancel_reason_model->has_transection($id))
         {
-          if( ! $this->cancel_reason_model->delete($id))
+          if (! $this->cancel_reason_model->delete($id))
           {
             $sc = FALSE;
             set_error('delete');
@@ -253,9 +244,7 @@ class Cancel_reason extends PS_Controller
 
 
   public function clear_filter()
-	{
-		return clear_filter(array('cancel_name', 'cancel_active'));    
-	}
-
-}//--- end class
- ?>
+  {
+    return clear_filter(array('cancel_name', 'cancel_active'));
+  }
+}

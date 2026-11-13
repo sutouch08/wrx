@@ -106,5 +106,4 @@ class Temp_goods_issue extends PS_Controller
 
     return clear_filter($filter);    
   }
-
 }

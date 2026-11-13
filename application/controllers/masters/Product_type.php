@@ -7,6 +7,7 @@ class Product_type extends PS_Controller
 	public $menu_group_code = 'DB';
   public $menu_sub_group_code = 'PRODUCT';
 	public $title = 'เพิ่ม/แก้ไข ชนิดสินค้า';
+  public $segment = 4;
 
   public function __construct()
   {
@@ -15,255 +16,167 @@ class Product_type extends PS_Controller
     $this->load->model('masters/product_type_model');
   }
 
-
   public function index()
   {
-		$code = get_filter('code', 'type_code', '');
-		$name = get_filter('name', 'type_name', '');
+    $filter = array(
+      'code' => get_filter('code', 'code', ''),
+      'name' => get_filter('name', 'name', '')
+    );
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_filter('set_rows', 'rows', 20);
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = get_filter('rows', 'rows', 300);
-		}
-
-		$segment = 4; //-- url segment
-		$rows = $this->product_type_model->count_rows($code, $name);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$type = $this->product_type_model->get_data($code, $name, $perpage, $this->uri->segment($segment));
-
-    $data = array();
-
-    if(!empty($type))
+    if ($this->input->post('search'))
     {
-      foreach($type as $rs)
-      {
-        $arr = new stdClass();
-        $arr->code = $rs->code;
-        $arr->name = $rs->name;
-        $arr->menber = $this->product_type_model->count_members($rs->code);
+      redirect($this->home);
+      exit;
+    }
 
-        $data[] = $arr;
+    $perpage = get_rows();
+    $rows = $this->product_type_model->count_rows($filter);
+    $filter['data'] = $this->product_type_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+
+    if (!empty($filter['data']))
+    {
+      foreach ($filter['data'] as $rs)
+      {
+        $rs->menber = $this->product_type_model->count_members($rs->code);
       }
     }
 
-
-    $ds = array(
-      'code' => $code,
-      'name' => $name,
-			'data' => $data
-    );
-
-		$this->pagination->initialize($init);
-    $this->load->view('masters/product_type/product_type_view', $ds);
+    $init  = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $this->pagination->initialize($init);
+    $this->load->view('masters/product_type/product_type_view', $filter);
   }
-
 
   public function add_new()
   {
-    $data['code'] = $this->session->flashdata('code');
-    $data['name'] = $this->session->flashdata('name');
-    $this->title = 'เพิ่ม ชนิดสินค้า';
-    $this->load->view('masters/product_type/product_type_add_view', $data);
+    $this->load->view('masters/product_type/product_type_add_view');
   }
-
 
   public function add()
   {
-    if($this->input->post('code'))
+    $code = trim($this->input->post('code') ?? '');
+    $name = trim($this->input->post('name') ?? '');
+
+    if (empty($code) || empty($name))
     {
-      $sc = TRUE;
-      $code = $this->input->post('code');
-      $name = $this->input->post('name');
-      $ds = array(
-        'code' => $code,
-        'name' => $name
-      );
-
-      if($this->product_type_model->is_exists($code) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$code."' มีในระบบแล้ว");
-      }
-
-      if($this->product_type_model->is_exists_name($name) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$name."' มีในระบบแล้ว");
-      }
-
-      if($sc === TRUE)
-      {
-        if($this->product_type_model->add($ds))
-        {
-          $this->export_to_sap($code, $code);
-          set_message('เพิ่มข้อมูลเรียบร้อยแล้ว');
-        }
-        else
-        {
-          $sc = FALSE;
-          set_error('เพิ่มข้อมูลไม่สำเร็จ');
-        }
-      }
-
-
-      if($sc === FALSE)
-      {
-        $this->session->set_flashdata('code', $code);
-        $this->session->set_flashdata('name', $name);
-      }
-    }
-    else
-    {
-      set_error('ไม่พบข้อมูล');
+      echo get_error('required');
+      exit;
     }
 
-    redirect($this->home.'/add_new');
+    if ($this->product_type_model->is_exists($code))
+    {
+      echo get_error('exists', $code);
+      exit;
+    }
+
+    if ($this->product_type_model->is_exists_name($name))
+    {
+      echo get_error('exists', $name);
+      exit;
+    }
+
+    $arr = array(
+      'code' => $code,
+      'name' => $name
+    );
+
+    if (! $this->product_type_model->add($arr))
+    {
+      echo get_error('insert');
+      exit;
+    }
+
+    echo 'success';
   }
-
-
 
   public function edit($code)
   {
-    $this->title = 'แก้ไข ชนิดสินค้า';
-    $rs = $this->product_type_model->get($code);
-    $data = array(
-      'code' => $rs->code,
-      'name' => $rs->name
-    );
-
-    $this->load->view('masters/product_type/product_type_edit_view', $data);
+    $ds = $this->product_type_model->get($code);
+    $this->load->view('masters/product_type/product_type_edit_view', $ds);
   }
-
-
 
   public function update()
   {
-    $sc = TRUE;
+    $code = $this->input->post('code') ?? '';
+    $name = $this->input->post('name') ?? '';
 
-    if($this->input->post('code'))
+    if (empty($code) || empty($name))
     {
-      $old_code = $this->input->post('product_type_code');
-      $old_name = $this->input->post('product_type_name');
-      $code = $this->input->post('code');
-      $name = $this->input->post('name');
-
-      $ds = array(
-        'code' => $code,
-        'name' => $name
-      );
-
-      if($sc === TRUE && $this->product_type_model->is_exists($code, $old_code) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$code."' มีอยู่ในระบบแล้ว โปรดใช้รหัสอื่น");
-      }
-
-      if($sc === TRUE && $this->product_type_model->is_exists_name($name, $old_name) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$name."' มีอยู่ในระบบแล้ว โปรดใช้ชื่ออื่น");
-      }
-
-      if($sc === TRUE)
-      {
-        if($this->product_type_model->update($old_code, $ds) === TRUE)
-        {
-          $this->export_to_sap($code, $old_code);
-          set_message('ปรับปรุงข้อมูลเรียบร้อยแล้ว');
-        }
-        else
-        {
-          $sc = FALSE;
-          set_error('ปรับปรุงข้อมูลไม่สำเร็จ');
-        }
-      }
-
-    }
-    else
-    {
-      $sc = FALSE;
-      set_error('ไม่พบข้อมูล');
+      echo get_error('required');
+      exit;
     }
 
-    if($sc === FALSE)
+    if ($this->product_type_model->is_exists_name($name, $code))
     {
-      $code = $this->input->post('product_type_code');
+      echo get_error('exists', $name);
+      exit;
     }
 
-    redirect($this->home.'/edit/'.$code);
+    $arr = array('name' => $name);
+
+    if (! $this->product_type_model->update($code, $arr))
+    {
+      echo get_error('update');
+      exit;
+    }
+
+    echo 'success';
   }
 
-
-
-  public function delete($code)
+  public function delete()
   {
-    if($code != '')
+    if (! $this->pm->can_delete)
     {
-      if($this->product_type_model->delete($code))
-      {
-        set_message('ลบข้อมูลเรียบร้อยแล้ว');
-      }
-      else
-      {
-        set_error('ลบข้อมูลไม่สำเร็จ');
-      }
-    }
-    else
-    {
-      set_error('ไม่พบข้อมูล');
+      echo get_error('permission');
+      exit;
     }
 
-    redirect($this->home);
+    $code = $this->input->post('code') ?? '';
+
+    if (empty($code))
+    {
+      echo get_error('required');
+      exit;
+    }
+
+    if ($this->product_type_model->count_members($code) > 0)
+    {
+      echo get_error('transaction', $code);
+      exit;
+    }
+
+    if (! $this->product_type_model->delete($code))
+    {
+      echo get_error('delete');
+      exit;
+    }
+
+    echo 'success';
   }
 
-
-  public function export_to_sap($code, $old_code)
+  public function export_to_sap($code)
   {
     $rs = $this->product_type_model->get($code);
-    if(!empty($rs))
+
+    if (!empty($rs))
     {
-      $ext = $this->product_type_model->is_sap_exists($old_code);
+      $ext = $this->product_type_model->is_sap_exists($code);
 
       $arr = array(
         'Code' => $rs->code,
         'Name' => $rs->name,
-        'UpdateDate' => sap_date(now(), TRUE)
+        'UpdateDate' => sap_date(now(), TRUE),
+        'OLDCODE' => NULL,
+        'Flag' => $ext ? 'U' : 'A'
       );
 
-      if($ext)
-      {
-        $arr['Flag'] = 'U';
-        if($code !== $old_code)
-        {
-          $arr['OLDCODE'] = $old_code;
-        }
-
-        //return $this->product_type_model->update_sap_type($old_code, $arr);
-      }
-      else
-      {
-        $arr['Flag'] = 'A';
-
-        // return $this->product_type_model->add_sap_type($arr);
-      }
-
-      return $this->product_type_model->add_sap_type($arr);
+      return $this->product_type_model->add_sap($arr);
     }
 
     return FALSE;
   }
 
-
   public function clear_filter()
-	{
-		$filter = array('type_code', 'type_name');
-    clear_filter($filter);
-		echo 'done';
-	}
-
-}//--- end class
- ?>
+  {
+    return clear_filter(array('code', 'name'));
+  }
+}

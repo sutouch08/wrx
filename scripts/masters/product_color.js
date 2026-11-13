@@ -1,211 +1,204 @@
-function addNew(){
-  window.location.href = BASE_URL + 'masters/product_color/add_new';
+function addNew() {
+  window.location.href = `${HOME}add_new`;
 }
 
-
-
-function goBack(){
-  window.location.href = BASE_URL + 'masters/product_color';
+function edit(code) {
+  window.location.href = `${HOME}edit/${code}`;
 }
 
-
-function getEdit(code){
-  window.location.href = BASE_URL + 'masters/product_color/edit/'+code;
-}
-
-
-function clearFilter(){
-  var url = BASE_URL + 'masters/product_color/clear_filter';
-  var page = BASE_URL + 'masters/product_color';
-  $.get(url, function(rs){
-    window.location.href = page;
-  });
-}
-
-
-function getDelete(id, name){
+function confirmDelete(id, name) {
   swal({
-    title:'Are sure ?',
-    text:'ต้องการลบ ' + name + ' หรือไม่ ?',
-    type:'warning',
+    title: 'Are sure ?',
+    text: `ต้องการลบ ${name} หรือไม่ ?`,
+    type: 'warning',
     showCancelButton: true,
-		confirmButtonColor: '#FA5858',
-		confirmButtonText: 'ใช่, ฉันต้องการลบ',
-		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: true
-  },function(){
+    confirmButtonColor: '#FA5858',
+    confirmButtonText: 'ใช่, ฉันต้องการลบ',
+    cancelButtonText: 'ยกเลิก',
+    closeOnConfirm: true
+  }, function () {
+    load_in();
     setTimeout(() => {
-      load_in();
-
       $.ajax({
-        url:BASE_URL + 'masters/product_color/delete',
-        type:'POST',
-        cache:false,
-        data:{
-          'id' : id
+        url: `${HOME}delete`,
+        type: 'POST',
+        cache: false,
+        data: {
+          'id': id
         },
-        success:function(rs) {
+        success: function (rs) {
           load_out();
 
-          if(rs === 'success') {
+          if (rs === 'success') {
             swal({
-              title:'Success',
-              type:'success',
-              timer:1000
+              title: 'Success',
+              type: 'success',
+              timer: 1000
             });
 
-            $('#row-'+id).remove();
+            $(`#row-${id}`).remove();
+            reIndex();
           }
           else {
-            swal({
-              title:'Error!',
-              text:rs,
-              type:'error'
-            });
+            showError(rs);
           }
+        },
+        error: function (rs) {
+          showError(rs);
         }
       })
-    }, 200);
+    }, 100);
   })
 }
 
 
-function toggleActive(option, code)
-{
+function toggleActive(option, code) {
   $.ajax({
-    url:BASE_URL + 'masters/product_color/set_active',
-    type:'POST',
-    cache:'false',
-    data:{
-      'code' : code,
-      'active' : option
+    url: `${HOME}set_active`,
+    type: 'POST',
+    cache: 'false',
+    data: {
+      'code': code,
+      'active': option
     },
-    success:function(rs){
-      if(rs != ''){
-        $('#'+code).html(rs);
+    success: function (rs) {
+      if (rs.trim() != '') {
+        $(`#${code}`).html(rs);
       }
     }
   });
 }
 
-
-function getSearch(){
-  $('#searchForm').submit();
-}
-
+let click = 0;
 
 function add() {
-  $('.r').removeClass('has-error');
-  $('.e').text('');
+  if (click > 0) {
+    return false;
+  }
 
-  let code = $('#code').val();
-  let name = $('#name').val();
+  click = 1;
+  clearErrorByClass('r');
+
+  let code = $('#code').val().trim();
+  let name = $('#name').val().trim();
   let group = $('#color_group').val();
 
-  if(code.length == 0) {
-    $('#code-error').text('required');
-    $('#code').addClass('has-error');
+  if (code == '') {
+    $('#code').hasError();
+    click = 0;
     return false;
   }
 
-  if(name.length == 0) {
-    $('#name-error').text('required');
-    $('#name').addClass('has-error');
+  if (name == '') {
+    $('#name').hasError();
+    click = 0;
     return false;
   }
 
-  if(group == "") {
-    $('#group-error').text('required');
-    $('#color_group').addClass('has-error');
+  if (group == '') {
+    $('#color_group').hasError();
+    click = 0;
     return false;
   }
 
   load_in();
 
   $.ajax({
-    url:BASE_URL + 'masters/product_color/add',
-    type:'POST',
-    cache:false,
+    url: `${HOME}add`,
+    type: 'POST',
+    cache: false,
     data: {
-      'code' : code,
-      'name' : name,
-      'group' : group
+      'code': code,
+      'name': name,
+      'group': group
     },
-    success:function(rs) {
+    success: function (rs) {
       load_out();
+      click = 0;
 
-      if(rs == 'success') {
+      if (rs.trim() === 'success') {
         swal({
-          title:'Success',
-          type:'success',
-          timer:1000
+          title: 'Success',
+          type: 'success',
+          timer: 1000
         });
 
-        setTimeout(() => {
-          addNew();
-        }, 1200);
+        setTimeout(() => { addNew(); }, 1200);
       }
       else {
-        swal({
-          title:'Error!',
-          text:rs,
-          type:'error'
-        })
+        showError(rs);
+        click = 0;
       }
+    },
+    error: function (rs) {
+      showError(rs);
+      click = 0;
     }
-  })
+  });
 }
 
 
-function update(id) {
-  $('.r').removeClass('has-error');
-  $('.e').text('');
-
-  let code = $('#code').val();
-  let name = $('#name').val();
-  let group = $('#color_group').val();
-
-  if(name.length == 0) {
-    $('#name-error').text('required');
-    $('#name').addClass('has-error');
+function update() {
+  if (click > 0) {
     return false;
   }
 
-  if(group == "") {
-    $('#group-error').text('required');
-    $('#color_group').addClass('has-error');
+  click = 1;
+  clearErrorByClass('r');
+  let id = $('#id').val();
+  let code = $('#code').val().trim();
+  let name = $('#name').val().trim() ;
+  let group = $('#color_group').val();
+
+  if (code == '') {
+    $('#code').hasError();
+    click = 0;
+    return false;
+  }
+
+  if (name == '') {
+    $('#name').hasError();
+    click = 0;
+    return false;
+  }
+
+  if (group == "") {
+    $('#color_group').hasError();
+    click = 0;
     return false;
   }
 
   load_in();
 
   $.ajax({
-    url:BASE_URL + 'masters/product_color/update',
-    type:'POST',
-    cache:false,
+    url: `${HOME}update`,
+    type: 'POST',
+    cache: false,
     data: {
-      'id' : id,
-      'code' : code,
-      'name' : name,
-      'group' : group
+      'id': id,
+      'code': code,
+      'name': name,
+      'group': group
     },
-    success:function(rs) {
+    success: function (rs) {
       load_out();
+      click = 0;
 
-      if(rs == 'success') {
+      if (rs.trim() == 'success') {
         swal({
-          title:'Success',
-          type:'success',
-          timer:1000
+          title: 'Success',
+          type: 'success',
+          timer: 1000
         });
       }
       else {
-        swal({
-          title:'Error!',
-          text:rs,
-          type:'error'
-        })
+        click = 0;
+        showError(rs);
       }
+    },
+    error: function (rs) {
+      showError(rs);
+      click = 0;
     }
-  })
+  });
 }

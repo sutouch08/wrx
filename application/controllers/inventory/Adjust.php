@@ -7,9 +7,7 @@ class Adjust extends PS_Controller
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = '';
 	public $title = 'ปรับปรุงสต็อก';
-  public $filter;
-  public $error;
-
+  
   public function __construct()
   {
     parent::__construct();
@@ -38,36 +36,30 @@ class Adjust extends PS_Controller
       'sap' => get_filter('sap', 'adj_sap', 'all')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
+		if($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
 
-		$segment  = 4; //-- url segment
-		$rows     = $this->adjust_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$list   = $this->adjust_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
-    $filter['list'] = $list;
-
-		$this->pagination->initialize($init);
+		$perpage = get_rows();		
+    $segment = 4;
+		$rows = $this->adjust_model->count_rows($filter);
+		$filter['list'] = $this->adjust_model->get_list($filter, $perpage, $this->uri->segment($segment));		
+		$init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
+    $this->pagination->initialize($init);
     $this->load->view('inventory/adjust/adjust_list', $filter);
   }
-
 
   public function add_new()
   {
     $this->load->view('inventory/adjust/adjust_add');
   }
 
-
   public function add()
   {
     $sc = TRUE;
+
     if($this->input->post('date_add'))
     {
       if($this->pm->can_add)
@@ -78,10 +70,10 @@ class Adjust extends PS_Controller
         $ds = array(
           'code' => $code,
           'bookcode' => getConfig('BOOK_CODE_ADJUST'),
-          'reference' => get_null(trim($this->input->post('reference'))),
+          'reference' => get_null(trim($this->input->post('reference') ?? '')),
           'date_add' => $date_add,
           'user' => get_cookie('uname'),
-          'remark' => get_null(trim($this->input->post('remark')))
+          'remark' => get_null(trim($this->input->post('remark') ?? ''))
         );
 
         if(! $this->adjust_model->add($ds))
@@ -104,6 +96,7 @@ class Adjust extends PS_Controller
   public function edit($code)
   {
     $doc = $this->adjust_model->get($code);
+
     if(!empty($doc))
     {
       $ds = array(
@@ -123,6 +116,7 @@ class Adjust extends PS_Controller
   public function add_detail()
   {
     $sc = TRUE;
+
     if($this->input->post('code'))
     {
       $code = $this->input->post('code');
@@ -131,17 +125,21 @@ class Adjust extends PS_Controller
       $up_qty = $this->input->post('qty_up');
       $down_qty = $this->input->post('qty_down');
       $qty = $up_qty - $down_qty;
+
       if($qty != 0)
       {
         $doc = $this->adjust_model->get($code);
+
         if(! empty($doc) && $doc->status == 0)
         {
           //--- ตรวจสอบรหัสสินค้า
           $item = $this->products_model->get($product_code);
+
           if(!empty($item))
           {
             //--- ตรวจสอบรหัสโซน
             $zone = $this->zone_model->get($zone_code);
+
             if(!empty($zone))
             {
               //--- ตรวจสอบว่ามีรายการที่เงื่อนไขเดียวกันแล้วยังไม่ได้บันทึกหรือเปล่า
@@ -156,6 +154,7 @@ class Adjust extends PS_Controller
                   $qty = $up_qty - $down_qty;
                   $stock = $this->stock_model->get_stock_zone($zone_code, $product_code);
                   $new_qty = $stock + ($qty + $detail->qty);
+
                   if($new_qty < 0)
                   {
                     $sc = FALSE;
@@ -174,8 +173,7 @@ class Adjust extends PS_Controller
                 {
                   $sc = FALSE;
                   $this->error = "ไม่สามารถปรับปรุงรายการได้เนื่องจากรายการถูกปรับยอดไปแล้ว";
-                }
-
+                }                
               }
               else
               {
@@ -218,7 +216,6 @@ class Adjust extends PS_Controller
         $sc = FALSE;
         $this->error = "จำนวนต้องมากกว่า 1";
       }
-
     }
     else
     {
@@ -229,6 +226,7 @@ class Adjust extends PS_Controller
     if($sc === TRUE)
     {
       $rs = $this->adjust_model->get_exists_detail($code, $product_code, $zone_code);
+
       if(!empty($rs))
       {
         $arr = array(
@@ -251,8 +249,6 @@ class Adjust extends PS_Controller
 
     echo $sc === TRUE ? json_encode($arr) : $this->error;
   }
-
-
 
 
   //---- update doc header
@@ -303,20 +299,21 @@ class Adjust extends PS_Controller
   }
 
 
-
-
   public function delete_detail()
   {
     $sc = TRUE;
     if($this->pm->can_edit)
     {
       $id = $this->input->post('id');
+
       if(!empty($id))
       {
         $detail = $this->adjust_model->get_detail($id);
+
         if(!empty($detail))
         {
           $doc = $this->adjust_model->get($detail->adjust_code);
+
           if(!empty($doc))
           {
             if($doc->status == 0)
@@ -367,24 +364,26 @@ class Adjust extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
-
   ///----- Just change status to 0
   public function unsave()
   {
     $sc = TRUE;
+
     if($this->input->post('code'))
     {
       $code = $this->input->post('code');
       $doc = $this->adjust_model->get($code);
+
       if(!empty($doc))
       {
         if($doc->status == 1)
         {
           $details = $this->adjust_model->get_details($code);
+
           if(!empty($details))
           {
             $status = 0; //--- 0 = not save, 1 = saved, 2 = cancled
+
             if( ! $this->adjust_model->change_status($code, $status))
             {
               $sc = FALSE;
@@ -413,9 +412,6 @@ class Adjust extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
-
-
   //---- Just change status to 1
   public function save()
   {
@@ -424,6 +420,7 @@ class Adjust extends PS_Controller
     {
       $code = $this->input->post('code');
       $doc = $this->adjust_model->get($code);
+
       if(!empty($doc))
       {
         if($doc->status == 0)
@@ -487,15 +484,17 @@ class Adjust extends PS_Controller
     if($this->input->post('code'))
     {
       $this->load->model('approve_logs_model');
-
       $code = $this->input->post('code');
       $doc = $this->adjust_model->get($code);
+
       if(!empty($doc))
       {
         if($doc->status == 1)
         {
           $this->db->trans_begin();
+
           $details = $this->adjust_model->get_details($code);
+
           if(!empty($details))
           {
             foreach($details as $rs)
@@ -526,7 +525,6 @@ class Adjust extends PS_Controller
                   $this->error = 'บันทึก movement ไม่สำเร็จ';
                   break;
                 }
-
 
                 //--- 2 ปรับรายการเป็น บันทึกรายการแล้ว (valid = 1)
                 if(! $this->adjust_model->valid_detail($rs->id))
@@ -575,8 +573,7 @@ class Adjust extends PS_Controller
 
           if($sc === TRUE)
           {
-            $rs = $this->do_export($code);
-            if($rs === FALSE)
+            if( ! $this->do_export($code))
             {
               $sc = FALSE;
               $this->error = "อนุมัติเอกสารสำเร็จ แต่ ส่งข้อมูลไป SAP ไม่สำเร็จ";
@@ -605,11 +602,10 @@ class Adjust extends PS_Controller
   }
 
 
-
-
   public function un_approve()
   {
     $sc = TRUE;
+
     if($this->input->post('code'))
     {
       $code = $this->input->post('code');
@@ -630,7 +626,6 @@ class Adjust extends PS_Controller
     $sc = TRUE;
 
     $this->load->model('approve_logs_model');
-
     $doc = $this->adjust_model->get($code);
 
     if(!empty($doc))
@@ -644,7 +639,6 @@ class Adjust extends PS_Controller
 
           if(empty($issue_code) && empty($receive_code))
           {
-
             if(! $this->drop_middle($code))
             {
               $sc = FALSE;
@@ -663,7 +657,6 @@ class Adjust extends PS_Controller
               }
             }
 
-
             //--- 2. change details valid to 0
             if($sc === TRUE)
             {
@@ -675,6 +668,7 @@ class Adjust extends PS_Controller
               else
               {
                 $details = $this->adjust_model->get_details($code);
+
                 if(!empty($details))
                 {
                   foreach($details as $rs)
@@ -688,8 +682,6 @@ class Adjust extends PS_Controller
               }
             }
 
-
-
             //--- 3. un_approve
             if($sc === TRUE)
             {
@@ -699,7 +691,6 @@ class Adjust extends PS_Controller
                 $this->error = "ยกเลิกการอนุมัติไม่สำเร็จ";
               }
             }
-
 
             //--- 4. write approve logs
             if($sc === TRUE)
@@ -727,7 +718,6 @@ class Adjust extends PS_Controller
           $sc = FALSE;
           $this->error = "เอกสารเข้า SAP แล้วไม่สามารถแก้ไขได้";
         }
-
       }
       else
       {
@@ -745,11 +735,11 @@ class Adjust extends PS_Controller
   }
 
 
-
   public function drop_middle($code)
   {
     $sc = TRUE;
     $goods_issue = $this->adjust_model->get_middle_goods_issue($code);
+
     if(!empty($goods_issue))
     {
       foreach($goods_issue as $rs)
@@ -767,6 +757,7 @@ class Adjust extends PS_Controller
     }
 
     $goods_receive = $this->adjust_model->get_middle_goods_receive($code);
+
     if(!empty($goods_receive))
     {
       foreach($goods_receive as $rs)
@@ -785,9 +776,6 @@ class Adjust extends PS_Controller
 
     return $sc;
   }
-
-
-
 
 
   public function view_detail($code, $approve_view = NULL)
@@ -812,9 +800,7 @@ class Adjust extends PS_Controller
     {
       $this->load->view('page_error');
     }
-
   }
-
 
 
   public function cancle($code)
@@ -824,6 +810,7 @@ class Adjust extends PS_Controller
     if(!empty($code))
     {
       $doc = $this->adjust_model->get($code);
+
       if( ! empty($doc))
       {
         if(empty($doc->issue_code) && empty($doc->receive_code))
@@ -879,7 +866,6 @@ class Adjust extends PS_Controller
             {
               $this->db->trans_rollback();
             }
-
           }
         }
         else
@@ -904,11 +890,11 @@ class Adjust extends PS_Controller
   }
 
 
-
   public function load_check_diff($code)
   {
     $sc = TRUE;
     $list = $this->input->post('diff');
+
     if(!empty($list))
     {
       $this->db->trans_begin();
@@ -916,6 +902,7 @@ class Adjust extends PS_Controller
       foreach($list as $id => $val)
       {
         $diff = $this->check_stock_diff_model->get($id);
+
         if(!empty($diff))
         {
           if($sc === FALSE)
@@ -926,6 +913,7 @@ class Adjust extends PS_Controller
           if($diff->status == 0)
           {
             $zone = $this->zone_model->get($diff->zone_code);
+
             if(!empty($zone))
             {
               $arr = array(
@@ -938,6 +926,7 @@ class Adjust extends PS_Controller
               );
 
               $adjust_id = $this->adjust_model->get_not_save_detail($code, $diff->product_code, $diff->zone_code);
+
               if(!empty($adjust_id))
               {
                 if(! $this->adjust_model->update_detail($adjust_id, $arr))
@@ -967,7 +956,6 @@ class Adjust extends PS_Controller
             }
           }
         }
-
       } //--- endforeach;
 
       if($sc === TRUE)
@@ -996,7 +984,6 @@ class Adjust extends PS_Controller
 
     redirect("{$this->home}/edit/{$code}");
   }
-
 
 
   public function get_stock_zone()
@@ -1038,11 +1025,11 @@ class Adjust extends PS_Controller
   }
 
 
-
   public function manual_export()
   {
     $sc = TRUE;
     $code = $this->input->post('code');
+
     if(!empty($code))
     {
       $rs = $this->do_export($code);
@@ -1061,8 +1048,6 @@ class Adjust extends PS_Controller
   }
 
 
-
-
   public function get_new_code($date = '')
   {
     $date = $date == '' ? date('Y-m-d') : $date;
@@ -1072,6 +1057,7 @@ class Adjust extends PS_Controller
     $run_digit = getConfig('RUN_DIGIT_ADJUST');
     $pre = $prefix .'-'.$Y.$M;
     $code = $this->adjust_model->get_max_code($pre);
+
     if(! is_null($code))
     {
       $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
@@ -1099,10 +1085,6 @@ class Adjust extends PS_Controller
       'adj_sap'
     );
 
-    clear_filter($filter);
-
-    echo 'done';
+    return clear_filter($filter);
   }
-
-} //---- End class
-?>
+}

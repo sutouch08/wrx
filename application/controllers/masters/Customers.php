@@ -19,6 +19,7 @@ class Customers extends PS_Controller
     $this->load->model('masters/customer_class_model');
     $this->load->model('masters/customer_area_model');
     $this->load->helper('customer');
+    $this->load->helper('address');
   }
 
 
@@ -34,121 +35,19 @@ class Customers extends PS_Controller
       'status' => get_filter('status', 'cu_status', 'all')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
+    if ($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+
 		$perpage = get_rows();
-
-		$rows = $this->customers_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
-		$customers = $this->customers_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
-
-    $filter['data'] = $customers;
-
+		$rows = $this->customers_model->count_rows($filter);		
+		$filter['data'] = $this->customers_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+    $init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
 		$this->pagination->initialize($init);
     $this->load->view('masters/customers/customers_view', $filter);
   }
-
-
-  public function add_new()
-  {
-    $data['code'] = $this->session->flashdata('code');
-    $data['name'] = $this->session->flashdata('name');
-    $data['Tax_Id'] = $this->session->flashdata('Tax_Id');
-    $data['DebPayAcct'] = $this->session->flashdata('DebPayAcct');
-    $data['GroupCode'] = $this->session->flashdata('GroupCode');
-    $data['cmpPrivate'] = $this->session->flashdata('cmpPrivate');
-    $data['GroupNum'] = $this->session->flashdata('GroupNum'); //--- payment term code
-    $data['group'] = $this->session->flashdata('group');
-    $data['kind'] = $this->session->flashdata('kind');
-    $data['type'] = $this->session->flashdata('type');
-    $data['class'] = $this->session->flashdata('class');
-    $data['area'] = $this->session->flashdata('area');
-    $data['sale'] = $this->session->flashdata('sale');
-    $data['CreditLine'] = $this->session->flashdata('CreditLine');
-
-    $this->load->view('masters/customers/customers_add_view', $data);
-  }
-
-
-  public function add()
-  {
-    if($this->input->post('code'))
-    {
-      $sc = TRUE;
-      $code = $this->input->post('code');
-      $name = $this->input->post('name');
-
-      $ds = array(
-        'code' => $code,
-        'name' => $name,
-        'Tax_Id' => $this->input->post('Tax_Id'),
-        'DebPayAcct' => $this->input->post('DebPayAcct'), //--- รหัสบัญชีลูกหนี้ in OACT
-        'GroupCode' => $this->input->post('GroupCode'), //--- GroupCode in OCRG
-        'cmpPrivate' => $this->input->post('cmpPrivate'), //--- C = Company, G = Government, I = Private
-        'GroupNum' => $this->input->post('GroupNum'), //--- Payment term code in OCTG
-        'group_code' => $this->input->post('group'),
-        'kind_code' => $this->input->post('kind'),
-        'type_code' => $this->input->post('type'),
-        'class_code' => $this->input->post('class'),
-        'area_code' => $this->input->post('area'),
-        'sale_code' => $this->input->post('sale'),
-        'CreditLine' => $this->input->post('CreditLine')
-      );
-
-      if($this->customers_model->is_exists($code) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$code."' มีในระบบแล้ว");
-      }
-
-      if($this->customers_model->is_exists_name($name) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$name."' มีในระบบแล้ว");
-      }
-
-      if($sc === TRUE)
-      {
-        if($this->customers_model->add($ds))
-        {
-          set_message('เพิ่มข้อมูลเรียบร้อยแล้ว');
-          $this->do_export($code);
-        }
-        else
-        {
-          $sc = FALSE;
-          set_error('เพิ่มข้อมูลไม่สำเร็จ');
-        }
-      }
-
-
-      if($sc === FALSE)
-      {
-        $this->session->set_flashdata('code', $code);
-        $this->session->set_flashdata('name', $name);
-        $this->session->set_flashdata('Tax_Id', $this->input->post('Tax_Id'));
-        $this->session->set_flashdata('DebPayAcct', $this->input->post('DebPayAcct'));
-        $this->session->set_flashdata('GroupCode', $this->input->post('GroupCode'));
-        $this->session->set_flashdata('cmpPrivate', $this->input->post('cmpPrivate'));
-        $this->session->set_flashdata('GroupNum', $this->input->post('GroupNum')); //--- payment term code
-        $this->session->set_flashdata('group', $this->input->post('group'));
-        $this->session->set_flashdata('kind', $this->input->post('kind'));
-        $this->session->set_flashdata('type', $this->input->post('type'));
-        $this->session->set_flashdata('class', $this->input->post('class'));
-        $this->session->set_flashdata('area', $this->input->post('area'));
-        $this->session->set_flashdata('sale', $this->input->post('sale'));
-        $this->session->set_flashdata('CreditLine', $this->input->post('CreditLine'));
-      }
-    }
-    else
-    {
-      set_error('ไม่พบข้อมูล');
-    }
-
-    redirect($this->home.'/add_new');
-  }
-
-
 
   public function edit($code, $tab='infoTab')
   {
@@ -169,88 +68,160 @@ class Customers extends PS_Controller
 
   public function add_bill_to($code)
   {
-    if($this->input->post('address'))
-    {
-      $this->load->model('address/customer_address_model');
-      $branch_code = $this->input->post('branch_code');
-      $branch_name = $this->input->post('branch_name');
-      $country = $this->input->post('country');
-      $ds = array(
-        //'code' => $code,
-        'customer_code' => $code,
-        'branch_code' => empty($branch_code) ? '000' : $branch_code,
-        'branch_name' => empty($branch_name) ? 'สำนักงานใหญ่' : $branch_name,
-        'address' => $this->input->post('address'),
-        'sub_district' => $this->input->post('sub_district'),
-        'district' => $this->input->post('district'),
-        'province' => $this->input->post('province'),
-        'postcode' => $this->input->post('postcode'),
-        'country' => empty($country) ? 'TH' : $country,
-        'phone' => $this->input->post('phone')
-      );
+    $sc = TRUE;
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
-      $rs = $this->customer_address_model->add_bill_to($ds);
-      if($rs === TRUE)
+    if(empty($ds))
+    {
+      echo get_error('required');
+      return;
+    }
+
+    $arr = array(
+      'customer_code' => $code,
+      'branch_code' => empty($ds->branch_code) ? '0000' : $ds->branch_code,
+      'branch_name' => empty($ds->branch_name) ? 'สำนักงานใหญ่' : $ds->branch_name,
+      'address' => $ds->address,
+      'sub_district' => $ds->sub_district,
+      'district' => $ds->district,
+      'province' => $ds->province,
+      'postcode' => $ds->postcode,
+      'country' => empty($ds->country) ? 'TH' : $ds->country,
+      'phone' => $ds->phone
+    );
+
+    $this->load->model('address/customer_address_model');
+    $addr = $this->customer_address_model->get_customer_bill_to_address($code);
+
+    if($addr)
+    {
+      if( ! $this->customer_address_model->update_bill_to($code, $arr))
       {
-        set_message("เพิ่มที่อยู่เปิดบิลเรียบร้อยแล้ว");
-        $this->export_bill_to_address($code);
-      }
-      else
-      {
-        set_error("เพิ่มที่อยู่ไม่สำเร็จ");
+        $sc = FALSE;
+        set_error('update');
       }
     }
     else
     {
-      set_error("ที่อยู่ต้องไม่ว่างเปล่า");
+      if( ! $this->customer_address_model->add_bill_to($arr))
+      {
+        $sc = FALSE;
+        set_error('insert');
+      }
     }
 
-    redirect($this->home.'/edit/'.$code.'/billTab');
+    $this->_response($sc);
   }
 
-
-
-  public function update_bill_to($code)
+  public function add_ship_to($code)
   {
-    if($this->input->post('address'))
+    $sc = TRUE;
+    $ds = json_decode($this->input->post('data') ?? '{}');
+
+    if(empty($ds))
     {
-      $this->load->model('address/customer_address_model');
-      $branch_code = $this->input->post('branch_code');
-      $branch_name = $this->input->post('branch_name');
-      $country = $this->input->post('country');
-      $ds = array(
-        'branch_code' => empty($branch_code) ? '000' : $branch_code,
-        'branch_name' => empty($branch_name) ? 'สำนักงานใหญ่' : $branch_name,
-        'address' => $this->input->post('address'),
-        'sub_district' => $this->input->post('sub_district'),
-        'district' => $this->input->post('district'),
-        'province' => $this->input->post('province'),
-        'postcode' => $this->input->post('postcode'),
-        'country' => empty($country) ? 'TH' : $country,
-        'phone' => $this->input->post('phone')
-      );
+      echo get_error('required');
+      return;
+    }
 
-      $rs = $this->customer_address_model->update_bill_to($code, $ds);
+    $id = $ds->id;
 
-      if($rs === TRUE)
+    $arr = array(
+      'code' => $code,
+      'customer_code' => $code,
+      'alias' => $ds->alias,
+      'name' => $ds->name,
+      'address' => $ds->address,
+      'sub_district' => $ds->sub_district,
+      'district' => $ds->district,
+      'province' => $ds->province,
+      'postcode' => $ds->postcode,
+      'country' => empty($ds->country) ? 'TH' : $ds->country,
+      'phone' => $ds->phone,
+      'email' => $ds->email,
+      'is_default' => $ds->default
+    );
+
+    $this->load->model('address/customer_address_model');
+
+    if(!empty($id))
+    {
+      if( ! $this->customer_address_model->update_ship_to($id, $arr))
       {
-        $this->export_bill_to_address($code);
-
-        set_message("ปรับปรุงที่อยู่เปิดบิลเรียบร้อยแล้ว");
-      }
-      else
-      {
-        set_error("ปรับปรุงที่อยู่ไม่สำเร็จ");
+        $sc = FALSE;
+        set_error('update');
       }
     }
     else
     {
-      set_error("ที่อยู่ต้องไม่ว่างเปล่า");
+      $id = $this->customer_address_model->add_ship_to($arr);
+
+      if( ! $id)
+      {
+        $sc = FALSE;
+        set_error('insert');
+      }
     }
 
-    redirect($this->home.'/edit/'.$code.'/billTab');
+    if($sc === TRUE && $ds->default == 1)
+    {
+      $this->customer_address_model->unset_default_shipping_address($code);
+      $this->customer_address_model->set_default_shipping_address($id);
+    }
+
+    $this->_response($sc);
   }
 
+  public function set_default_ship_to($code, $id)
+  {
+    $sc = TRUE;
+    $this->load->model('address/customer_address_model');
+
+    if($this->customer_address_model->unset_default_shipping_address($code))
+    {
+      if (! $this->customer_address_model->set_default_shipping_address($id))
+      {
+        $sc = FALSE;
+        set_error('update');
+      }
+    }
+    else 
+    {
+      $sc = FALSE;
+      set_error('update');
+    }    
+    
+    $this->_response($sc);
+  }
+
+  public function get_ship_to($id)
+  {
+    $this->load->model('address/customer_address_model');
+    $shipTo = $this->customer_address_model->get_customer_ship_to_address($id);
+
+    if(!empty($shipTo))
+    {
+      echo json_encode($shipTo);
+    }
+    else
+    {
+      echo get_error('not_found');
+    }
+  }
+
+  public function delete_ship_to($id)
+  {
+    $sc = TRUE;
+    $this->load->model('address/customer_address_model');
+
+    if(! $this->customer_address_model->delete_ship_to($id))
+    {
+      $sc = FALSE;
+      set_error('delete');
+    }
+
+    $this->_response($sc);
+  }
 
   public function export_bill_to_address($code)
   {
@@ -300,8 +271,6 @@ class Customers extends PS_Controller
       }
     }
   }
-
-
 
   public function export_ship_to_address($id)
   {
@@ -394,113 +363,81 @@ class Customers extends PS_Controller
   }
 
   public function update()
-  {
-    $sc = TRUE;
+  {    
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
-    if($this->input->post('code'))
+    if(empty($ds) || empty($ds->code) || empty($ds->name)) 
     {
-      $old_code = $this->input->post('customers_code');
-      $old_name = $this->input->post('customers_name');
-      $code = $this->input->post('code');
-      $name = $this->input->post('name');
-      $gp = $this->input->post('gp');
-      $skip_overdue = $this->input->post('skip_overdue');
-      $fml_code = get_null($this->input->post('old_code'));
+      echo get_error('required');
+      exit;
+    }    
 
-      $ds = array(
-        'code' => $code,
-        'name' => $name,
-        'Tax_Id' => $this->input->post('Tax_Id'),
-        'DebPayAcct' => $this->input->post('DebPayAcct'),
-        'GroupCode' => $this->input->post('GroupCode'),
-        'cmpPrivate' => $this->input->post('cmpPrivate'),
-        'GroupNum' => $this->input->post('GroupNum'),
-        'group_code' => get_null($this->input->post('group')),
-        'kind_code' => get_null($this->input->post('kind')),
-        'type_code' => get_null($this->input->post('type')),
-        'class_code' => get_null($this->input->post('class')),
-        'area_code' => get_null($this->input->post('area')),
-        'sale_code' => get_null($this->input->post('sale')),
-        'CreditLine' => floatval($this->input->post('CreditLine')),
-        'old_code' => $fml_code,
-        'gp' => $gp,
-        'skip_overdue' => $skip_overdue
-      );
+    $arr = array(
+      'name' => $ds->name,
+      'Tax_Id' => $ds->tax_id,
+      'DebPayAcct' => $ds->DebPayAcct,
+      'GroupCode' => $ds->GroupCode,
+      'cmpPrivate' => $ds->cmpPrivate,
+      'GroupNum' => $ds->GroupNum,
+      'group_code' => get_null($ds->group),
+      'kind_code' => get_null($ds->kind),
+      'type_code' => get_null($ds->type),
+      'class_code' => get_null($ds->class),
+      'area_code' => get_null($ds->area),
+      'sale_code' => get_null($ds->sale),
+      'CreditLine' => floatval($ds->CreditLine),
+      'gp' => $ds->gp,
+      'skip_overdue' => $ds->skip_overdue
+    );    
 
-      if($sc === TRUE && $this->customers_model->is_exists($code, $old_code) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$code."' มีอยู่ในระบบแล้ว โปรดใช้รหัสอื่น");
-      }
-
-      if($sc === TRUE && $this->customers_model->is_exists_name($name, $old_name) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$name."' มีอยู่ในระบบแล้ว โปรดใช้ชื่ออื่น");
-      }
-
-      if($sc === TRUE)
-      {
-        if($this->customers_model->update($old_code, $ds) === TRUE)
-        {
-          set_message('ปรับปรุงข้อมูลเรียบร้อยแล้ว');
-        }
-        else
-        {
-          $sc = FALSE;
-          set_error('ปรับปรุงข้อมูลไม่สำเร็จ');
-        }
-      }
-
-    }
-    else
+    if(! $this->customers_model->update($ds->code, $arr))
     {
-      $sc = FALSE;
-      set_error('ไม่พบข้อมูล');
+      echo get_error('update');
+      exit;
     }
 
-    if($sc === FALSE)
-    {
-      $code = $this->input->post('customers_code');
-    }
-
-    redirect($this->home.'/edit/'.$code);
+    echo 'success';
   }
 
 
-
-  public function delete($code)
+  public function delete()
   {
-    if($code != '')
+    $code = $this->input->post('code') ?? '';
+
+    if( ! $code)
     {
-      $rs = $this->customers_model->delete($code);
-      if($rs === TRUE)
-      {
-        set_message('ลบข้อมูลเรียบร้อยแล้ว');
-      }
-      else
-      {
-        if($rs['code'] === '23000/1451')
-        {
-          $message = "Customer alrady has transection(s)";
-        }
-        else
-        {
-          $message = "ลบข้อมูลไม่สำเร็จ";
-        }
-        set_error($message);
-      }
-    }
-    else
-    {
-      set_error('ไม่พบข้อมูล');
+      echo get_error('required');
+      exit;
     }
 
-    redirect($this->home);
+    if( ! $this->pm->can_delete)
+    {
+      echo get_error('permission');
+      exit;
+    }
+
+    $customer = $this->customers_model->get($code);
+
+    if( ! $customer)
+    {
+      echo get_error('not_found');
+      exit;
+    }
+
+    if($this->customers_model->has_transection($code))
+    {
+      echo get_error('has_transection', $code);
+      exit;
+    }
+
+    if( ! $this->customers_model->delete($code))
+    {
+      echo get_error('delete');
+      exit;
+    }
+
+    echo 'success';    
   }
-
-
-
 
   public function do_export($code)
   {
@@ -536,17 +473,16 @@ class Customers extends PS_Controller
       {
         return $this->customers_model->add_sap_customer($ds);
       }
-
     }
 
     return FALSE;
   }
 
 
-
   public function export_customer($code)
   {
     $rs = $this->do_export($code);
+
     if($rs === TRUE)
     {
       $this->export_bill_to_address($code);
@@ -557,16 +493,14 @@ class Customers extends PS_Controller
     {
       echo 'Export fail';
     }
-
   }
 
 
-
-
-  public function syncData()
+  public function syncData($type = 'update')
   {
-    $last_sync = $this->customers_model->get_last_sync_date();
+    $last_sync = $type == 'update' ? $this->customers_model->get_last_sync_date() : from_date('2020-01-01');
     $ds = $this->customers_model->get_update_data($last_sync);
+
     if(!empty($ds))
     {
       foreach($ds as $rs)
@@ -586,7 +520,7 @@ class Customers extends PS_Controller
           'last_sync' => now()
         );
 
-        if($this->customers_model->is_exists($rs->code) === TRUE)
+        if($this->customers_model->is_exists($rs->code))
         {
           $this->customers_model->update($rs->code, $arr);
         }
@@ -597,48 +531,8 @@ class Customers extends PS_Controller
       }
     }
 
-    set_message('Sync completed');
+    echo 'success';
   }
-
-
-
-  public function syncAllData()
-  {
-    $last_sync = from_date('2020-01-01');
-    $ds = $this->customers_model->get_update_data($last_sync);
-    if(!empty($ds))
-    {
-      foreach($ds as $rs)
-      {
-        $arr = array(
-          'code' => $rs->code,
-          'name' => $rs->name,
-          'Tax_Id' => $rs->Tax_Id,
-          'DebPayAcct' => $rs->DebPayAcct,
-          'CardType' => $rs->CardType,
-          'GroupCode' => $rs->GroupCode,
-          'cmpPrivate' => $rs->CmpPrivate,
-          'GroupNum' => $rs->GroupNum,
-          'sale_code' => $rs->sale_code,
-          'CreditLine' => floatval($rs->CreditLine),
-          'old_code' => $rs->old_code,
-          'last_sync' => now()
-        );
-
-        if($this->customers_model->is_exists($rs->code) === TRUE)
-        {
-          $this->customers_model->update($rs->code, $arr);
-        }
-        else
-        {
-          $this->customers_model->add($arr);
-        }
-      }
-    }
-
-    set_message('Sync completed');
-  }
-
 
   public function clear_filter()
 	{
@@ -655,7 +549,6 @@ class Customers extends PS_Controller
     return clear_filter($filter);
 	}
 
-
   public function get_new_code($code)
   {
     $max = $this->customer_address_model->get_max_code($code);
@@ -666,19 +559,22 @@ class Customers extends PS_Controller
   public function get_ship_to_table()
   {
     $sc = TRUE;
+
     if($this->input->post('customer_code'))
     {
       $code = $this->input->post('customer_code');
+
       if(!empty($code))
       {
         $ds = array();
         $this->load->model('address/customer_address_model');
         $adrs = $this->customer_address_model->get_ship_to_address($code);
+
         if(!empty($adrs))
         {
           foreach($adrs as $rs)
           {
-            $arr = array(
+            $ds[] = array(
               'customer_code' => $code,
               'id' => $rs->id,
               'name' => $rs->name,
@@ -687,8 +583,7 @@ class Customers extends PS_Controller
               'email' => $rs->email,
               'alias' => $rs->alias,
               'default' => $rs->is_default == 1 ? 1 : ''
-            );
-            array_push($ds, $arr);
+            );            
           }
         }
         else
@@ -705,8 +600,6 @@ class Customers extends PS_Controller
     echo $sc === TRUE ? json_encode($ds) : 'noaddress';
   }
 
-
-
   public function delete_shipping_address()
   {
     $this->load->model('address/address_model');
@@ -714,7 +607,4 @@ class Customers extends PS_Controller
     $rs = $this->address_model->delete_shipping_address($id);
     echo $rs === TRUE ? 'success' : 'fail';
   }
-
-} //---
-
-?>
+} 

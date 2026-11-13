@@ -318,40 +318,28 @@ function clearFilter(){
 }
 
 
-function export_filter(){
-  let code = $('#code').val();
-  let name = $('#name').val();
-  let group = $('#group').val();
-  let main_group = $('#main_group').val();
-  let sub_group = $('#sub_group').val();
-  let category = $('#category').val();
-  let kind = $('#kind').val();
-  let type = $('#type').val();
-  let brand = $('#brand').val();
-  let collection = $('#collection').val();
-  let year = $('#year').val();
-  let sell = $('#sell').val();
-  let active = $('#active').val();
-  let token	= new Date().getTime();
+function export_filter() {
+  let token = generateUID();
+  let data = {
+    'code' : $('#code').val().trim(),
+    'name' : $('#name').val().trim(),
+    'group' : $('#group').val(),
+    'main_group' : $('#main_group').val(),
+    'sub_group' : $('#sub_group').val(),
+    'category' : $('#category').val(),
+    'kind' : $('#kind').val(),
+    'type' : $('#type').val(),
+    'brand' : $('#brand').val(),
+    'collection' : $('#collection').val(),
+    'year' : $('#year').val(),
+    'sell' : $('#sell').val(),
+    'active' : $('#active').val()
+  };   
 
-  $('#export_code').val(code);
-  $('#export_name').val(name);
-  $('#export_group').val(group);
-  $('#export_main_group').val(main_group);
-  $('#export_sub_group').val(sub_group);
-  $('#export_category').val(category);
-  $('#export_kind').val(kind);
-  $('#export_type').val(type);
-  $('#export_brand').val(brand);
-  $('#export_collection').val(collection);
-  $('#export_year').val(year);
-  $('#export_sell').val(sell);
-  $('#export_active').val(active);
-  $('#token').val(token);
-
+  $('#data').val(JSON.stringify(data));
+  $('#token').val(token);  
   get_download(token);
-
-  $('#export_filter_form').submit();
+  $('#exportForm').submit();
 }
 
 
@@ -448,64 +436,4 @@ function sendToSap(code){
       }
     }
   })
-}
-
-
-function sendToWms(code) {
-	load_in();
-	$.ajax({
-		url:BASE_URL + 'masters/products/send_to_wms',
-		type:'POST',
-		cache:false,
-		data:{
-			'code' : code
-		},
-		success:function(rs) {
-			load_out();
-			if(rs === 'success') {
-				swal({
-					title:'Success',
-					type:'success',
-					timer:1000
-				});
-			}
-			else {
-				swal({
-					title:'Error!',
-					text:rs,
-					type:'error'
-				})
-			}
-		}
-	})
-}
-
-
-function sendToSoko(code) {
-	load_in();
-	$.ajax({
-		url:BASE_URL + 'masters/products/send_to_soko',
-		type:'POST',
-		cache:false,
-		data:{
-			'code' : code
-		},
-		success:function(rs) {
-			load_out();
-			if(rs === 'success') {
-				swal({
-					title:'Success',
-					type:'success',
-					timer:1000
-				});
-			}
-			else {
-				swal({
-					title:'Error!',
-					text:rs,
-					type:'error'
-				})
-			}
-		}
-	})
 }

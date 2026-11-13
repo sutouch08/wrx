@@ -47,7 +47,7 @@
         <option value="0" <?php echo is_selected('0', $is_arrival); ?>>ยังไม่มาถึง</option>
         <option value="1" <?php echo is_selected('1', $is_arrival); ?>>มาถึงแล้ว</option>
       </select>
-    </div>    
+    </div>
     <div class="col-lg-4-harf col-md-3 col-sm-2-harf col-xs-6 padding-5">
       <label>คลังฝากขาย</label>
       <select class="form-control input-sm filter" name="from_warehouse" id="from-whs">
@@ -89,6 +89,7 @@
       <button type="button" class="btn btn-xs btn-warning btn-block" onclick="clearFilter()">Reset</button>
     </div>
   </div>
+  <input type="hidden" name="search" value="1" />
 </form>
 <hr class="margin-top-15 padding-5" />
 <?php echo $this->pagination->create_links(); ?>
@@ -131,7 +132,7 @@
               <td class="middle hide-text text-center"><?php echo thai_date($rs->date_add, FALSE); ?></td>
               <td class="middle hide-text"><?php echo $rs->code; ?></td>
               <td class="middle"><?php echo $rs->invoice; ?></td>
-              <td class="middle text-center"><?php echo $rs->status == 1 ? '<span class="green">OK</span>' : ($rs->status == 0 ? '<span class="orange">DF</span>' : ($rs->status == 3 ? '<span class="purple">OP</span>' : ($rs->status == 2 ? '<span class="red">CN</span>' : ''))); ?></td>              
+              <td class="middle text-center"><?php echo $rs->status == 1 ? '<span class="green">OK</span>' : ($rs->status == 0 ? '<span class="orange">DF</span>' : ($rs->status == 3 ? '<span class="purple">OP</span>' : ($rs->status == 2 ? '<span class="red">CN</span>' : ''))); ?></td>
               <td class="middle text-center"><?php echo is_active($rs->product_arrival, FALSE); ?></td>
               <td class="middle hide-text" style="max-width:400px;"><?php echo $rs->customer_name; ?></td>
               <td class="middle hide-text"><?php echo $rs->zone_code; ?></td>

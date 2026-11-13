@@ -7,10 +7,7 @@ class Support extends PS_Controller
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'REQUEST';
 	public $title = 'เบิกอภินันท์';
-  public $filter;
-	public $wmsApi;
-  public $sokoApi;
-
+  
   public function __construct()
   {
     parent::__construct();
@@ -30,32 +27,28 @@ class Support extends PS_Controller
     $this->load->helper('state');
     $this->load->helper('product_images');
     $this->load->helper('warehouse');
-
-		$this->wmsApi = is_true(getConfig('WMS_API'));
-    $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
   }
 
 
   public function index()
   {
     $filter = array(
-      'code'      => get_filter('code', 'support_code', ''),
-      'customer'  => get_filter('customer', 'support_customer', ''),
-      'user'      => get_filter('user', 'support_user', ''),
-      'user_ref'  => get_filter('user_ref', 'support_user_ref', ''),
+      'code' => get_filter('code', 'support_code', ''),
+      'customer' => get_filter('customer', 'support_customer', ''),
+      'user' => get_filter('user', 'support_user', ''),
+      'user_ref' => get_filter('user_ref', 'support_user_ref', ''),
       'from_date' => get_filter('fromDate', 'support_fromDate', ''),
-      'to_date'   => get_filter('toDate', 'support_toDate', ''),
+      'to_date' => get_filter('toDate', 'support_toDate', ''),
       'isApprove' => get_filter('isApprove', 'support_isApprove', 'all'),
 			'warehouse' => get_filter('warehouse', 'support_warehouse', ''),
-			'notSave' => get_filter('notSave', 'support_notSave', NULL),
-      'onlyMe' => get_filter('onlyMe', 'support_onlyMe', NULL),
-      'isExpire' => get_filter('isExpire', 'support_isExpire', NULL),
-			'wms_export' => get_filter('wms_export', 'support_wms_export', 'all'),
+			'notSave' => get_filter('notSave', 'support_notSave', ''),
+      'onlyMe' => get_filter('onlyMe', 'support_onlyMe', ''),
+      'isExpire' => get_filter('isExpire', 'support_isExpire', ''),			
       'is_backorder' => get_filter('is_backorder', 'support_is_backorder', 'all'),
       'sap_status' => get_filter('sap_status', 'support_sap_status', 'all')
     );
 
-		$state = array(
+    $state = array(
       '1' => get_filter('state_1', 'support_state_1', 'N'),
       '2' => get_filter('state_2', 'support_state_2', 'N'),
       '3' => get_filter('state_3', 'support_state_3', 'N'),
@@ -66,6 +59,12 @@ class Support extends PS_Controller
       '8' => get_filter('state_8', 'support_state_8', 'N'),
       '9' => get_filter('state_9', 'support_state_9', 'N')
     );
+
+    if($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }		
 
     $state_list = array();
 
@@ -85,40 +84,28 @@ class Support extends PS_Controller
     $button['not_save'] = empty($filter['notSave']) ? '' : 'btn-info';
     $button['only_me'] = empty($filter['onlyMe']) ? '' : 'btn-info';
     $button['is_expire'] = empty($filter['isExpire']) ? '' : 'btn-info';
-
-
     $filter['state_list'] = empty($state_list) ? NULL : $state_list;
-
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
-    $role     = 'U'; //--- U = เบิกอภินันท์;
-		$segment  = 4; //-- url segment
-		$rows     = $this->orders_model->count_rows($filter, $role);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$orders   = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($segment), $role);
-    $ds       = array();
+		
+		$perpage = get_rows();	
+    $role = 'U'; //--- U = เบิกอภินันท์;
+		$segment = 4; //-- url segment
+		$rows = $this->orders_model->count_rows($filter, $role);		
+		$orders = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($segment), $role);
+    
     if(!empty($orders))
     {
       foreach($orders as $rs)
       {
         $rs->customer_name = empty($rs->customer_name) ? $this->customers_model->get_name($rs->customer_code) : $rs->customer_name;
-        $rs->total_amount  = $rs->doc_total <= 0 ? $this->orders_model->get_order_total_amount($rs->code) : $rs->doc_total;
-        $rs->state_name    = get_state_name($rs->state);
-        $ds[] = $rs;
+        $rs->total_amount = $rs->doc_total <= 0 ? $this->orders_model->get_order_total_amount($rs->code) : $rs->doc_total;
+        $rs->state_name = get_state_name($rs->state);
       }
     }
 
-    $filter['orders'] = $ds;
+    $filter['orders'] = $orders;
 		$filter['state'] = $state;
     $filter['btn'] = $button;
-
+		$init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
     $this->load->view('support/support_list', $filter);
   }
@@ -134,10 +121,8 @@ class Support extends PS_Controller
   {
     $current = $this->support_model->get_budget($customer_code);
     $used = $this->support_model->get_budget_used($customer_code);
-
     return ($current - $used);
   }
-
 
 
   public function add_new()
@@ -146,38 +131,22 @@ class Support extends PS_Controller
   }
 
 
-
   public function add()
   {
     $sc = TRUE;
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
     {
-			$this->load->model('masters/warehouse_model');
-
-      $wmsWh = getConfig('WMS_WAREHOUSE');
-      $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
-
+			$this->load->model('masters/warehouse_model');     
       $book_code = getConfig('BOOK_CODE_SUPPORT');
-
       $date_add = db_date($data->date_add);
-
       $code = $this->get_new_code($date_add);
-
       $role = 'U'; //--- U = เบิกอภินันท์
-
-      $has_term = 1; //--- ถือว่าเป็นเครดิต
-
 			$wh = $this->warehouse_model->get($data->warehouse_code);
 
       if( ! empty($wh))
-      {
-        $isSoko = $wh->code == $sokoWh ? TRUE : FALSE;
-        $isWms = $wh->code == $wmsWh ? TRUE : FALSE;
-
-        $is_wms = $isWms ? 1 : ($isSoko ? 2 : 0);
-
+      {        
         $ds = array(
           'code' => $code,
           'date_add' => $date_add,
@@ -188,8 +157,7 @@ class Support extends PS_Controller
           'user' => $this->_user->uname,
           'remark' => get_null($data->remark),
           'user_ref' => $data->empName,
-          'warehouse_code' => $wh->code,
-          'is_wms' => $is_wms
+          'warehouse_code' => $wh->code
         );
 
         if( ! $this->orders_model->add($ds))
@@ -230,7 +198,6 @@ class Support extends PS_Controller
   }
 
 
-
   public function edit_order($code, $approve_view = NULL)
   {
     $this->load->model('approve_logs_model');
@@ -243,13 +210,12 @@ class Support extends PS_Controller
     if(!empty($rs))
     {
       $rs->customer_name = empty($rs->customer_name) ? $this->customers_model->get_name($rs->customer_code) : $rs->customer_name;
-      $rs->total_amount  = $rs->doc_total <= 0 ? $this->orders_model->get_order_total_amount($rs->code) : $rs->doc_total;
-      $rs->user          = $this->user_model->get_name($rs->user);
-      $rs->state_name    = get_state_name($rs->state);
-
-
+      $rs->total_amount = $rs->doc_total <= 0 ? $this->orders_model->get_order_total_amount($rs->code) : $rs->doc_total;
+      $rs->user = $this->user_model->get_name($rs->user);
+      $rs->state_name = get_state_name($rs->state);
       $state = $this->order_state_model->get_order_state($code);
       $ost = array();
+
       if(!empty($state))
       {
         foreach($state as $st)
@@ -268,8 +234,7 @@ class Support extends PS_Controller
       $ds['cancle_reason'] = ($rs->state == 9 ? $this->orders_model->get_cancle_reason($code) : NULL);
       $ds['allowEditDisc'] = FALSE; //getConfig('ALLOW_EDIT_DISCOUNT') == 1 ? TRUE : FALSE;
       $ds['allowEditPrice'] = getConfig('ALLOW_EDIT_PRICE') == 1 ? TRUE : FALSE;
-      $ds['edit_order'] = TRUE; //--- ใช้เปิดปิดปุ่มแก้ไขราคาสินค้าไม่นับสต็อก
-      $ds['is_api'] = is_api($rs->is_wms, $this->wmsApi, $this->sokoApi);
+      $ds['edit_order'] = TRUE; //--- ใช้เปิดปิดปุ่มแก้ไขราคาสินค้าไม่นับสต็อก      
       $ds['tracking'] = $this->orders_model->get_order_tracking($code);
       $ds['backlogs'] = $rs->is_backorder == 1 ? $this->orders_model->get_backlogs_details($rs->code): NULL;
       $this->load->view('support/support_edit', $ds);
@@ -281,12 +246,11 @@ class Support extends PS_Controller
   }
 
 
-
   public function update_order()
   {
     $sc = TRUE;
 
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
     {
@@ -311,19 +275,10 @@ class Support extends PS_Controller
 				else
 				{
 					$this->load->model('masters/warehouse_model');
-
-          $wmsWh = getConfig('WMS_WAREHOUSE');
-          $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
-
 					$wh = $this->warehouse_model->get($data->warehouse_code);
 
           if( ! empty($wh))
-          {
-            $isSoko = $wh->code == $sokoWh ? TRUE : FALSE;
-            $isWms = $wh->code == $wmsWh ? TRUE : FALSE;
-
-            $is_wms = $isWms ? 1 : ($isSoko ? 2 : 0);
-
+          {            
             $ds = array(
               'customer_code' => $data->customer_code,
               'customer_name' => $data->customer_name,
@@ -333,8 +288,7 @@ class Support extends PS_Controller
               'status' => 0,
               'warehouse_code' => $wh->code,
               'id_address' => NULL,
-              'id_sender' => NULL,
-              'is_wms' => $is_wms
+              'id_sender' => NULL
             );
 
             if( ! $this->orders_model->update($code, $ds))
@@ -371,6 +325,7 @@ class Support extends PS_Controller
     $this->load->helper('product_tab');
     $ds = array();
     $rs = $this->orders_model->get($code);
+
     if($rs->state <= 3)
     {
       $rs->customer_name = $this->customers_model->get_name($rs->customer_code);
@@ -385,17 +340,12 @@ class Support extends PS_Controller
   }
 
 
-
   public function save($code)
   {
     $sc = TRUE;
     $order = $this->orders_model->get($code);
-
-    //---- check credit balance
-    $amount = $this->orders_model->get_order_total_amount($code);
     //--- creadit used
     $credit_used = $this->support_model->get_budget_used($order->customer_code);
-
     //--- credit balance from sap
     $credit_balance = $this->support_model->get_budget($order->customer_code);
 
@@ -430,12 +380,10 @@ class Support extends PS_Controller
 			}
 		}
 
-
 		if(empty($order->id_sender))
 		{
 			$this->load->model('masters/sender_model');
 			$id_sender = NULL;
-
 			$sender = $this->sender_model->get_customer_sender_list($order->customer_code);
 
 			if(!empty($sender))
@@ -470,7 +418,6 @@ class Support extends PS_Controller
   }
 
 
-
   public function get_new_code($date)
   {
     $date = $date == '' ? date('Y-m-d') : $date;
@@ -480,6 +427,7 @@ class Support extends PS_Controller
     $run_digit = getConfig('RUN_DIGIT_SUPPORT');
     $pre = $prefix .'-'.$Y.$M;
     $code = $this->orders_model->get_max_code($pre);
+
     if(! is_null($code))
     {
       $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
@@ -492,7 +440,6 @@ class Support extends PS_Controller
 
     return $new_code;
   }
-
 
 
   public function set_never_expire()
@@ -539,7 +486,6 @@ class Support extends PS_Controller
       'support_state_9'
     );
 
-    clear_filter($filter);
+    return clear_filter($filter);
   }
 }
-?>

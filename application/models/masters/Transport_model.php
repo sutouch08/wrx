@@ -1,6 +1,7 @@
 <?php
 class Transport_model extends CI_Model
 {
+  private $tb = 'address_transport';
   public function __construct()
   {
     parent::__construct();
@@ -8,84 +9,47 @@ class Transport_model extends CI_Model
 
   public function add(array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->db->insert('address_transport', $ds);
-    }
-
-    return FALSE;
+    return !empty($ds) ? $this->db->insert($this->tb, $ds) : FALSE;
   }
 
 
   public function update($id, array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->db->where('id', $id)->update('address_transport', $ds);
-    }
-
-    return FALSE;
+    return !empty($ds) ? $this->db->where('id', $id)->update($this->tb, $ds) : FALSE;    
   }
-
 
 
   public function delete($id)
   {
-    return $this->db->where('id', $id)->delete('address_transport');
+    return $this->db->where('id', $id)->delete($this->tb);
   }
 
 
   public function get($id)
   {
-    $rs = $this->db->where('id', $id)->get('address_transport');
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row();
-    }
-
-    return FALSE;
+    $rs = $this->db->where('id', $id)->get($this->tb);
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
   }
-
 
 
   public function get_name($id)
   {
-    $rs = $this->db->where('id', $id)->get('address_transport');
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row()->name;
-    }
-
-    return NULL;
+    $rs = $this->db->where('id', $id)->get($this->tb);
+    return $rs->num_rows() === 1 ? $rs->row()->name : "";
   }
-
 
 
   public function is_exists($customer_code, $id = NULL)
   {
-    if(! empty($id))
-    {
-      $rs = $this->db->where('customer_code', $customer_code)->where('id !=',$id)->get('address_transport');
-    }
-    else
-    {
-      $rs = $this->db->where('customer_code', $customer_code)->get('address_transport');
-    }
-
-    if($rs->num_rows() > 0)
-    {
-      return TRUE;
-    }
-
-    return FALSE;
+    if(!empty($id)) $this->db->where('id !=', $id);
+    return $this->db->where('customer_code', $customer_code)->count_all_results($this->tb) > 0;
   }
-
 
 
   public function count_rows(array $ds = array())
   {
     $this->db
-    ->from('address_transport AS t')
+    ->from($this->tb . ' AS t')
     ->join('customers AS c', 't.customer_code = c.code', 'left');
 
     if( ! empty($ds['name']))
@@ -115,7 +79,7 @@ class Transport_model extends CI_Model
   {
     $this->db
     ->select('t.*, c.name AS customer_name')
-    ->from('address_transport AS t')
+    ->from($this->tb . ' AS t')
     ->join('customers AS c', 't.customer_code = c.code', 'left');
 
     if( ! empty($ds['name']))
@@ -137,16 +101,7 @@ class Transport_model extends CI_Model
       ->group_end();
     }
 
-    $rs = $this->db->limit($perpage, $offset)->get();
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    $rs = $this->db->order_by('t.id', 'DESC')->limit($perpage, $offset)->get();
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
-
-}
- ?>
+} 

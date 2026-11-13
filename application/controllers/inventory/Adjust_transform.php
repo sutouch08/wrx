@@ -7,9 +7,7 @@ class Adjust_transform extends PS_Controller
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = '';
 	public $title = 'ตัดยอดแปรสภาพ';
-  public $filter;
-  public $error;
-
+  
   public function __construct()
   {
     parent::__construct();
@@ -36,42 +34,37 @@ class Adjust_transform extends PS_Controller
       'status' => get_filter('status', 'tf_status', 'all')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
-		$segment  = 4; //-- url segment
-		$rows     = $this->adjust_transform_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$list   = $this->adjust_transform_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
-    $filter['list'] = $list;
-
+    if($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+		
+		$perpage = get_rows();		
+		$segment  = 4; 
+		$rows = $this->adjust_transform_model->count_rows($filter);
+		$filter['list']   = $this->adjust_transform_model->get_list($filter, $perpage, $this->uri->segment($segment));
+		$init = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
     $this->load->view('inventory/adjust_transform/adjust_transform_list', $filter);
   }
-
 
   public function add_new()
   {
     $this->load->view('inventory/adjust_transform/adjust_transform_add');
   }
 
-
   public function add()
   {
     $sc = TRUE;
+
     if($this->input->post('date_add') && $this->input->post('zone_code'))
     {
       if($this->pm->can_add)
       {
         $date_add = db_date($this->input->post('date_add'), TRUE);
         $zone = $this->zone_model->get($this->input->post('zone_code'));
+
         if(!empty($zone))
         {
           $code = empty($this->input->post('code')) ? $this->get_new_code($date_add) : $this->input->post('code');
@@ -84,7 +77,7 @@ class Adjust_transform extends PS_Controller
             'from_zone' => $zone->code,
             'date_add' => $date_add,
             'user' => get_cookie('uname'),
-            'remark' => get_null(trim($this->input->post('remark')))
+            'remark' => get_null(trim($this->input->post('remark') ?? ''))
           );
 
           if(! $this->adjust_transform_model->add($ds))
@@ -98,7 +91,6 @@ class Adjust_transform extends PS_Controller
           $sc = FALSE;
           $this->error = "รหัสโซนไม่ถูกต้อง";
         }
-
       }
       else
       {
@@ -119,6 +111,7 @@ class Adjust_transform extends PS_Controller
   public function edit($code)
   {
     $doc = $this->adjust_transform_model->get($code);
+
     if(!empty($doc))
     {
       $doc->zone_name = $this->zone_model->get_name($doc->from_zone);
@@ -135,25 +128,16 @@ class Adjust_transform extends PS_Controller
     }
   }
 
-
   public function is_exists($code)
   {
-    if($this->adjust_transform_model->is_exists_code($code))
-    {
-      echo "เลขที่เอกสารซ้ำ";
-    }
-    else
-    {
-      echo 'not_exists';
-    }
+    return $this->adjust_transform_model->is_exists_code($code) ? "เลขที่เอกสารซ้ำ" : 'not_exists';
   }
-
-
 
   //---- update doc header
   public function update()
   {
     $sc = TRUE;
+
     if($this->input->post('code'))
     {
       $code = $this->input->post('code');
@@ -164,6 +148,7 @@ class Adjust_transform extends PS_Controller
       if(!empty($zone))
       {
         $doc = $this->adjust_transform_model->get($code);
+
         if(!empty($doc))
         {
           $arr = array(
@@ -190,7 +175,6 @@ class Adjust_transform extends PS_Controller
         $sc = FALSE;
         $this->error = "โซนไม่ถูกต้อง";
       }
-
     }
     else
     {
@@ -201,30 +185,29 @@ class Adjust_transform extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
-
-
-
   //---- save
   public function save()
   {
     $sc = TRUE;
+
     if($this->input->post('code'))
     {
       $code = $this->input->post('code');
       $doc = $this->adjust_transform_model->get($code);
+
       if(!empty($doc))
       {
         if($doc->status == 0)
         {
           $transform_code = $this->input->post('transform_code');
+
           if(!empty($transform_code))
           {
             //--- load transform model
             $this->load->model('inventory/transform_model');
-
             //--- get WQ
             $transform = $this->transform_model->get($transform_code);
+
             if(!empty($transform))
             {
               //--- check WQ must be closed
@@ -264,6 +247,7 @@ class Adjust_transform extends PS_Controller
                     {
                       //--- update reference on header
                       $arr = array('reference' => $transform_code);
+
                       if(!$this->adjust_transform_model->update($code, $arr))
                       {
                         $sc = FALSE;
@@ -296,23 +280,19 @@ class Adjust_transform extends PS_Controller
                     {
                       //--- begin transection
                       $this->db->trans_commit();
-
-											$export = $this->do_export($code);
+											$this->do_export($code);
                     }
                     else
                     {
                       ///---- rollback if failed
                       $this->db->trans_rollback();
                     }
-
-
                   }
                   else
                   {
                     $sc = FALSE;
                     $this->error = "ไม่พบรายการสินค้า";
                   }
-
                 }
                 else
                 {
@@ -332,7 +312,6 @@ class Adjust_transform extends PS_Controller
               $this->error = "ไม่พบเอกสารเบิกแปรสภาพ : {{$transform_code}}";
             }
           }
-
         }
         else
         {
@@ -355,12 +334,11 @@ class Adjust_transform extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
-
   public function drop_middle($code)
   {
     $sc = TRUE;
     $goods_issue = $this->adjust_transform_model->get_middle_goods_issue($code);
+
     if(!empty($goods_issue))
     {
       foreach($goods_issue as $rs)
@@ -380,10 +358,6 @@ class Adjust_transform extends PS_Controller
     return $sc;
   }
 
-
-
-
-
   public function view_detail($code)
   {
     $doc = $this->adjust_transform_model->get($code);
@@ -392,6 +366,7 @@ class Adjust_transform extends PS_Controller
     {
       $doc->user_name = $this->user_model->get_name($doc->user);
       $doc->zone_name = $this->zone_model->get_name($doc->from_zone);
+
       $ds = array(
         'doc' => $doc,
         'details' => $this->adjust_transform_model->get_details($code)
@@ -403,9 +378,7 @@ class Adjust_transform extends PS_Controller
     {
       $this->load->view('page_error');
     }
-
   }
-
 
 
   public function cancle($code)
@@ -416,6 +389,7 @@ class Adjust_transform extends PS_Controller
     if(!empty($code))
     {
       $doc = $this->adjust_transform_model->get($code);
+
       if(!empty($doc))
       {
         if($doc->status != 2)
@@ -425,6 +399,7 @@ class Adjust_transform extends PS_Controller
           if($sap === FALSE)
           {
             $middle = $this->adjust_transform_model->get_middle_goods_issue($code);
+
             if(!empty($middle))
             {
               foreach($middle as $rs)
@@ -467,7 +442,6 @@ class Adjust_transform extends PS_Controller
                 $this->transform_model->update_reference($doc->reference, NULL);
               }
 
-
               if($sc === TRUE)
               {
                 $this->db->trans_commit();
@@ -476,7 +450,6 @@ class Adjust_transform extends PS_Controller
               {
                 $this->db->trans_rollback();
               }
-
             }
           }
           else
@@ -501,14 +474,13 @@ class Adjust_transform extends PS_Controller
     echo $sc === TRUE ? 'success' : $this->error;
   }
 
-
-
   public function do_export($code)
   {
     $sc = TRUE;
     if(!empty($code))
     {
       $this->load->library('export');
+
       if(! $this->export->export_transform_goods_issue($code))
       {
         $sc = FALSE;
@@ -524,18 +496,17 @@ class Adjust_transform extends PS_Controller
     return $sc;
   }
 
-
-
   public function manual_export()
   {
     $sc = TRUE;
     $code = $this->input->post('code');
+
     if(!empty($code))
     {
-      $rs = $this->do_export($code);
-      if($rs === FALSE)
+      if( ! $this->do_export($code))
       {
         $sc = FALSE;
+        $this->error = $this->export->error;
       }
     }
     else
@@ -552,7 +523,7 @@ class Adjust_transform extends PS_Controller
   public function get_closed_transform_order()
   {
     $this->load->model('inventory/transform_model');
-    $code = trim($_REQUEST['term']);
+    $code = trim($_REQUEST['term'] ?? '');
     $limit = 20;
 
     echo $this->transform_model->get_closed_transform_order($code, $limit);
@@ -566,6 +537,7 @@ class Adjust_transform extends PS_Controller
     $ds = array();
     $code = $this->input->get('code'); //-- WG
     $transform_code = $this->input->get('reference'); //--- WQ
+
     if(!empty($code) && !empty($transform_code))
     {
       $doc = $this->adjust_transform_model->get($code);
@@ -573,6 +545,7 @@ class Adjust_transform extends PS_Controller
       {
         $this->load->model('inventory/invoice_model');
         $details = $this->invoice_model->get_billed_detail_qty($transform_code);
+
         if(!empty($details))
         {
 
@@ -581,6 +554,7 @@ class Adjust_transform extends PS_Controller
           $total_qty = 0;
           $total_in_zone = 0;
 					$total_bill_qty = 0;
+
           foreach($details as $rs)
           {
 						$issue_qty = $this->adjust_transform_model->get_sum_issued_qty($transform_code, $rs->product_code); //---จำนวนที่เคยตัดไปแล้วด้วย WQ นี้
@@ -645,6 +619,7 @@ class Adjust_transform extends PS_Controller
     $run_digit = getConfig('RUN_DIGIT_ADJUST_TRANSFORM');
     $pre = $prefix .'-'.$Y.$M;
     $code = $this->adjust_transform_model->get_max_code($pre);
+
     if(! is_null($code))
     {
       $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
@@ -670,10 +645,6 @@ class Adjust_transform extends PS_Controller
       'tf_status'
     );
 
-    clear_filter($filter);
-
-    echo 'done';
+    return clear_filter($filter);    
   }
-
-} //---- End class
-?>
+} 

@@ -62,7 +62,7 @@ class Transfer_model extends CI_Model
   }
 
 
-  public function get_items_reserv_stock_in(array $items = array(), $warehouse)
+  public function get_items_reserv_stock_in(array $items = array(), $warehouse = '')
   {
     if( ! empty($items))
     {
@@ -97,7 +97,7 @@ class Transfer_model extends CI_Model
   }
 
 
-  public function get_items_reserv_stock_out(array $items = array(), $warehouse)
+  public function get_items_reserv_stock_out(array $items = array(), $warehouse = '')
   {
     if( ! empty($items))
     {

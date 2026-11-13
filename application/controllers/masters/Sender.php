@@ -6,6 +6,7 @@ class Sender extends PS_Controller{
 	public $menu_group_code = 'DB';
 	public $menu_sub_group_code = 'TRANSPORT'; //--- System security
 	public $title = 'เพิ่ม/แก้ไข ขนส่ง';
+	public $segment = 4;
 
   public function __construct()
   {
@@ -13,8 +14,6 @@ class Sender extends PS_Controller{
     $this->home = base_url().'masters/sender';
 		$this->load->model('masters/sender_model');
   }
-
-
 
   public function index()
   {
@@ -27,97 +26,71 @@ class Sender extends PS_Controller{
 			'listing' => get_filter('listing', 'sender_listing', 'all')
 		);
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_filter('set_rows', 'rows', 20);
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
+		if($this->input->post('search'))
 		{
-			$perpage = get_filter('rows', 'rows', 300);
+			redirect($this->home);
+			exit;
 		}
 
-		$segment = 4; //-- url segment
+		$perpage = get_rows();
 		$rows = $this->sender_model->count_rows($filter);
-
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-
-		$rs = $this->sender_model->get_list($filter, $perpage, $this->uri->segment($segment));
-		$filter['data'] = $rs;
-
+		$filter['data'] = $this->sender_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
 		$this->pagination->initialize($init);
     $this->load->view('masters/sender/sender_view', $filter);
   }
-
 
 	public function add_new()
 	{
 		$this->load->view('masters/sender/sender_add');
 	}
 
-
 	public function add()
-	{
-		$sc = TRUE;
+	{		
+		$code = trim($this->input->post('code') ?? '');
+		$name = trim($this->input->post('name') ?? '');
 
-		$code = trim($this->input->post('code'));
-		$name = trim($this->input->post('name'));
-
-		if($code !== NULL && $code !== "")
+		if(empty($code) || empty($name))
 		{
-			if($name !== NULL && $name !== "")
-			{
-				//--- check duplicate code
-				if(! $this->sender_model->is_exists_code($code))
-				{
-					if(! $this->sender_model->is_exists_name($name))
-					{
-						$arr = array(
-							'code' => $code,
-							'name' => $name,
-							'address1' => get_null(trim($this->input->post('address1'))),
-							'address2' => get_null(trim($this->input->post('address2'))),
-							'phone' => get_null(trim($this->input->post('phone'))),
-							'open' => trim($this->input->post('open')),
-							'close' => trim($this->input->post('close')),
-							'type' => trim($this->input->post('type')),
-							'show_in_list' => empty($this->input->post('show_in_list')) ? 0 : 1,
-							'force_tracking' => empty($this->input->post('force_tracking')) ? 0 : 1,
-							'auto_gen' => empty($this->input->post('auto_gen')) ? 0 :1,
-							'prefix' => get_null(trim($this->input->post('prefix')))
-						);
-
-						if(! $this->sender_model->add($arr))
-						{
-							$sc = FALSE;
-							$this->error = "เพิ่มรายการไม่สำเร็จ";
-						}
-					}
-					else
-					{
-						$sc = FALSE;
-						$this->error = "ชื่อซ้ำ กรุณากำหนดชื่อใหม่";
-					}
-				}
-				else
-				{
-					$sc = FALSE;
-					$this->error = "รหัสซ้ำ กรุณากำหนดรหัสใหม่";
-				}
-			}
-			else
-			{
-				$sc = FALSE;
-				$this->error = "Missing required parameter : name";
-			}
-		}
-		else
-		{
-			$sc = FALSE;
-			$this->error = "Missing required parameter : code";
+			echo get_error('required');
+			exit;
 		}
 
-		echo $sc === TRUE ? 'success' : $this->error;
+		if($this->sender_model->is_exists_code($code))
+		{
+			echo get_error('exitst', $code);
+			exit;
+		}
 
+		if($this->sender_model->is_exists_name($name))
+		{
+			echo get_error('exitst', $name);
+			exit;
+		}
+
+		$arr = array(
+			'code' => $code,
+			'name' => $name,
+			'address1' => get_null(trim($this->input->post('address1') ?? '')),
+			'address2' => get_null(trim($this->input->post('address2') ?? '')),
+			'phone' => get_null(trim($this->input->post('phone') ?? '')),
+			'open' => trim($this->input->post('open') ?? ''),
+			'close' => trim($this->input->post('close') ?? ''),
+			'type' => trim($this->input->post('type') ?? ''),
+			'show_in_list' => empty($this->input->post('show_in_list')) ? 0 : 1,
+			'force_tracking' => empty($this->input->post('force_tracking')) ? 0 : 1,
+			'auto_gen' => empty($this->input->post('auto_gen')) ? 0 : 1,
+			'prefix' => get_null(trim($this->input->post('prefix') ?? ''))
+		);
+
+		if( ! $this->sender_model->add($arr))
+		{
+			echo get_error('insert');
+			exit;
+		}
+
+		echo 'success';
+		exit;
 	}
 
 
@@ -129,90 +102,78 @@ class Sender extends PS_Controller{
 
 
 	public function update($id)
-	{
-		$sc = TRUE;
+	{		
+		$code = trim($this->input->post('code') ?? '');
+		$name = trim($this->input->post('name') ?? '');
 
-		$code = trim($this->input->post('code'));
-		$name = trim($this->input->post('name'));
-
-		if($code !== NULL && $code !== "")
+		if(empty($code) || empty($name))
 		{
-			if($name !== NULL && $name !== "")
-			{
-				//--- check duplicate code
-				if(! $this->sender_model->is_exists_code($code, $id))
-				{
-					if(! $this->sender_model->is_exists_name($name, $id))
-					{
-						$arr = array(
-							'code' => $code,
-							'name' => $name,
-							'address1' => get_null(trim($this->input->post('address1'))),
-							'address2' => get_null(trim($this->input->post('address2'))),
-							'phone' => get_null(trim($this->input->post('phone'))),
-							'open' => trim($this->input->post('open')),
-							'close' => trim($this->input->post('close')),
-							'type' => trim($this->input->post('type')),
-							'show_in_list' => empty($this->input->post('show_in_list')) ? 0 : 1,
-							'force_tracking' => empty($this->input->post('force_tracking')) ? 0 : 1,
-							'auto_gen' => empty($this->input->post('auto_gen')) ? 0 :1,
-							'prefix' => get_null(trim($this->input->post('prefix')))
-						);
-
-						if(! $this->sender_model->update($id, $arr))
-						{
-							$sc = FALSE;
-							$this->error = "แก้ไขรายการไม่สำเร็จ";
-						}
-					}
-					else
-					{
-						$sc = FALSE;
-						$this->error = "ชื่อซ้ำ กรุณากำหนดชื่อใหม่";
-					}
-				}
-				else
-				{
-					$sc = FALSE;
-					$this->error = "รหัสซ้ำ กรุณากำหนดรหัสใหม่";
-				}
-			}
-			else
-			{
-				$sc = FALSE;
-				$this->error = "Missing required parameter : name";
-			}
-		}
-		else
-		{
-			$sc = FALSE;
-			$this->error = "Missing required parameter : code";
+			echo get_error('required');
+			exit;
 		}
 
-		echo $sc === TRUE ? 'success' : $this->error;
+		if($this->sender_model->is_exists_code($code, $id))
+		{
+			echo get_error('exitst', $code);
+			exit;
+		}
 
+		if($this->sender_model->is_exists_name($name, $id))
+		{
+			echo get_error('exitst', $name);
+			exit;
+		}
+
+		$arr = array(
+			'code' => $code,
+			'name' => $name,
+			'address1' => get_null(trim($this->input->post('address1') ?? '')),
+			'address2' => get_null(trim($this->input->post('address2') ?? '')),
+			'phone' => get_null(trim($this->input->post('phone') ?? '')),
+			'open' => trim($this->input->post('open') ?? ''),
+			'close' => trim($this->input->post('close') ?? ''),
+			'type' => trim($this->input->post('type') ?? ''),
+			'show_in_list' => empty($this->input->post('show_in_list')) ? 0 : 1,
+			'force_tracking' => empty($this->input->post('force_tracking')) ? 0 : 1,
+			'auto_gen' => empty($this->input->post('auto_gen')) ? 0 : 1,
+			'prefix' => get_null(trim($this->input->post('prefix') ?? ''))
+		);
+
+		if (! $this->sender_model->update($id, $arr))
+		{
+			echo get_error('update');
+			exit;
+		}
+
+		echo 'success';
+		exit;	
 	}
 
 
-	public function delete($id)
+	public function delete()
 	{
-		if($this->pm->can_delete)
+		if(! $this->pm->can_delete)
 		{
-			if($this->sender_model->delete($id))
-			{
-				set_message('ลบรายการเรียบร้อยแล้ว');
-			}
-			else
-			{
-				set_error('ลบรายการไม่สำเร็จ');
-			}
-		}
-		else
-		{
-			set_error('คุณไม่มีอำนาจในการลบ');
+			echo get_error('permission');
+			exit;
 		}
 
-		redirect($this->home);
+		$id = $this->input->post('id');
+		
+		if(empty($id))
+		{
+			echo get_error('required');
+			exit;
+		}
+
+		if( ! $this->sender_model->delete($id))
+		{
+			echo get_error('delete');
+			exit;
+		}
+
+		echo 'success';
+		exit;
 	}
 
 

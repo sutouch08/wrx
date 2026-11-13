@@ -6,8 +6,7 @@ class Pack extends PS_Controller
   public $menu_code = 'ICCKQC';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'CHECK';
-	public $title = 'ตรวจสอบ QC'; 
-  public $error;
+	public $title = 'ตรวจสอบ QC';   
 	public $segment = 4;
 
   public function __construct()
@@ -22,7 +21,7 @@ class Pack extends PS_Controller
   {
     $filter = array(
       'order_code' => get_filter('order_code', 'order_code', ''),
-      'pd_code' => get_filter('pd_code', 'pd_code'),
+      'pd_code' => get_filter('pd_code', 'pd_code', ''),
       'from_date' => get_filter('from_date', 'from_date', ''),
       'to_date' => get_filter('to_date', 'to_date', ''),
 			'range' => get_filter('range', 'range', '500000')
@@ -46,7 +45,7 @@ class Pack extends PS_Controller
 	public function delete_row()
 	{
 		$sc = TRUE;
-		$id = trim($this->input->post('id'));
+		$id = trim($this->input->post('id') ?? '');
 
 		if(!empty($id))
 		{
@@ -71,9 +70,6 @@ class Pack extends PS_Controller
   function clear_filter(){
     $filter = array('order_code', 'pd_code', 'from_date', 'to_date', 'range');
 
-    clear_filter($filter);
+    return clear_filter($filter);
   }
-
-
-} //--- end class
-?>
+}

@@ -9,7 +9,7 @@ $(document).ready(function(e) {
 Dropzone.autoDiscover = false;
 var myDropzone = new Dropzone("#imageForm", {
 	url: BASE_URL + 'masters/product_images/upload_images/' + $('#style').val(),
-	paramName: "file", // The name that will be used to transfer the file
+	paramName: "files", // The name that will be used to transfer the file
 	maxFilesize: 2, // MB
 	uploadMultiple: true,
 	maxFiles: 5,

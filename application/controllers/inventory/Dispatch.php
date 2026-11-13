@@ -1,14 +1,16 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
 class Dispatch extends PS_Controller
 {
   public $menu_code = 'ICODDP';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'PICKPACK';
-	public $title = 'Dispatch';
-  public $filter;
-  public $error;
+	public $title = 'Dispatch'; 
   public $segment = 4;
 
   public function __construct()
@@ -18,13 +20,11 @@ class Dispatch extends PS_Controller
     $this->load->model('inventory/dispatch_model');
     $this->load->model('orders/orders_model');
     $this->load->model('masters/channels_model');
-
     $this->load->helper('dispatch');
     $this->load->helper('channels');
     $this->load->helper('sender');
     $this->load->helper('order');
     $this->load->helper('warehouse');
-
     $this->load->library('user_agent');
   }
 
@@ -44,17 +44,15 @@ class Dispatch extends PS_Controller
     if($this->input->post('search'))
     {
       redirect($this->home);
+      exit;
     }
-    else
-    {
-      //--- แสดงผลกี่รายการต่อหน้า
-      $perpage = get_rows();
-      $rows = $this->dispatch_model->count_rows($filter);
-      $init = pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
-      $this->pagination->initialize($init);
-      $filter['data'] = $this->dispatch_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
-      $this->load->view('inventory/dispatch/dispatch_list', $filter);
-    }
+
+    $perpage = get_rows();
+    $rows = $this->dispatch_model->count_rows($filter);
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $filter['data'] = $this->dispatch_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+    $this->pagination->initialize($init);
+    $this->load->view('inventory/dispatch/dispatch_list', $filter);
   }
 
 
@@ -67,7 +65,7 @@ class Dispatch extends PS_Controller
   public function add()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '');
 
     if($this->pm->can_add)
     {
@@ -87,7 +85,7 @@ class Dispatch extends PS_Controller
           'plate_province' => $ds->province,
           'driver_name' => $ds->driver_name,
           'date_add' => $date_add,
-          'remark' => get_null(trim($ds->remark)),
+          'remark' => get_null(trim($ds->remark) ??''),
           'user' => $this->_user->uname
         );
 
@@ -139,7 +137,7 @@ class Dispatch extends PS_Controller
   public function update()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '');
 
     if($this->pm->can_add)
     {
@@ -156,7 +154,7 @@ class Dispatch extends PS_Controller
           'plate_no' => $ds->plate_no,
           'plate_province' => $ds->province,
           'driver_name' => $ds->driver_name,
-          'remark' => get_null(trim($ds->remark)),
+          'remark' => get_null(trim($ds->remark) ??''),
           'date_upd' => now(),
           'update_user' => $this->_user->uname
         );
@@ -410,195 +408,7 @@ class Dispatch extends PS_Controller
     return $is_cancel;
   }
 
-  // public function add_to_dispatch()
-  // {
-  //   $sc = TRUE;
-  //   $id = $this->input->post('id');
-  //   $code = $this->input->post('code');
-  //   $channels_code = $this->input->post('channels');
-  //   $channels_name = $this->input->post('channels_name');
-  //   $order_code = $this->input->post('order_code');
-  //   $row = [];
-
-  //   $doc = $this->dispatch_model->get($code);
-
-  //   if (! empty($doc))
-  //   {
-  //     if ($doc->status != 'C' && $doc->status != 'D')
-  //     {
-  //       if (! empty($order_code) && ! empty($code))
-  //       {
-  //         $order = $this->orders_model->get_order_by_tracking($order_code);
-
-  //         if (empty($order))
-  //         {
-  //           $order = $this->orders_model->get_order_by_reference($order_code);
-  //         }
-
-  //         if (empty($order))
-  //         {
-  //           $order = $this->orders_model->get($order_code);
-  //         }
-
-  //         if (empty($order))
-  //         {
-  //           $order = $this->orders_model->get_order_in_qc_box($order_code);
-  //         }
-
-  //         if (! empty($order))
-  //         {
-  //           if (! empty($doc->sender_code) && ($doc->sender_code != $order->id_sender))
-  //           {
-  //             $sc = FALSE;
-  //             $this->error = "การจัดส่งไม่ตรงกับเอกสาร";
-  //           }
-
-  //           if ($sc === TRUE)
-  //           {
-  //             if ($order->state == 8 or $order->state == 7)
-  //             {
-  //               if (! empty($channels_code))
-  //               {
-  //                 if (! empty($order->channels_code) && $order->channels_code != $channels_code)
-  //                 {
-  //                   $sc = FALSE;
-  //                   $this->error = "ออเดอร์ไม่ตรงช่องทางขาย";
-  //                 }
-  //               }
-
-  //               if (! empty($order->reference) && ($order->channels_code == '0009' or $order->channels_code == 'SHOPEE' or $order->channels_code == 'LAZADA'))
-  //               {
-  //                 if ($this->is_cancel($order->reference, $order->channels_code, $order->shop_id))
-  //                 {
-  //                   $sc = FALSE;
-  //                   $this->error = "{$order->code} : ออเดอร์นี้ถูกยกเลิกจาก platform";
-  //                   $this->orders_model->update($order->code, ['is_cancled' => 1]);
-  //                 }
-  //                 else
-  //                 {
-  //                   if ($order->is_cancled == 1)
-  //                   {
-  //                     $this->orders_model->update($order->code, ['is_cancled' => 0]);
-  //                   }
-  //                 }
-  //               }
-
-
-  //               if ($sc === TRUE)
-  //               {
-  //                 $customer = $order->customer_code . " : " . (empty($order->customer_ref) ? $order->customer_name : $order->customer_ref);
-
-  //                 $row = array(
-  //                   'dispatch_id' => $id,
-  //                   'dispatch_code' => $code,
-  //                   'order_code' => $order->code,
-  //                   'reference' => get_null($order->reference),
-  //                   'tracking_no' => get_null($order->shipping_code),
-  //                   'channels_code' => get_null($channels_code),
-  //                   'channels_name' => get_null($channels_name),
-  //                   'customer_code' => get_null($order->customer_code),
-  //                   'customer_name' => empty($order->customer_ref) ? get_null($order->customer_name) : $order->customer_ref,
-  //                   'user' => $this->_user->uname
-  //                 );
-
-  //                 $detail = $this->dispatch_model->get_detail_by_order($code, $order->code);
-
-  //                 if (empty($detail))
-  //                 {
-  //                   $cartons = $this->dispatch_model->count_order_box($order->code);
-  //                   $row['carton_qty'] = $cartons;
-  //                   $row['carton_shipped'] = 1;
-
-  //                   $dispatch_detail_id = $this->dispatch_model->add_detail($row);
-
-  //                   if ($dispatch_detail_id)
-  //                   {
-  //                     $arr = array(
-  //                       'dispatch_id' => $id,
-  //                       'shipped_date' => empty($order->shipped_date) ? now() : $order->shipped_date,
-  //                       'real_shipped_date' => now()
-  //                     );
-
-  //                     $this->orders_model->update($order->code, $arr);
-
-  //                     $row['id'] = $dispatch_detail_id;
-  //                     $row['channels'] = $channels_name;
-  //                     $row['customer'] = $customer;
-  //                   }
-  //                 }
-  //                 else
-  //                 {
-  //                   $carton_shipped = $detail->carton_shipped + 1;
-
-  //                   if ($detail->carton_qty >= $carton_shipped)
-  //                   {
-  //                     $arr = array(
-  //                       'carton_shipped' => $carton_shipped
-  //                     );
-
-  //                     if (! $this->dispatch_model->update_detail($detail->id, $arr))
-  //                     {
-  //                       $sc = FALSE;
-  //                       $this->error = "Failed to update carton shipped";
-  //                     }
-
-  //                     if ($sc === TRUE)
-  //                     {
-  //                       $row['id'] = $detail->id;
-  //                       $row['carton_shipped'] = $carton_shipped;
-  //                       $row['channels'] = $channels_name;
-  //                       $row['customer'] = $customer;
-  //                     }
-  //                   }
-  //                   else
-  //                   {
-  //                     $sc = FALSE;
-  //                     $this->error = "ออเดอร์ซ้ำ : {$order_code}";
-  //                   }
-  //                 }
-  //               }
-  //             }
-  //             else
-  //             {
-  //               $sc = FALSE;
-  //               $this->error = "Invalid order status";
-  //             }
-  //           }
-  //         }
-  //         else
-  //         {
-  //           $sc = FALSE;
-  //           $this->error = "Invalid order number";
-  //         }
-  //       }
-  //       else
-  //       {
-  //         $sc = FALSE;
-  //         set_error('required');
-  //       }
-  //     }
-  //     else
-  //     {
-  //       $sc = FALSE;
-  //       set_error('status');
-  //     }
-  //   }
-  //   else
-  //   {
-  //     $sc = FALSE;
-  //     set_error('notfound');
-  //   }
-
-  //   $arr = array(
-  //     'status' => $sc === TRUE ? 'success' : 'failed',
-  //     'message' => $sc === TRUE ? 'success' : $this->error,
-  //     'data' => $sc === TRUE ? $row : NULL
-  //   );
-
-  //   echo json_encode($arr);
-  // }
-
-
+  
   public function add_to_dispatch()
   {
     $sc = TRUE;
@@ -836,7 +646,7 @@ class Dispatch extends PS_Controller
     }
     else
     {
-      $this->deny_page();
+      $this->deny_page(TRUE);
     }
   }
 
@@ -900,7 +710,7 @@ class Dispatch extends PS_Controller
   public function delete_dispatch_details()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds))
     {
@@ -1091,7 +901,7 @@ class Dispatch extends PS_Controller
     if($this->pm->can_delete)
     {
       $code = $this->input->post('code');
-      $reason = trim($this->input->post('reason'));
+      $reason = trim($this->input->post('reason') ?? '');
 
       if( ! empty($code))
       {
@@ -1252,7 +1062,7 @@ class Dispatch extends PS_Controller
   public function remove_orders_from_pending()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds))
     {
@@ -1270,85 +1080,83 @@ class Dispatch extends PS_Controller
 
     $this->_response($sc);
   }
-
-
+  
   public function do_export()
   {
     ini_set('memory_limit', '2048M');
+    ini_set('max_execution_time', 300);
 
     $token = $this->input->post('token');
     $code = $this->input->post('code');
-    
-    $this->load->library('excel');
 
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle($code);
-    $sheet = $this->excel->getActiveSheet();    
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
+    $sheet->setTitle($code);
     $row = 1;
 
     $sheet->setCellValue("A{$row}", "รายงานการจัดส่ง");
     $sheet->mergeCells("A{$row}:H{$row}");
+    $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     $sheet->getStyle("A{$row}")->getFont()->setSize(16)->setBold(true);
-    $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
     $row++;
 
     $sheet->setCellValue("B{$row}", "เลขที่เอกสาร");
     $sheet->setCellValue("C{$row}", $code);
     $sheet->setCellValue("D{$row}", "วันที่");
     $sheet->setCellValue("E{$row}", thai_date(now(), TRUE));
-    $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-    $sheet->getStyle("C{$row}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
-    $sheet->getStyle("D{$row}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_RIGHT);
-    $sheet->getStyle("E{$row}")->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_CENTER);
+    $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    $sheet->getStyle("C{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    $sheet->getStyle("D{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+    $sheet->getStyle("E{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     $row++;
 
-    //--- set Table header
-    $sheet->setCellValue("A{$row}", '#');
-    $sheet->setCellValue("B{$row}", 'ออเดอร์');
-    $sheet->setCellValue("C{$row}", 'อ้างอิง');
-    $sheet->setCellValue("D{$row}", 'Tracking');
-    $sheet->setCellValue("E{$row}", 'ลูกค้า');
-    $sheet->setCellValue("F{$row}", 'ช่องทาง');
-    $sheet->setCellValue("G{$row}", 'กล่อง');
-    $sheet->setCellValue("H{$row}", 'จำนวน');
+    $sheet->setCellValue("A{$row}", "#");
+    $sheet->setCellValue("B{$row}", "ออเดอร์");
+    $sheet->setCellValue("C{$row}", "อ้างอิง");
+    $sheet->setCellValue("D{$row}", "Tracking");
+    $sheet->setCellValue("E{$row}", "ลูกค้า");
+    $sheet->setCellValue("F{$row}", "ช่องทาง");
+    $sheet->setCellValue("G{$row}", "กล่อง");
+    $sheet->setCellValue("H{$row}", "จำนวน");
     $row++;
 
     $ds = $this->dispatch_model->get_details($code);
 
-    if (! empty($ds))
+    if( ! empty($ds))
     {
       $no = 1;
 
-      foreach ($ds as $rs)
+      foreach($ds as $rs)
       {
         $sheet->setCellValue("A{$row}", $no);
-        $sheet->setCellValueExplicit("B{$row}", $rs->order_code, PHPExcel_Cell_DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit("C{$row}", $rs->reference, PHPExcel_Cell_DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit("D{$row}", $rs->tracking_no, PHPExcel_Cell_DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit("E{$row}", $rs->customer_code .' | '.$rs->customer_name, PHPExcel_Cell_DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit("F{$row}", $rs->channels_name, PHPExcel_Cell_DataType::TYPE_STRING);
-        $sheet->setCellValue("G{$row}", $rs->carton_qty);
-        $sheet->setCellValue("H{$row}", $this->count_qc_qty($rs->order_code));
+        $sheet->setCellValueExplicit("B{$row}", $rs->order_code, DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("C{$row}", $rs->reference, DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("D{$row}", $rs->tracking_no, DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("E{$row}", $rs->customer_code.' | '.$rs->customer_name, DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("F{$row}", $rs->channels_name, DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("G{$row}", $rs->carton_qty, DataType::TYPE_NUMERIC);
+        $sheet->setCellValueExplicit("H{$row}", $this->count_qc_qty($rs->order_code), DataType::TYPE_NUMERIC);
         $row++;
         $no++;
       }
     }
 
-    $sheet->getColumnDimension("A")->setAutoSize(true);
-    $sheet->getColumnDimension("B")->setAutoSize(true);
-    $sheet->getColumnDimension("C")->setAutoSize(true);
-    $sheet->getColumnDimension("D")->setAutoSize(true);
-    $sheet->getColumnDimension("E")->setAutoSize(true);
-    $sheet->getColumnDimension("F")->setAutoSize(true);
-    $sheet->getColumnDimension("G")->setAutoSize(true);
-    $sheet->getColumnDimension("H")->setAutoSize(true);
+    $sheet->getColumnDimension('A')->setAutoSize(true);
+    $sheet->getColumnDimension('B')->setAutoSize(true);
+    $sheet->getColumnDimension('C')->setAutoSize(true);
+    $sheet->getColumnDimension('D')->setAutoSize(true);
+    $sheet->getColumnDimension('E')->setAutoSize(true);
+    $sheet->getColumnDimension('F')->setAutoSize(true);
+    $sheet->getColumnDimension('G')->setAutoSize(true);
+    $sheet->getColumnDimension('H')->setAutoSize(true);
 
-    setToken($token);
+    setToken($token);    
+    $writer = new Xlsx($excel);
     $file_name = "Dispatch-{$code}.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment;filename="' . $file_name . '"', true);
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
     $writer->save('php://output');
+    exit;
   }
 
 
@@ -1404,6 +1212,4 @@ class Dispatch extends PS_Controller
 
     return clear_filter($filter);
   }
-
-} //--- end class
-?>
+}

@@ -18,31 +18,24 @@ class Channels extends PS_Controller
 
   public function index()
   {
-		$code = get_filter('code', 'channels_code', '');
-		$name = get_filter('name', 'channels_name', '');
-
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_filter('set_rows', 'rows', 20);
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = get_filter('rows', 'rows', 300);
-		}
-
-		$segment = 4; //-- url segment
-		$rows = $this->channels_model->count_rows($code, $name);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$rs = $this->channels_model->get_data($code, $name, $perpage, $this->uri->segment($segment));
-
-    $ds = array(
-      'code' => $code,
-      'name' => $name,
-			'data' => $rs
+    $filter = array(
+      'code' => get_filter('code', 'channels_code', ''),
+      'name' => get_filter('name', 'channels_name', '')
     );
 
+    if ($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+
+    $perpage = get_rows();		
+		$segment = 4;
+		$rows = $this->channels_model->count_rows($filter);		
+		$filter['data'] = $this->channels_model->get_list($filter, $perpage, $this->uri->segment($segment));
+		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
-    $this->load->view('masters/channels/channels_view', $ds);
+    $this->load->view('masters/channels/channels_view', $filter);
   }
 
 
@@ -58,62 +51,40 @@ class Channels extends PS_Controller
 
   public function add()
   {
-    if($this->input->post('code'))
+    $code = trim($this->input->post('code') ?? '');
+    $name = trim($this->input->post('name') ?? '');
+    $customer_code = trim($this->input->post('customer_code') ?? '');
+    $customer_name = trim($this->input->post('customer_name') ?? '');
+    $is_online = $this->input->post('is_online') == 1 ? 1 : 0;
+
+    if(empty($code) || empty($name) )
+    {      
+      echo get_error('required');
+      return;
+    }    
+
+    if($this->channels_model->is_exists($code))
     {
-      $sc = TRUE;
-      $code = $this->input->post('code');
-      $name = $this->input->post('name');
-      $customer_code = $this->input->post('customer_code');
-      $customer_name = $this->input->post('customer_name');
-			$type_code = $this->input->post('type_code');
-      $is_online = $this->input->post('is_online');
-      $ds = array(
-        'code' => $code,
-        'name' => $name,
-        'customer_code' => empty($customer_code) ? NULL : $customer_code,
-        'customer_name' => empty($customer_name) ? NULL : $customer_code,
-				'type_code' => empty($type_code) ? NULL : $type_code,
-        'is_online' => empty($is_online) ? 0 : 1
-      );
-
-      if($this->channels_model->is_exists($code) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$code."' already exists");
-      }
-
-      if($this->channels_model->is_exists_name($name) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$name."' already exists");
-      }
-
-      if($sc === TRUE && $this->channels_model->add($ds))
-      {
-        set_message('Channels created');
-      }
-      else
-      {
-        $sc = FALSE;
-        set_error('Cannot create channels');
-      }
-
-      if($sc === FALSE)
-      {
-        $this->session->set_flashdata('code', $code);
-        $this->session->set_flashdata('name', $name);
-        $this->session->set_flashdata('customer_code', $customer_code);
-        $this->session->set_flashdata('customer_name', $customer_name);
-      }
-    }
-    else
-    {
-      set_error('Data not found');
+      echo get_error('exists', $code);
+      return;
     }
 
-    redirect($this->home.'/add_new');
+    if($this->channels_model->is_exists_name($name))
+    {
+      echo get_error('exists', $name);
+      return;
+    }
+
+    $arr = [
+      'code' => $code,
+      'name' => $name,
+      'customer_code' => empty($customer_code) ? NULL : $customer_code,
+      'customer_name' => empty($customer_name) ? NULL : $customer_name,
+      'is_online' => $is_online
+    ];
+
+    echo $this->channels_model->add($arr) ? 'success' : get_error('insert');
   }
-
 
 
   public function edit($code)
@@ -126,91 +97,61 @@ class Channels extends PS_Controller
 
   public function update()
   {
-    $sc = TRUE;
+    $code = trim($this->input->post('code') ?? '');
+    $name = trim($this->input->post('name') ?? '');
+    $customer_code = trim($this->input->post('customer_code') ?? '');
+    $customer_name = trim($this->input->post('customer_name') ?? '');    
+    $is_online = $this->input->post('is_online') == 1 ? 1 : 0;
 
-    if($this->input->post('code'))
+    if(empty($code) || empty($name))
     {
-      $old_code = $this->input->post('channels_code');
-      $old_name = $this->input->post('channels_name');
-      $code = $this->input->post('code');
-      $name = $this->input->post('name');
-      $customer_code = $this->input->post('customer_code');
-      $customer_name = $this->input->post('customer_name');
-			$type_code = $this->input->post('type_code');
-      $is_online = $this->input->post('is_online');
-
-      $ds = array(
-        'code' => $code,
-        'name' => $name,
-        'customer_code' => empty($customer_code) ? NULL : $customer_code,
-        'customer_name' => empty($customer_name) ? NULL : $customer_name,
-				'type_code' => empty($type_code) ? NULL : $type_code,
-        'is_online' => empty($is_online) ? 0 : 1
-      );
-
-      if($sc === TRUE && $this->channels_model->is_exists($code, $old_code) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$code."' already exists please choose another");
-      }
-
-      if($sc === TRUE && $this->channels_model->is_exists_name($name, $old_name) === TRUE)
-      {
-        $sc = FALSE;
-        set_error("'".$name."' already exists please choose another");
-      }
-
-      if($sc === TRUE)
-      {
-        if($this->channels_model->update($old_code, $ds) === TRUE)
-        {
-          set_message('Channels updated');
-        }
-        else
-        {
-          $sc = FALSE;
-          set_error('Update channels not successfull');
-        }
-      }
-
-    }
-    else
-    {
-      $sc = FALSE;
-      set_error('Data not found');
+      echo get_error('required');
+      return;
     }
 
-    if($sc === FALSE)
+    if($this->channels_model->is_exists_name($name, $code))
     {
-      $code = $this->input->post('channels_code');
+      echo get_error('exists', $name);
+      return;
     }
 
-    redirect($this->home.'/edit/'.$code);
+    $arr = [
+      'name' => $name,
+      'customer_code' => empty($customer_code) ? NULL : $customer_code,
+      'customer_name' => empty($customer_name) ? NULL : $customer_name,
+      'is_online' => $is_online
+    ];
+
+    echo $this->channels_model->update($code, $arr) ? 'success' : get_error('update');    
   }
 
 
+  public function delete()
+  {    
+    $id = $this->input->post('id');
 
-  public function delete($code)
-  {
-    if($code != '')
+    if(!$this->pm->can_delete)
     {
-      if($this->channels_model->delete($code))
-      {
-        set_message('Channels deleted');
-      }
-      else
-      {
-        set_error('Cannot delete channels');
-      }
-    }
-    else
-    {
-      set_error('Channels not found');
+      echo get_error('permission');
+      return;
     }
 
-    redirect($this->home);
+    $channels = $this->channels_model->get_by_id($id);
+
+    if(empty($channels))
+    {
+      echo get_error('notfound');
+      return;
+    }
+
+    if($this->channels_model->has_transection($channels->code))
+    {
+      echo get_error('transection');
+      return;
+    }
+
+    echo $this->channels_model->delete($id) ? 'success' : get_error('delete');
   }
-
 
   public function toggle_online()
   {

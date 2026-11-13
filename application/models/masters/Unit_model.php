@@ -6,7 +6,6 @@ class Unit_model extends CI_Model
     parent::__construct();
   }
 
-
   public function get_data()
   {
     $rs = $this->ms
@@ -17,13 +16,6 @@ class Unit_model extends CI_Model
     ->order_by('u.UomCode', 'ASC')
     ->get();
 
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-} //--- end class
-
- ?>
+}

@@ -38,7 +38,7 @@
     <input type="text" class="form-control input-sm text-center" name="shipped_date" id="shipped-date" value="" />
   </div>
 	<div class="col-lg-1-harf col-md-1-harf col-sm-2 col-xs-6 padding-5">
-		<label>การดำเนินการ</label>
+		<label>รับที่</label>
 		<select class="form-control input-sm header-box" name="is_wms" id="is_wms">			
 			<option value="0">Warrix</option>
 		</select>

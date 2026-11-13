@@ -1,61 +1,43 @@
 <?php $this->load->view('include/header'); ?>
 <div class="row">
-	<div class="col-lg-6 col-md-6 col-sm-6 padding-5 hidden-xs">
+  <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 padding-5 padding-top-5">
     <h3 class="title"><?php echo $this->title; ?></h3>
   </div>
-	<div class="col-xs-12 padding-5 visible-xs">
-    <h3 class="title-xs"><?php echo $this->title; ?></h3>
+  <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 padding-5 text-right">
+    <button type="button" class="btn btn-white btn-default top-btn" onclick="goBack()"><i class="fa fa-arrow-left"></i> Back</button>
   </div>
-	<div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 padding-5">
-		<p class="pull-right top-p">
-			<button type="button" class="btn btn-sm btn-warning" onclick="goBack()"><i class="fa fa-arrow-left"></i> Back</button>
-		</p>
-	</div>
 </div><!-- End Row -->
-<hr class=""/>
-<div class="form-horizontal">
-	<div class="form-group">
-    <label class="col-sm-3 control-label no-padding-right">Code</label>
-    <div class="col-xs-12 col-sm-3">
-      <input type="text" name="code" id="code" class="width-100 r" value="<?php echo $code; ?>" disabled />
+<hr class="" />
+<div class="form-horizontal margin-top-30">
+  <div class="form-group">
+    <label class="col-lg-3 col-md-3 col-sm-3 col-xs-12 control-label no-padding-right">Code</label>
+    <div class="col-lg-1-harf col-md-2 col-sm-2 col-xs-12">
+      <input type="text" id="code" class="form-control input-sm r" maxlength="20" value="<?php echo $code; ?>" disabled />
+      <input type="hidden" id="id" value="<?php echo $id; ?>" />
     </div>
-    <div class="help-block col-xs-12 col-sm-reset inline red e" id="code-error"></div>
   </div>
-
-
 
   <div class="form-group">
-    <label class="col-sm-3 control-label no-padding-right">Name</label>
-    <div class="col-xs-12 col-sm-3">
-			<input type="text" name="name" id="name" class="width-100 r" value="<?php echo $name; ?>" />
+    <label class="col-lg-3 col-md-3 col-sm-3 col-xs-12 control-label no-padding-right">Name</label>
+    <div class="col-lg-3 col-md-3 col-sm-3 col-xs-12">
+      <input type="text" id="name" class="form-control input-sm r" maxlength="50" value="<?php echo $name; ?>" autocomplete="off" />
     </div>
-    <div class="help-block col-xs-12 col-sm-reset inline red e" id="name-error"></div>
   </div>
 
-
-	<div class="form-group">
-    <label class="col-sm-3 control-label no-padding-right">ตำแหน่ง</label>
-    <div class="col-xs-12 col-sm-3">
-			<input type="number" name="position" id="position" class="width-50 r" value="<?php echo $position; ?>" />
-    </div>
-    <div class="help-block col-xs-12 col-sm-reset inline red e" id="pos-error"></div>
-  </div>
-
-	<div class="divider-hidden">
-
-	</div>
   <div class="form-group">
-    <label class="col-sm-3 control-label no-padding-right"></label>
-    <div class="col-xs-12 col-sm-3">
-      <p class="pull-right">
-        <button type="button" class="btn btn-sm btn-success" onclick="update(<?php echo $id; ?>)"><i class="fa fa-save"></i> Update</button>
-      </p>
-    </div>
-    <div class="help-block col-xs-12 col-sm-reset inline">
-      &nbsp;
+    <label class="col-lg-3 col-md-3 col-sm-3 col-xs-12 control-label no-padding-right">ตำแหน่ง</label>
+    <div class="col-lg-1 col-md-1 col-sm-1 col-xs-12">
+      <input type="number" id="position" class="form-control input-sm r" value="<?php echo $position; ?>" />
     </div>
   </div>
-	<input type="hidden" id="id" value="<?php echo $id; ?>" />
+
+  <div class="divider-hidden"></div>
+
+  <div class="form-group">
+    <div class="col-lg-1-harf col-lg-offset-3 col-md-2 col-md-offset-3 col-sm-2 col-sm-offset-3 col-xs-12">
+      <button type="button" class="btn btn-white btn-success btn-100 btn-block-xs" onclick="update()"><i class="fa fa-plus"></i>&nbsp; Update</button>
+    </div>
+  </div>
 </div>
 
 <script src="<?php echo base_url(); ?>scripts/masters/product_size.js?v=<?php echo date('Ymd'); ?>"></script>

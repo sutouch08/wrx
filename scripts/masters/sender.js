@@ -1,221 +1,221 @@
-var HOME = BASE_URL + 'masters/sender/';
-
-function getSearch(){
-  $('#searchForm').submit();
+function addNew() {
+	window.location.href = `${HOME}add_new`;
 }
 
 
-$('.search-box').keyup(function(e){
-  if(e.keyCode == 13){
-    getSearch();
-  }
-});
-
-
-function clearFilter(){
-  $.get(HOME + 'clear_filter', function(){
-    goBack();
-  });
+function edit(id) {
+	window.location.href = `${HOME}edit/${id}`;
 }
 
-function goBack(){
-  window.location.href = HOME;
-}
-
-function addNew(){
-  window.location.href = HOME + 'add_new';
-}
-
-
-function getEdit(id){
-  window.location.href = HOME + 'edit/'+id;
-}
-
-
+let click = false;
 
 function save() {
-	var code = $('#code').val();
-	var name = $('#name').val();
-	var adr1 = $('#address1').val();
-	var adr2 = $('#address2').val();
-	var phone = $('#phone').val();
-	var open = $('#open').val();
-	var close = $('#close').val();
-	var type = $('#type').val();
-	var inlist = $('#in_list').is(':checked') ? 1 : 0;
-	var force_tracking = $('#force_tracking').is(':checked') ? 1 : 0;
-	var auto_gen = $('#auto_gen').is(':checked') ? 1 : 0;
-	var prefix = $('#tracking_prefix').val();
-
-	if(code.length === 0) {
-		swal("กรุณากำหนดรหัส");
+	if (click) {
 		return false;
 	}
 
-	if(name.length === 0) {
+	click = true;
+
+	let code = $('#code').val();
+	let name = $('#name').val();
+	let adr1 = $('#address1').val();
+	let adr2 = $('#address2').val();
+	let phone = $('#phone').val();
+	let open = $('#open').val();
+	let close = $('#close').val();
+	let type = $('#type').val();
+	let inlist = $('#in_list').is(':checked') ? 1 : 0;
+	let force_tracking = $('#force_tracking').is(':checked') ? 1 : 0;
+	let auto_gen = $('#auto_gen').is(':checked') ? 1 : 0;
+	let prefix = $('#tracking_prefix').val();
+
+	if (code.length === 0) {
+		swal("กรุณากำหนดรหัส");
+		click = false;
+		return false;
+	}
+
+	if (name.length === 0) {
 		swal("กรุณากำหนดชื่อ");
+		click = false;
 		return false;
 	}
 
 	$.ajax({
-		url:HOME + 'add',
-		type:'POST',
-		cache:false,
-		data:{
-			'code' : code,
-			'name' : name,
-			'address1' : adr1,
-			'address2' : adr2,
-			'phone' : phone,
-			'open' : open,
-			'close' : close,
-			'type' : type,
-			'show_in_list' : inlist,
-			'force_tracking' : force_tracking,
-			'auto_gen' : auto_gen,
-			'prefix' : prefix
+		url: `${HOME}add`,
+		type: 'POST',
+		cache: false,
+		data: {
+			'code': code,
+			'name': name,
+			'address1': adr1,
+			'address2': adr2,
+			'phone': phone,
+			'open': open,
+			'close': close,
+			'type': type,
+			'show_in_list': inlist,
+			'force_tracking': force_tracking,
+			'auto_gen': auto_gen,
+			'prefix': prefix
 		},
-		success:function(rs) {
-			var rs = $.trim(rs);
-			if(rs === 'success') {
+		success: function (rs) {
+			click = false;
+			if (rs.trim() === 'success') {
 				swal({
-					title:'Success',
-					type:'success',
-					timer:1000
+					title: 'Success',
+					type: 'success',
+					timer: 1000
 				});
 
-				setTimeout(function() {
-					addNew();
-				}, 1200);
+				setTimeout(function () { addNew(); }, 1200);
 			}
 			else {
-				swal({
-					title:'Error!',
-					text:rs,
-					type:'error',
-					html:true
-				})
+				click = false;
+				showError(rs);
 			}
 		},
-		error:function(xhr, status, error) {
-			swal({
-				title: 'Error',
-				text:xhr.responseText,
-				type:'error',
-				html:true
-			});
+		error: function (rs) {
+			click = false;
+			showError(rs);
 		}
-	})
+	});
 }
-
 
 
 function update() {
-	var id = $('#id').val();
-	var code = $('#code').val();
-	var name = $('#name').val();
-	var adr1 = $('#address1').val();
-	var adr2 = $('#address2').val();
-	var phone = $('#phone').val();
-	var open = $('#open').val();
-	var close = $('#close').val();
-	var type = $('#type').val();
-	var inlist = $('#in_list').is(':checked') ? 1 : 0;
-	var force_tracking = $('#force_tracking').is(':checked') ? 1 : 0;
-	var auto_gen = $('#auto_gen').is(':checked') ? 1 : 0;
-	var prefix = $('#tracking_prefix').val();
-
-	if(code.length === 0) {
-		swal("กรุณากำหนดรหัส");
+	if (click) {
 		return false;
 	}
 
-	if(name.length === 0) {
+	click = true;
+
+	let id = $('#id').val();
+	let code = $('#code').val();
+	let name = $('#name').val();
+	let adr1 = $('#address1').val();
+	let adr2 = $('#address2').val();
+	let phone = $('#phone').val();
+	let open = $('#open').val();
+	let close = $('#close').val();
+	let type = $('#type').val();
+	let inlist = $('#in_list').is(':checked') ? 1 : 0;
+	let force_tracking = $('#force_tracking').is(':checked') ? 1 : 0;
+	let auto_gen = $('#auto_gen').is(':checked') ? 1 : 0;
+	let prefix = $('#tracking_prefix').val();
+
+	if (code.length === 0) {
+		swal("กรุณากำหนดรหัส");
+		click = false;
+		return false;
+	}
+
+	if (name.length === 0) {
 		swal("กรุณากำหนดชื่อ");
+		click = false;
 		return false;
 	}
 
 	$.ajax({
-		url:HOME + 'update/'+id,
-		type:'POST',
-		cache:false,
-		data:{
-			'code' : code,
-			'name' : name,
-			'address1' : adr1,
-			'address2' : adr2,
-			'phone' : phone,
-			'open' : open,
-			'close' : close,
-			'type' : type,
-			'show_in_list' : inlist,
-			'force_tracking' : force_tracking,
-			'auto_gen' : auto_gen,
-			'prefix' : prefix
+		url: `${HOME}update/${id}`,
+		type: 'POST',
+		cache: false,
+		data: {
+			'code': code,
+			'name': name,
+			'address1': adr1,
+			'address2': adr2,
+			'phone': phone,
+			'open': open,
+			'close': close,
+			'type': type,
+			'show_in_list': inlist,
+			'force_tracking': force_tracking,
+			'auto_gen': auto_gen,
+			'prefix': prefix
 		},
-		success:function(rs) {
-			var rs = $.trim(rs);
-			if(rs === 'success') {
+		success: function (rs) {
+			click = false;
+			if (rs.trim() === 'success') {
 				swal({
-					title:'Success',
-					type:'success',
-					timer:1000
+					title: 'Success',
+					type: 'success',
+					timer: 1000
 				});
-
 			}
 			else {
-				swal({
-					title:'Error!',
-					text:rs,
-					type:'error',
-					html:true
-				})
+				showError(rs);
+				click = false;
 			}
 		},
-		error:function(xhr, status, error) {
-			swal({
-				title: 'Error',
-				text:xhr.responseText,
-				type:'error',
-				html:true
-			});
+		error: function (rs) {
+			click = false;
+			showError(rs);
 		}
-	})
+	});
 }
 
-function getDelete(id, name){
-  swal({
-    title:'Are sure ?',
-    text:'ต้องการลบ ' + name + ' หรือไม่ ?',
-    type:'warning',
-    showCancelButton: true,
+
+function getDelete(id, name) {
+	swal({
+		title: 'Are sure ?',
+		text: 'ต้องการลบ ' + name + ' หรือไม่ ?',
+		type: 'warning',
+		showCancelButton: true,
 		confirmButtonColor: '#FA5858',
 		confirmButtonText: 'ใช่, ฉันต้องการลบ',
 		cancelButtonText: 'ยกเลิก',
-		closeOnConfirm: false
-  },function(){
-    window.location.href = HOME +'delete/' + id;
-  })
+		closeOnConfirm: true
+	}, function () {
+		load_in();
+
+		setTimeout(() => {
+			$.ajax({
+				url: `${HOME}delete`,
+				type: 'POST',
+				cache: false,
+				data: {
+					'id': id
+				},
+				success: function (rs) {
+					load_out();
+					if (rs.trim() === 'success') {
+						swal({
+							title: 'Success',
+							type: 'success',
+							timer: 1000
+						});
+
+						$(`#row-${id}`).remove();
+						reIndex();
+					}
+					else {
+						showError(rs);
+					}
+				},
+				error: function (rs) {
+					showError(rs);
+				}
+			})
+		}, 100);
+	});
 }
 
 function toggleAutoGen() {
-	var el = $('#force_tracking');
+	$('#auto_gen').prop('checked', false);
 
-	if(el.is(':checked')) {
+	if ($('#force_tracking').is(':checked')) {
 		$('#gen_potion').removeClass('hide');
 	}
 	else {
 		$('#gen_potion').addClass('hide');
 		$('#prefix').addClass('hide');
 	}
-
-	$('#auto_gen').prop('checked', false);
 }
 
 
 function togglePrefix() {
-	var el = $('#auto_gen');
-	if(el.is(':checked')) {
+	if ($('#auto_gen').is(':checked')) {
 		$('#prefix').removeClass('hide');
 	}
 	else {
@@ -225,22 +225,22 @@ function togglePrefix() {
 
 
 function toggleListing(id) {
-  $.ajax({
-    url:HOME + 'toggle_listing/'+id,
-    type:'GET',
-    cache:false,
-    success:function(rs) {
-      if(isJson(rs)) {
-        let ds = JSON.parse(rs);
+	$.ajax({
+		url: `${HOME}toggle_listing/${id}`,
+		type: 'GET',
+		cache: false,
+		success: function (rs) {
+			if (isJson(rs)) {
+				let ds = JSON.parse(rs);
 
-        $('#listing-'+id).html(ds.data);
-      }
-      else {
-        showError(rs);
-      }
-    },
-    error:function(rs) {
-      showError(rs);
-    }
-  })
+				$('#listing-' + id).html(ds.data);
+			}
+			else {
+				showError(rs);
+			}
+		},
+		error: function (rs) {
+			showError(rs);
+		}
+	})
 }

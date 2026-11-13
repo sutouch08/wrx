@@ -1,12 +1,12 @@
 <?php
 class Return_consignment_model extends CI_Model
 {
-  private $tb = 'return_consignment';
-  private $tb_detail = 'return_consignment_detail';
-
+  private $tb = "return_consignment";
+  private $td = "return_consignment_detail";
+  
   public function __construct()
   {
-    parent::__construct();
+    parent::__construct();    
   }
 
 

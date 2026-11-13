@@ -4,7 +4,7 @@ function select_channels($code = '')
   $sc = '';
   $ci =& get_instance();
   $ci->load->model('masters/channels_model');
-  $channels = $ci->channels_model->get_data();
+  $channels = $ci->channels_model->get_all();
 
   if(!empty($channels))
   {
@@ -84,14 +84,13 @@ function online_channels_array()
   $arr = ['x'];
   $ci =& get_instance();
   $ci->load->model('masters/channels_model');
-  $qr = "SELECT code FROM channels WHERE is_online = 1";
-  $chs = $ci->db->query($qr); 
+  $chs = $ci->channels_model->get_online_channels(); 
   
-  if($chs->num_rows() > 0)
+  if(!empty($chs))
   {
-    foreach($chs->result() as $r)
+    foreach($chs as $rs)
     {
-      $arr[] = $r->code;
+      $arr[] = $rs->code;
     }
   }
 
@@ -103,14 +102,13 @@ function offline_channels_array()
   $arr = ['x'];
   $ci =& get_instance();
   $ci->load->model('masters/channels_model');
-  $qr = "SELECT code FROM channels WHERE is_online = 0 OR is_online IS NULL";
-  $chs = $ci->db->query($qr); 
+  $chs = $ci->channels_model->get_offline_channels(); 
 
-  if($chs->num_rows() > 0)
+  if(!empty($chs))
   {
-    foreach($chs->result() as $r)
+    foreach($chs as $rs)
     {
-      $arr[] = $r->code;
+      $arr[] = $rs->code;
     }
   }
 

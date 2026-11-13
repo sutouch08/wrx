@@ -19,39 +19,20 @@ class Customer_address_model extends CI_Model
   public function get_customer_bill_to_address($customer_code)
   {
     $rs = $this->db->where('customer_code', $customer_code)->get('address_bill_to');
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row();
-    }
-
-    return FALSE;
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
   }
-
 
   public function get_customer_ship_to_address($id)
   {
     $rs = $this->db->where('id', $id)->get('address_ship_to');
-    if($rs->num_rows() > 0)
-    {
-      return $rs->row();
-    }
-
-    return FALSE;
+    return $rs->num_rows() === 1 ? $rs->row() : NULL;
   }
-
 
   public function get_ship_to_address($code)
   {
     $rs = $this->db->where('customer_code', $code)->get('address_ship_to');
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
 
   public function get_customer_ship_to_id($code)
   {
@@ -62,85 +43,62 @@ class Customer_address_model extends CI_Model
     ->limit(1)
     ->get('address_ship_to');
 
-    if($rs->num_rows() === 1)
-    {
-      return $rs->row()->id;
-    }
-
-    return NULL;
+    return $rs->num_rows() === 1 ? $rs->row()->id : NULL;
   }
-
 
   public function add_bill_to(array $ds = array())
   {
-    if(!empty($ds))
+    return ! empty($ds) ? $this->db->insert('address_bill_to', $ds) : FALSE;    
+  }
+
+  public function add_ship_to(array $ds = array())
+  {
+    if( !empty($ds))
     {
-      return $this->db->insert('address_bill_to', $ds);
+      if($this->db->insert('address_ship_to', $ds))
+      {
+        return $this->db->insert_id();
+      }
     }
 
     return FALSE;
   }
 
+  public function update_ship_to($id, array $ds = array())
+  {
+    return ! empty($ds) ? $this->db->where('id', $id)->update('address_ship_to', $ds) : FALSE;
+  }
 
+  public function delete_ship_to($id)
+  {
+    return $this->db->where('id', $id)->delete('address_ship_to');
+  }
+  
   public function add_sap_bill_to(array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->mc->insert('CRD1', $ds);
-    }
-
-    return FALSE;
+    return ! empty($ds) ? $this->mc->insert('CRD1', $ds) : FALSE;
   }
-
-
 
   public function update_bill_to($customer_code, array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->db->where('customer_code', $customer_code)->update('address_bill_to', $ds);
-    }
-
-    return FALSE;
+    return ! empty($ds) ? $this->db->where('customer_code', $customer_code)->update('address_bill_to', $ds) : FALSE;
   }
-
-
 
   public function update_sap_bill_to($code, $address, array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->mc->where('CardCode', $code)->where('Address', $address)->where('AdresType', 'B')->update('CRD1', $ds);
-    }
-
-    return FALSE;
+    return ! empty($ds) ? $this->mc->where('CardCode', $code)->where('Address', $address)->where('AdresType', 'B')->update('CRD1', $ds) : FALSE;
   }
-
 
   //----- Ship To
   public function add_sap_ship_to(array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->mc->insert('CRD1', $ds);
-    }
-
-    return FALSE;
+    return ! empty($ds) ? $this->mc->insert('CRD1', $ds) : FALSE;
   }
-
-
 
   public function update_sap_ship_to($code, $address, array $ds = array())
   {
-    if(!empty($ds))
-    {
-      return $this->mc->where('CardCode', $code)->where('Address', $address)->where('AdresType', 'S')->update('CRD1', $ds);
-    }
-
-    return FALSE;
+    return ! empty($ds) ? $this->mc->where('CardCode', $code)->where('Address', $address)->where('AdresType', 'S')->update('CRD1', $ds) : FALSE;
   }
-
-
 
   public function get_max_line_num($code, $type = 'B')
   {
@@ -148,32 +106,19 @@ class Customer_address_model extends CI_Model
     return $rs->row()->LineNum;
   }
 
-
   public function is_sap_address_exists($code, $address, $type = 'B')
   {
-    $rs = $this->mc
-    ->where('Address', $address)
-    ->where('CardCode', $code)
-    ->where('AdresType', $type)
-    ->get('CRD1');
-    if($rs->num_rows() > 0)
-    {
-      return TRUE;
-    }
-
-    return FALSE;
+    return $this->mc->where('Address', $address)->where('CardCode', $code)->where('AdresType', $type)->count_all_results('CRD1') > 0;   
   }
-
 
   public function get_max_code($code)
   {
-    $qr = "SELECT MAX(address_code) AS code FROM address_ship_to WHERE code = '{$code}' ORDER BY address_code DESC";
-    $rs = $this->db->query($qr);
-    return $rs->row()->code;
+    $rs = $this->db
+    ->select_max('address_code')
+    ->where('code', $code)
+    ->order_by('address_code', 'DESC')
+    ->get('address_ship_to');
+
+    return $rs->num_rows() === 1 ? $rs->row()->address_code : NULL;    
   }
-
-
-
-} //--- end class
-
- ?>
+}

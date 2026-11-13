@@ -16,7 +16,6 @@ class Product_collection extends PS_Controller
     $this->load->model('masters/product_collection_model');
   }
 
-
   public function index()
   {
     $filter = array(
@@ -25,16 +24,15 @@ class Product_collection extends PS_Controller
       'active' => get_filter('active', 'collection_active', 'all')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
+    if($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
 
-		$segment = 4; //-- url segment
-		$rows = $this->product_collection_model->count_rows($filter);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$filter['data'] = $this->product_collection_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
-    $data = array();
+		$perpage = get_rows();		
+		$rows = $this->product_collection_model->count_rows($filter);	
+		$filter['data'] = $this->product_collection_model->get_list($filter, $perpage, $this->uri->segment($this->segment));    
 
     if(!empty($filter['data']))
     {
@@ -44,8 +42,8 @@ class Product_collection extends PS_Controller
       }
     }
 
+		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
 		$this->pagination->initialize($init);
-
     $this->load->view('masters/product_collection/product_collection_list', $filter);
   }
 
@@ -55,178 +53,131 @@ class Product_collection extends PS_Controller
     $this->load->view('masters/product_collection/product_collection_add');
   }
 
-
   public function add()
   {
-    $sc = TRUE;
-    $code = trim($this->input->post('code'));
-    $name = trim($this->input->post('name'));
+    $code = trim($this->input->post('code') ?? '');
+    $name = trim($this->input->post('name') ?? '');
     $active = $this->input->post('active') == 1 ? 1 : 0;
 
-    if( ! empty($code) && ! empty($name))
+    if(!$this->pm->can_add)
     {
-      if($this->product_collection_model->is_exists($code))
-      {
-        $sc = FALSE;
-        $this->error = "{$code} มีในระบบแล้ว";
-      }
-
-      if($sc === TRUE)
-      {
-        if($this->product_collection_model->is_exists_name($name))
-        {
-          $sc = FALSE;
-          $this->error = "{$name} มีในระบบแล้ว";
-        }
-      }
-
-      if($sc === TRUE)
-      {
-        $ds = array(
-          'code' => $code,
-          'name' => $name,
-          'active' => $active,
-          'update_user' => $this->_user->uname
-        );
-
-        if( ! $this->product_collection_model->add($ds))
-        {
-          $sc = FALSE;
-          $this->error = "เพิ่มรายการไม่สำเร็จ";
-        }
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      set_error('required');
+      echo get_error('permission');
+      exit;
     }
 
-    $arr = array(
-      'status' => $sc === TRUE ? 'success' : 'failed',
-      'message' => $sc === TRUE ? 'success' : $this->error
+    if(empty($code) || empty($name))
+    {
+      echo get_error('required');
+      exit;
+    }
+
+    if($this->product_collection_model->is_exists($code))
+    {
+      echo get_error('exists', $code);
+      exit;
+    }
+
+    if($this->product_collection_model->is_exists_name($name))
+    {
+      echo get_error('exists', $name);
+      exit;
+    }
+    
+    $ds = array(
+      'code' => $code,
+      'name' => $name,
+      'active' => $active,
+      'update_user' => $this->_user->uname
     );
 
-    echo json_encode($arr);
+    if(! $this->product_collection_model->add($ds))
+    {
+      echo get_error('insert');
+      exit;
+    }
+    
+    echo 'success';
   }
-
-
 
   public function edit($id)
   {
     $data = $this->product_collection_model->get_by_id($id);
-
-    if( ! empty($data))
-    {
-      $this->load->view('masters/product_collection/product_collection_edit', $data);
-    }
-    else
-    {
-      $this->page_error();
-    }
+    $this->load->view('masters/product_collection/product_collection_edit', $data);
   }
-
-
 
   public function update()
-  {
-    $sc = TRUE;
+  {    
     $id = $this->input->post('id');
-    $name = trim($this->input->post('name'));
+    $name = trim($this->input->post('name') ?? '');
     $active = $this->input->post('active') == 1 ? 1 : 0;
 
-    if( ! empty($name))
+    if(!$this->pm->can_edit)
     {
-      if($this->product_collection_model->is_exists_name($name, $id))
-      {
-        $sc = FALSE;
-        $this->error = "{$name} มีในระบบแล้ว";
-      }
-
-      if($sc === TRUE)
-      {
-        $arr = array(
-          'name' => $name,
-          'active' => $active,
-          'date_upd' => now(),
-          'update_user' => $this->_user->uname
-        );
-
-        if( ! $this->product_collection_model->update($id, $arr))
-        {
-          $sc = FALSE;
-          $this->error = "แก้ไขรายการไม่สำเร็จ";
-        }
-      }
+      echo get_error('permission');
+      exit;
     }
-    else
+
+    if(empty($name))
     {
-      $sc = FALSE;
-      set_error('required');
+      echo get_error('required');
+      exit;
+    }
+
+    if($this->product_collection_model->is_exists_name($name, $id))
+    {
+      echo get_error('exists', $name);
+      exit;
     }
 
     $arr = array(
-      'status' => $sc === TRUE ? 'success' : 'failed',
-      'message' => $sc === TRUE ? 'success' : $this->error
+      'name' => $name,
+      'active' => $active,
+      'date_upd' => now(),
+      'update_user' => $this->_user->uname
     );
 
-    echo json_encode($arr);
+    if( ! $this->product_collection_model->update($id, $arr))
+    {
+      echo get_error('update');
+      exit;
+    }
+
+    echo 'success';
   }
 
-
-
-  public function delete($id)
+  public function delete()
   {
-    $sc = TRUE;
+    $id = $this->input->post('id');
 
-    if($this->pm->can_delete)
+    if( ! $this->pm->can_delete)
     {
-      $data = $this->product_collection_model->get_by_id($id);
-
-      if( ! empty($data))
-      {
-        $count = $this->product_collection_model->count_members($data->code);
-
-        if( ! $count)
-        {
-          if( ! $this->product_collection_model->delete($id))
-          {
-            $sc = FALSE;
-            set_error('delete');
-          }
-        }
-        else
-        {
-          $sc = FALSE;
-          set_error('transection');
-        }
-      }
-      else
-      {
-        $sc = FALSE;
-        set_error('notfound');
-      }
-    }
-    else
-    {
-      $sc = FALSE;
-      set_error('permission');
+      echo get_error('permission');
+      exit;
     }
 
-    $arr = array(
-      'status' => $sc === TRUE ? 'success' : 'failed',
-      'message' => $sc === TRUE ? 'success' : $this->error
-    );
+    $ds = $this->product_collection_model->get_by_id($id);
 
-    echo json_encode($arr);
+    if($ds)
+    {
+      if($this->product_collection_model->count_members($ds->code) > 0)
+      {
+        echo get_error('transection');
+        exit;
+      }
+
+      if( ! $this->product_collection_model->delete($id))
+      {
+        echo get_error('delete');
+        exit;
+      }
+    }
+
+    echo 'success';
+    exit;    
   }
-
 
   public function clear_filter()
 	{
-		$filter = array('collection_code', 'collection_name', 'collection_active');
-    return clear_filter($filter);
+		return clear_filter(array('collection_code', 'collection_name', 'collection_active'));
 	}
-
-}//--- end class
- ?>
+}

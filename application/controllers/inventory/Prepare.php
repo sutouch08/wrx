@@ -6,8 +6,7 @@ class Prepare extends PS_Controller
   public $menu_code = 'ICODPR';
 	public $menu_group_code = 'IC';
   public $menu_sub_group_code = 'PICKPACK';
-	public $title = 'จัดสินค้า';
-  public $filter;
+	public $title = 'จัดสินค้า';  
   public $full_mode = TRUE;
 
   public function __construct()
@@ -19,9 +18,7 @@ class Prepare extends PS_Controller
     $this->load->model('orders/orders_model');
     $this->load->model('orders/order_state_model');
     $this->load->model('masters/warehouse_model');
-    $this->load->helper('order');
-
-    $this->full_mode = is_true(getConfig('WMS_FULL_MODE'));
+    $this->load->helper('order');    
   }
 
 
@@ -64,22 +61,16 @@ class Prepare extends PS_Controller
     if($this->input->post('search'))
     {
       redirect($this->home);
+      exit;
     }
-    else
-    {
-      //--- แสดงผลกี่รายการต่อหน้า
-  		$perpage = get_rows();
-  		$segment  = 4; //-- url segment
-  		$rows = $this->prepare_model->count_rows($filter, 3, $this->full_mode);
-  		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-  		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-  		$orders   = $this->prepare_model->get_list($filter, $perpage, $this->uri->segment($segment), 3, $this->full_mode);
-
-      $filter['orders'] = $orders;
-
-  		$this->pagination->initialize($init);
-      $this->load->view('inventory/prepare/prepare_list', $filter);
-    }
+    
+    $perpage = get_rows();
+    $segment = 4;
+    $rows = $this->prepare_model->count_rows($filter, 3, $this->full_mode);    
+    $filter['orders'] = $this->prepare_model->get_list($filter, $perpage, $this->uri->segment($segment), 3, $this->full_mode);
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $segment);
+    $this->pagination->initialize($init);
+    $this->load->view('inventory/prepare/prepare_list', $filter);
   }
 
 
@@ -122,21 +113,16 @@ class Prepare extends PS_Controller
     if($this->input->post('search'))
     {
       redirect($this->home.'/view_process/');
+      exit;
     }
-    else
-    {
-  		$perpage = get_rows();
-  		$segment  = 4; //-- url segment
-  		$rows = $this->prepare_model->count_rows($filter, 4, $this->full_mode);
-  		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-  		$init	= pagination_config($this->home.'/view_process/', $rows, $perpage, $segment);
-  		$orders   = $this->prepare_model->get_list($filter, $perpage, $this->uri->segment($segment), 4, $this->full_mode);
 
-      $filter['orders'] = $orders;
-
-  		$this->pagination->initialize($init);
-      $this->load->view('inventory/prepare/prepare_view_process', $filter);
-    }
+    $perpage = get_rows();
+    $segment = 4;
+    $rows = $this->prepare_model->count_rows($filter, 4, $this->full_mode);    
+    $filter['orders'] = $this->prepare_model->get_list($filter, $perpage, $this->uri->segment($segment), 4, $this->full_mode);
+    $init = pagination_config($this->home . '/view_process/', $rows, $perpage, $segment);
+    $this->pagination->initialize($init);
+    $this->load->view('inventory/prepare/prepare_view_process', $filter);
   }
 
 
@@ -149,7 +135,7 @@ class Prepare extends PS_Controller
   public function update_back_order()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds))
     {
@@ -171,8 +157,7 @@ class Prepare extends PS_Controller
 
   public function gen_pick_list()
   {
-    $ds = json_decode($this->input->post('data'));
-
+    $ds = json_decode($this->input->post('data') ?? '{}');
     $orders = [];
     $items = [];
 
@@ -205,9 +190,7 @@ class Prepare extends PS_Controller
           $uncomplete = $this->orders_model->get_unvalid_details($rs->code);
 
           if( ! empty($uncomplete))
-          {
-            $bc = [];
-
+          {            
             foreach($uncomplete as $ro)
             {
               $prepared = $this->prepare_model->get_prepared($ro->order_code, $ro->product_code, $ro->id);
@@ -269,6 +252,7 @@ class Prepare extends PS_Controller
     $sc = "ไม่มีสินค้า";
     $this->load->model('stock/stock_model');
     $stock = $this->stock_model->get_stock_in_zone($item_code, $warehouse);
+
     if(!empty($stock))
     {
       $sc = "";
@@ -632,7 +616,7 @@ class Prepare extends PS_Controller
                   }
                   else
                   {
-                    $this->trans_rollback();
+                    $this->db->trans_rollback();
                   }
 
                   if($sc === TRUE)
@@ -647,7 +631,6 @@ class Prepare extends PS_Controller
                   }
                 }
               }
-
             }
             else
             {
@@ -695,8 +678,8 @@ class Prepare extends PS_Controller
   {
     $ds = array();
     $sc = TRUE;
-    $zone_code = trim($this->input->get('zone_code'));
-    $warehouse_code = trim($this->input->get('warehouse_code'));
+    $zone_code = trim($this->input->get('zone_code') ?? '');
+    $warehouse_code = trim($this->input->get('warehouse_code') ?? '');
 
     if($zone_code)
     {
@@ -772,6 +755,7 @@ class Prepare extends PS_Controller
     $sc = "ไม่มีสินค้า";
     $this->load->model('stock/stock_model');
     $stock = $this->stock_model->get_stock_in_zone($item_code, $warehouse);
+
     if(!empty($stock))
     {
       $sc = "";
@@ -796,7 +780,6 @@ class Prepare extends PS_Controller
     $sc = TRUE;
     $item_code = $this->input->get('product_code');
     $whs_code = $this->input->get('warehouse_code');
-
     $result = $this->get_stock_in_zone($item_code, $whs_code);
 
     $arr = array(
@@ -895,6 +878,7 @@ class Prepare extends PS_Controller
   {
     $code = $this->input->post('order_code');
     $state = $this->orders_model->get_state($code);
+
     if($state == 4)
     {
       $arr = array(
@@ -988,9 +972,6 @@ class Prepare extends PS_Controller
       'ic_id_sender'
     );
 
-    clear_filter($filter);
+    return clear_filter($filter);
   }
-
-
-} //--- end class
-?>
+}

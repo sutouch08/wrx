@@ -7,10 +7,12 @@ class PS_Controller extends CI_Controller
   public $home;
   public $ms;
   public $mc;
+  public $wms;
+  public $logs;
   public $cn;
-  public $close_system;
-  public $error = "";
-  public $notibars;
+  public $close_system = 0;
+  public $error;
+  public $notibars = 0;
   public $WC;
   public $WT;
   public $WS;
@@ -19,7 +21,7 @@ class PS_Controller extends CI_Controller
   public $WV;
   public $RR;
   public $WL;
-  public $isViewer;
+  public $isViewer = FALSE;
 	public $_user;
 	public $_SuperAdmin = FALSE;
   public $_dataDate = '2021-01-01';
@@ -33,17 +35,20 @@ class PS_Controller extends CI_Controller
     //--- check is user has logged in ?
     if(empty($uid) OR ! $this->user_model->verify_uid($uid))
     {
-      redirect(base_url().'users/authentication');
-      exit();
+      if(! $this->input->is_ajax_request()) {
+        redirect(base_url().'users/authentication');
+        exit;
+      }
+      
+      echo "Session expired. Please login again.";
+      exit;
     }
     else
     {
-
       $this->_user = $this->user_model->get_user_by_uid($uid);
       $this->isViewer = $this->_user->is_viewer == 1 ? TRUE : FALSE;
       $this->_SuperAdmin = $this->_user->id_profile == -987654321 ? TRUE : FALSE;
-
-      $this->close_system   = getConfig('CLOSE_SYSTEM'); //--- ปิดระบบทั้งหมดหรือไม่
+      $this->close_system = getConfig('CLOSE_SYSTEM'); //--- ปิดระบบทั้งหมดหรือไม่
 
       if($this->close_system == 1 && $this->_SuperAdmin === FALSE)
       {
@@ -58,8 +63,7 @@ class PS_Controller extends CI_Controller
       }
 
       //--- get permission for user
-      $this->pm = get_permission($this->menu_code, $uid, get_cookie('id_profile'));
-
+      $this->pm = get_permission($this->menu_code, $uid);
       $this->ms = $this->load->database('ms', TRUE); //--- SAP database
       $this->mc = $this->load->database('mc', TRUE); //--- Temp Database
       //$this->cn = $this->load->database('cn', TRUE); //--- consign Database
@@ -74,6 +78,7 @@ class PS_Controller extends CI_Controller
       if(empty($this->menu_code) && $this->isViewer === FALSE)
       {
         $this->notibars = getConfig('NOTI_BAR');
+
         if($this->notibars == 1 )
         {
           $this->WC = get_permission('SOCCSO', $uid);
@@ -85,7 +90,6 @@ class PS_Controller extends CI_Controller
           $this->RR = get_permission('ICRQRC', $uid);
           $this->WL = get_permission('ICLEND', $uid);
         }
-
       }
     }
   }

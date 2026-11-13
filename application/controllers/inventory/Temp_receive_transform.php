@@ -25,7 +25,12 @@ class Temp_receive_transform extends PS_Controller
       'status' => get_filter('status', 'temp_receive_status', 'all')
     );
 
-		//--- แสดงผลกี่รายการต่อหน้า
+    if ($this->input->post('search'))
+    {
+      redirect($this->home);
+      exit;
+    }
+
 		$perpage = get_rows();		
 		$segment  = 4; //-- url segment
 		$rows = $this->temp_receive_transform_model->count_rows($filter);
@@ -109,5 +114,4 @@ class Temp_receive_transform extends PS_Controller
 
     return clear_filter($filter);    
   }
-
 }

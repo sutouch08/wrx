@@ -75,6 +75,7 @@
       <button type="button" class="btn btn-xs btn-warning btn-block" onclick="clearFilter()">Reset</button>
     </div>
   </div>
+  <input type="hidden" name="search" value="1" />
 </form>
 <hr class="margin-top-15"/>
 <?php echo $this->pagination->create_links(); ?>
@@ -105,6 +106,7 @@
       <tbody>
 <?php if(!empty($docs)) : ?>
 <?php   $no = $this->uri->segment(4) + 1; ?>
+<?php   $wmsName = ['0' => 'Warrix', '1' => 'Pioneer', '2' => 'SOKOCHAN']; ?>
 <?php   foreach($docs as $rs) : ?>
           <tr class="font-size-12" id="row-<?php $rs->code; ?>">
             <td class="middle">
@@ -142,7 +144,7 @@
               <?php endif; ?>
             </td>
             <td class="middle text-center">
-              <?php echo ($rs->is_wms == 0 ? 'Warrix' : ($rs->is_wms == 2 ? 'Soko' : ($rs->is_wms == 1 ? 'PLC' : 'Warrix'))); ?>
+              <?php echo $wmsName[$rs->is_wms]; ?>
             </td>
             <td class="middle"><?php echo $rs->customer_name; ?></td>
             <td class="middle"><?php echo $rs->zone_name; ?></td>
