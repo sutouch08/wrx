@@ -172,7 +172,7 @@
             <td class="middle text-right">{{ amount }}</td>
             <td class="middle text-right">
             <?php if( $edit OR $add ) : ?>
-            	<button type="button" class="btn btn-xs btn-danger" onclick="removeDetail({{ id }}, '{{ productCode }}')"><i class="fa fa-trash"></i></button>
+            	<button type="button" class="btn btn-xs btn-danger" onclick="removeDetail('{{ id }}', '{{ productCode }}')"><i class="fa fa-trash"></i></button>
             <?php endif; ?>
             </td>
         </tr>

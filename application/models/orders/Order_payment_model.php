@@ -26,7 +26,6 @@ class Order_payment_model extends CI_Model
       $this->db->like('order_payment.order_code', $ds['code']);
     }
 
-
     if(!empty($ds['channels']) && $ds['channels'] !== 'all')
     {
       $this->db->where('orders.channels_code', $ds['channels']);
@@ -45,7 +44,6 @@ class Order_payment_model extends CI_Model
     {
       $this->db->where('id_account', $ds['account']);
     }
-
 
 		//---- user name / display name
     if(!empty($ds['user']))
@@ -130,7 +128,7 @@ class Order_payment_model extends CI_Model
       $this->db->where('order_payment.is_pre_order', $ds['is_pre_order']);
     }
 
-    $this->db->order_by('order_payment.order_code', 'ASC');
+    $this->db->order_by('order_payment.pay_date', 'DESC');
 
     $rs = $this->db->limit($perpage, $offset)->get();
 
@@ -205,7 +203,7 @@ class Order_payment_model extends CI_Model
       $this->db->where('order_payment.is_pre_order', $ds['is_pre_order']);
     }
 
-    $this->db->order_by('order_payment.order_code', 'ASC');
+    $this->db->order_by('order_payment.pay_date', 'DESC');
 
     $rs = $this->db->get();
 

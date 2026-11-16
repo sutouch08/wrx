@@ -8,9 +8,7 @@ class Production_order extends PS_Controller
   public $menu_sub_group_code = '';
 	public $title = 'Production Order';
   public $segment = 4;
-  public $error;
-
-
+  
   public function __construct()
   {
     parent::__construct();
@@ -63,7 +61,7 @@ class Production_order extends PS_Controller
   {
     $sc = TRUE;
     $ex = 0;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
     $code = NULL;
 
     if( ! empty($ds))
@@ -90,8 +88,8 @@ class Production_order extends PS_Controller
           'PostDate' => $doc_date,
           'DueDate' => $due_date,
           'ReleaseDate' => $release_date,
-          'ItemCode' => trim($ds->ItemCode),
-          'ProdName' => get_null(trim($ds->ItemName)),
+          'ItemCode' => trim($ds->ItemCode ?? ''),
+          'ProdName' => get_null(trim($ds->ItemName ?? '')),
           'Status' => $ds->Status,
           'Type' => $ds->Type,
           'PlannedQty' => floatval($ds->PlannedQty),
@@ -222,7 +220,7 @@ class Production_order extends PS_Controller
   {
     $sc = TRUE;
     $ex = 0;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds) && ! empty($ds->code) && ! empty($ds->ItemCode) && ! empty($ds->rows))
     {
@@ -250,8 +248,8 @@ class Production_order extends PS_Controller
             'PostDate' => $doc_date,
             'DueDate' => $due_date,
             'ReleaseDate' => $release_date,
-            'ItemCode' => trim($ds->ItemCode),
-            'ProdName' => get_null(trim($ds->ItemName)),
+            'ItemCode' => trim($ds->ItemCode ?? ''),
+            'ProdName' => get_null(trim($ds->ItemName ?? '')),
             'Status' => $ds->Status,
             'Type' => $ds->Type,
             'PlannedQty' => floatval($ds->PlannedQty),
@@ -597,8 +595,8 @@ class Production_order extends PS_Controller
   {
     $sc = TRUE;
     $ds = [];
-    $code = trim($this->input->post('code'));
-    $planned_qty = floatval($this->input->post('planned_qty'));
+    $code = trim($this->input->post('code') ?? '');
+    $planned_qty = floatval($this->input->post('planned_qty') ?? 0);
     $qty = $planned_qty > 0 ? $planned_qty : 1;
 
     if( ! empty($code))
@@ -679,7 +677,7 @@ class Production_order extends PS_Controller
   {
     $ds = [];
 
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $qr = "SELECT TOP(100) CardCode, CardName FROM OCRD WHERE CardType = 'C' ";
 
@@ -712,7 +710,7 @@ class Production_order extends PS_Controller
   {
     $ds = [];
 
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $qr = "SELECT TOP(100) b.Code, b.Name, i.InvntryUom AS Uom FROM OITT AS b LEFT JOIN OITM AS i ON b.Code = i.ItemCode WHERE 1 = 1 ";
 
@@ -745,7 +743,7 @@ class Production_order extends PS_Controller
   {
     $ds = [];
 
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $qr = "SELECT TOP(100) WhsCode, WhsName FROM OWHS WHERE 1=1 ";
 
@@ -778,7 +776,7 @@ class Production_order extends PS_Controller
   {
     $ds = [];
 
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $qr = "SELECT ItemCode, ItemName FROM OITM WHERE ItemType = 'I' ";
 
@@ -842,7 +840,7 @@ class Production_order extends PS_Controller
   public function get_sales_order()
   {
     $ds = [];
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $this->ms
     ->select('DocEntry, DocNum, CardCode, CardName')

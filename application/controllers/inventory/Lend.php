@@ -14,8 +14,7 @@ class Lend extends PS_Controller
     $this->home = base_url().'inventory/lend';
     $this->load->model('orders/orders_model');
     $this->load->model('inventory/lend_model');
-    $this->load->model('orders/order_state_model');
-    $this->load->model('masters/product_tab_model');
+    $this->load->model('orders/order_state_model');    
     $this->load->model('stock/stock_model');
     $this->load->model('masters/product_style_model');
     $this->load->model('masters/products_model');

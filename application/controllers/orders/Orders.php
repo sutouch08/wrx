@@ -20,8 +20,7 @@ class Orders extends PS_Controller
     $this->load->model('masters/channels_model');
     $this->load->model('masters/payment_methods_model');
     $this->load->model('masters/customers_model');
-    $this->load->model('orders/order_state_model');
-    $this->load->model('masters/product_tab_model');
+    $this->load->model('orders/order_state_model');   
     $this->load->model('stock/stock_model');
     $this->load->model('orders/reserv_stock_model');
     $this->load->model('masters/product_style_model');
@@ -76,7 +75,7 @@ class Orders extends PS_Controller
       'tax_status' => get_filter('tax_status', 'tax_status', 'all'),
       'is_etax' => get_filter('is_etax', 'is_etax', 'all'),
       'is_cancled' => get_filter('is_cancled', 'is_cancled', 'all'),
-      'range' => get_filter('range', 'range', 'top')
+      'range' => get_filter('range', 'order_range', '500000')
     );
 
     $state = array(
@@ -109,28 +108,25 @@ class Orders extends PS_Controller
     $button['not_save'] = empty($filter['notSave']) ? '' : 'btn-info';
     $button['only_me'] = empty($filter['onlyMe']) ? '' : 'btn-info';
     $button['is_expire'] = empty($filter['isExpire']) ? '' : 'btn-info';
-
-
     $filter['state_list'] = empty($state_list) ? NULL : $state_list;
 
     if ($this->input->post('search'))
     {
       redirect($this->home);
+      exit;
     }
-    else
-    {
-      //--- แสดงผลกี่รายการต่อหน้า
-      $perpage = get_rows();
-      $rows = $this->orders_model->count_rows($filter);
-      $filter['orders'] = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
-      $filter['state'] = $state;
-      $filter['channelsList'] = $this->channels_model->get_channels_array();
-      $filter['paymentList'] = $this->payment_methods_model->get_payment_array();
-      $filter['btn'] = $button;
-      $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
-      $this->pagination->initialize($init);
-      $this->load->view('orders/orders_list', $filter);
-    }
+
+    $filter['id'] = $this->orders_model->get_max_id($filter['range']);
+    $perpage = get_rows();
+    $rows = $this->orders_model->count_rows($filter);
+    $filter['orders'] = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+    $filter['state'] = $state;
+    $filter['channelsList'] = $this->channels_model->get_channels_array();
+    $filter['paymentList'] = $this->payment_methods_model->get_payment_array();
+    $filter['btn'] = $button;
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $this->pagination->initialize($init);
+    $this->load->view('orders/orders_list', $filter);
   }
 
   //---- รายการรออนุมัติ
@@ -1202,33 +1198,6 @@ class Orders extends PS_Controller
     }
 
     echo $sc === TRUE ? 'success' : $this->error;
-  }
-
-
-  public function edit_detail($code)
-  {
-    $this->load->helper('product_tab');
-
-    $ds = array();
-    $rs = $this->orders_model->get($code);
-
-    if ($rs->state == 1)
-    {
-      $rs->customer_name = $this->customers_model->get_name($rs->customer_code);
-      $ds['order'] = $rs;
-
-      $details = $this->orders_model->get_order_details($code);
-      $ds['details'] = $details;
-      $ds['allowEditDisc'] = getConfig('ALLOW_EDIT_DISCOUNT') == 1 ? TRUE : FALSE;
-      $ds['allowEditPrice'] = getConfig('ALLOW_EDIT_PRICE') == 1 ? TRUE : FALSE;
-      $ds['edit_order'] = FALSE; //--- ใช้เปิดปิดปุ่มแก้ไขราคาสินค้าไม่นับสต็อก
-      $this->load->view('orders/order_edit_detail', $ds);
-    }
-    else
-    {
-      $err = "สถานะเอกสารไม่ถูกต้อง";
-      $this->page_error($err);
-    }
   }
 
 

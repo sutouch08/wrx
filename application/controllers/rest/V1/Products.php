@@ -30,7 +30,7 @@ class Products extends REST_Controller
 	public function countUpdateItem_get()
 	{
 		$json = file_get_contents("php://input");
-		$data = json_decode($json);
+		$data = json_decode($json ?? '{}');
 
 		if(! empty($data))
 		{
@@ -68,7 +68,7 @@ class Products extends REST_Controller
 	public function countUpdateItem_post()
 	{
 		$json = file_get_contents("php://input");
-		$data = json_decode($json);
+		$data = json_decode($json ?? '{}');
 
 		if(! empty($data))
 		{
@@ -106,7 +106,7 @@ class Products extends REST_Controller
 	public function getUpdateItem_get()
 	{
 		$json = file_get_contents("php://input");
-		$ds = json_decode($json);
+		$ds = json_decode($json ?? '{}');
 
 		if(! empty($ds))
 		{
@@ -163,7 +163,7 @@ class Products extends REST_Controller
 	public function getUpdateItem_post()
 	{
 		$json = file_get_contents("php://input");
-		$ds = json_decode($json);
+		$ds = json_decode($json ?? '{}');
 
 		if(! empty($ds))
 		{

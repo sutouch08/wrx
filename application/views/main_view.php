@@ -38,11 +38,9 @@
 <hr class="margin-top-15 margin-bottom-15" />
 
 <div class="row">
-	<div class="col-sm-12" id="result">	
+	<div class="col-sm-12" id="result">
 	</div>
 </div>
-
-<?php echo floatval(NULL); ?>
 
 <script id="order-template" type="text/x-handlebarsTemplate">
 	<table class="table table-bordered">
@@ -197,7 +195,7 @@
 		const top = (window.screen.height / 2) - (height / 2);
 		const url = `${BASE_URL}view_stock/available_details/${code}/${warehouse}?nomenu`;
 		window.open(url, '_blank', `top=${top},left=${left},width=${width},height=${height}`);
-		
+
 	}
 </script>
 

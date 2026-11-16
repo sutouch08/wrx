@@ -2,6 +2,7 @@
 class Purchase_grid
 {
   public $error;
+  public $ci;
 
   public function __construct()
   {
@@ -24,11 +25,11 @@ class Purchase_grid
     {
       $attrs = $this->getAttribute($style->code);
 
-      if( count($attrs) == 1  )
+      if( count($attrs ?? []) == 1  )
       {
         $grid = $this->orderGridOneAttribute($style, $attrs[0]);
       }
-      else if( count( $attrs ) == 2 )
+      else if( count( $attrs ?? [] ) == 2 )
       {
         $grid = $this->orderGridTwoAttribute($style);
         $width = $this->getTableWidth($style_code);
@@ -205,33 +206,42 @@ class Purchase_grid
 
 
   public function getAllColors($style_code)
-	{
-		$sc = array();
+	{		
     $colors = $this->ci->products_model->get_all_colors($style_code);
-    if($colors !== FALSE)
+    
+    if(is_array($colors))
     {
+      $co = [];
+      
       foreach($colors as $color)
       {
-        $sc[$color->code] = $color->name;
+        if(!empty($color->code)) $co[$color->code] = $color->name;
       }
+
+      return $co;
     }
 
-    return $sc;
+    return [];
 	}
 
 
   public function getAllSizes($style_code)
-	{
-		$sc = array();
+	{		
 		$sizes = $this->ci->products_model->get_all_sizes($style_code);
-		if( $sizes !== FALSE )
+
+		if(is_array($sizes))
 		{
+      $si = [];
+
       foreach($sizes as $size)
       {
-        $sc[$size->code] = $size->name;
+        if(!empty($size->code)) $si[$size->code] = $size->name;
       }
+
+      return $si;
 		}
-		return $sc;
+    
+		return [];
 	}
 
 

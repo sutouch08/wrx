@@ -745,7 +745,7 @@ class Products_model extends CI_Model
     ->order_by('p.color_code', 'ASC')
     ->get();
 
-    return $rs->num_rows() > 0 ? $rs->result() : NULL;    
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
 

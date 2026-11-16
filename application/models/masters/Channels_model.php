@@ -161,4 +161,10 @@ class Channels_model extends CI_Model
   {
     return $this->db->where('channels_code', $code)->count_all_results('orders') > 0;
   }
+
+  public function get_shop_list()
+  {
+    $rs = $this->db->get('market_place_shop');
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
+  }
 }

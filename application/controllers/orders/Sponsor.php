@@ -7,11 +7,7 @@ class Sponsor extends PS_Controller
 	public $menu_group_code = 'SO';
   public $menu_sub_group_code = 'ORDER';
 	public $title = 'สปอนเซอร์';
-  public $filter;
-  public $error;
-	public $isAPI;
-  public $sokoApi;
-  public $wmsApi;
+  public $segment = 4;
 
   public function __construct()
   {
@@ -20,8 +16,7 @@ class Sponsor extends PS_Controller
     $this->load->model('orders/orders_model');
     $this->load->model('orders/sponsor_model');
     $this->load->model('masters/customers_model');
-    $this->load->model('orders/order_state_model');
-    $this->load->model('masters/product_tab_model');
+    $this->load->model('orders/order_state_model');    
     $this->load->model('stock/stock_model');
     $this->load->model('masters/product_style_model');
     $this->load->model('masters/products_model');
@@ -32,10 +27,6 @@ class Sponsor extends PS_Controller
     $this->load->helper('state');
     $this->load->helper('product_images');
     $this->load->helper('warehouse');
-
-		$this->isAPI = is_true(getConfig('WMS_API'));
-    $this->wmsApi = is_true(getConfig('WMS_API'));
-    $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
   }
 
 
@@ -88,40 +79,32 @@ class Sponsor extends PS_Controller
     $button['not_save'] = empty($filter['notSave']) ? '' : 'btn-info';
     $button['only_me'] = empty($filter['onlyMe']) ? '' : 'btn-info';
     $button['is_expire'] = empty($filter['isExpire']) ? '' : 'btn-info';
-
-
     $filter['state_list'] = empty($state_list) ? NULL : $state_list;
 
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
-    $role     = 'P'; //--- P = sponsor;
-		$segment  = 4; //-- url segment
-		$rows     = $this->orders_model->count_rows($filter, $role);
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$orders   = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($segment), $role);
-    $ds       = array();
-    if(!empty($orders))
+    if($this->input->post('search'))
     {
-      foreach($orders as $rs)
+      redirect($this->home);
+      exit;
+    }
+
+		$perpage = get_rows();		
+    $role = 'P';	
+		$rows = $this->orders_model->count_rows($filter, $role);	
+		$filter['orders'] = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($this->segment), $role);
+    $filter['state'] = $state;
+    $filter['btn'] = $button;
+    
+    if(!empty($filter['orders']))
+    {
+      foreach($filter['orders'] as $rs)
       {
         $rs->customer_name = $this->customers_model->get_name($rs->customer_code);
         $rs->total_amount  = $this->orders_model->get_order_total_amount($rs->code);
-        $rs->state_name    = get_state_name($rs->state);
-        $ds[] = $rs;
+        $rs->state_name    = get_state_name($rs->state);        
       }
-    }
+    }      
 
-    $filter['orders'] = $ds;
-    $filter['state'] = $state;
-    $filter['btn'] = $button;
-
+		$init = pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
 		$this->pagination->initialize($init);
     $this->load->view('sponsor/sponsor_list', $filter);
   }
@@ -132,7 +115,6 @@ class Sponsor extends PS_Controller
     echo $this->get_budget($customer_code);
   }
 
-
   private function get_budget($customer_code)
   {
     $current = $this->sponsor_model->get_budget($customer_code);
@@ -142,45 +124,30 @@ class Sponsor extends PS_Controller
   }
 
 
-
   public function add_new()
   {
     $this->load->view('sponsor/sponsor_add');
   }
 
-
-
   public function add()
   {
     $sc = TRUE;
-
 		$this->load->model('masters/warehouse_model');
-
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
-    {
-
-      $wmsWh = getConfig('WMS_WAREHOUSE');
-      $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
+    {      
       $book_code = getConfig('BOOK_CODE_SPONSOR');
+      $role = 'P';
       $date_add = db_date($data->date_add);
       $code = $this->get_new_code($date_add);
-
-      $role = 'P'; //--- P = Sponsor
-
       $wh = $this->warehouse_model->get($data->warehouse_code);
       $customer = $this->customers_model->get($data->customer_code);
 
       if( ! empty($customer))
       {
         if( ! empty($wh))
-        {
-          $isSoko = $wh->code == $sokoWh ? TRUE : FALSE;
-          $isWms = $wh->code == $wmsWh ? TRUE : FALSE;
-
-          $is_wms = $isWms ? 1 : ($isSoko ? 2 : 0);
-
+        {          
           $ds = array(
             'date_add' => $date_add,
             'code' => $code,
@@ -191,8 +158,7 @@ class Sponsor extends PS_Controller
             'user' => $this->_user->uname,
             'remark' => get_null($data->remark),
             'user_ref' => $data->empName,
-            'warehouse_code' => $wh->code,
-    				'is_wms' => $is_wms,
+            'warehouse_code' => $wh->code,    			
     				'transformed' => $data->transformed == 1 ? 1 : 0
           );
 
@@ -248,22 +214,20 @@ class Sponsor extends PS_Controller
 		$this->load->model('address/address_model');
 		$this->load->helper('sender');
     $video_on_pack = is_true(getConfig('VIDEO_ON_PACK'));
-
-    $ds = array();
-
+    $ds = [];
     $rs = $this->orders_model->get($code);
 
     if(!empty($rs))
     {
       $rs->customer_name = empty($rs->customer_name) ? $this->customers_model->get_name($rs->customer_code) : $rs->customer_name;
       $rs->total_amount  = $rs->doc_total <= 0 ? $this->orders_model->get_order_total_amount($rs->code) : $rs->doc_total;
-      $rs->user          = $this->user_model->get_name($rs->user);
-      $rs->state_name    = get_state_name($rs->state);
+      $rs->user = $this->user_model->get_name($rs->user);
+      $rs->state_name = get_state_name($rs->state);
       $rs->has_video = $video_on_pack ? $this->orders_model->has_video($code) : FALSE;
-
       $state = $this->order_state_model->get_order_state($code);
 
-      $ost = array();
+      $ost = [];
+
       if(!empty($state))
       {
         foreach($state as $st)
@@ -273,8 +237,7 @@ class Sponsor extends PS_Controller
       }
 
       $details = $this->orders_model->get_order_details($code);
-			$ship_to = $this->address_model->get_ship_to_address($rs->customer_code);
-      $is_api = is_api($rs->is_wms, $this->wmsApi, $this->sokoApi);
+			$ship_to = $this->address_model->get_ship_to_address($rs->customer_code);     
 
       $ds['video_on_pack'] = $video_on_pack;
       $ds['state'] = $ost;
@@ -284,27 +247,25 @@ class Sponsor extends PS_Controller
       $ds['details'] = $details;
 			$ds['addr']  = $ship_to;
 			$ds['cancle_reason'] = ($rs->state == 9 ? $this->orders_model->get_cancle_reason($code) : NULL);
-      $ds['allowEditDisc'] = FALSE; //getConfig('ALLOW_EDIT_DISCOUNT') == 1 ? TRUE : FALSE;
+      $ds['allowEditDisc'] = FALSE; 
       $ds['allowEditPrice'] = getConfig('ALLOW_EDIT_PRICE') == 1 ? TRUE : FALSE;
-      $ds['edit_order'] = TRUE; //--- ใช้เปิดปิดปุ่มแก้ไขราคาสินค้าไม่นับสต็อก
-      $ds['is_api'] = $is_api;
+      $ds['edit_order'] = TRUE; //--- ใช้เปิดปิดปุ่มแก้ไขราคาสินค้าไม่นับสต็อก     
       $ds['tracking'] = $this->orders_model->get_order_tracking($code);
       $ds['backlogs'] = $rs->is_backorder == 1 ? $this->orders_model->get_backlogs_details($rs->code) : NULL;
       $this->load->view('sponsor/sponsor_edit', $ds);
     }
     else
     {
-      $this->load->view('page_error');
+      $this->page_error();
     }
   }
-
 
 
   public function update_order()
   {
     $sc = TRUE;
 
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
     {
@@ -323,15 +284,9 @@ class Sponsor extends PS_Controller
         else
         {
 					$wh = $this->warehouse_model->get($data->warehouse_code);
-          $wmsWh = getConfig('WMS_WAREHOUSE');
-          $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
 
           if( ! empty($wh))
-          {
-            $isSoko = $wh->code == $sokoWh ? TRUE : FALSE;
-            $isWms = $wh->code == $wmsWh ? TRUE : FALSE;
-
-            $is_wms = $isWms ? 1 : ($isSoko ? 2 : 0);
+          {           
             $customer = $this->customers_model->get($data->customer_code);
 
             if( ! empty($customer))
@@ -345,8 +300,7 @@ class Sponsor extends PS_Controller
                 'remark' => get_null($data->remark),
                 'status' => 0,
     						'id_address' => NULL,
-    						'id_sender' => NULL,
-    						'is_wms' => $is_wms,
+    						'id_sender' => NULL,    					
     						'transformed' => $data->transformed
               );
             }
@@ -387,8 +341,7 @@ class Sponsor extends PS_Controller
 
 
   public function edit_detail($code)
-  {
-    $this->load->helper('product_tab');
+  {    
     $ds = array();
     $rs = $this->orders_model->get($code);
     if($rs->state <= 3)
@@ -410,13 +363,9 @@ class Sponsor extends PS_Controller
   {
     $sc = TRUE;
     $ds = [];
-    $order = $this->orders_model->get($code);
-
-    //---- check credit balance
-    $amount = $this->orders_model->get_order_total_amount($code);
+    $order = $this->orders_model->get($code);    
     //--- creadit used
     $credit_used = $this->sponsor_model->get_budget_used($order->customer_code);
-
     //--- credit balance from sap
     $credit_balance = $this->sponsor_model->get_budget($order->customer_code);
 

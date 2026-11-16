@@ -8,8 +8,7 @@ class Production_receipt extends PS_Controller
   public $menu_sub_group_code = '';
 	public $title = 'Receipt from Production';
   public $segment = 4;
-  public $error;
-
+  
 
   public function __construct()
   {
@@ -114,7 +113,7 @@ class Production_receipt extends PS_Controller
     $sc = TRUE;
     $code = NULL;
     $ex = 0;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds) && ! empty($ds->date_add) && ! empty($ds->baseRef) && ! empty($ds->rows))
     {
@@ -356,7 +355,7 @@ class Production_receipt extends PS_Controller
     $sc = TRUE;
     $code = NULL;
     $ex = 0;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds) && ! empty($ds->code) && ! empty($ds->date_add) && ! empty($ds->baseRef))
     {
@@ -820,7 +819,7 @@ class Production_receipt extends PS_Controller
   {
     $ds = [];
 
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $qr = "SELECT TOP(100) DocNum, ItemCode FROM OWOR WHERE Status = 'R' ";
 
@@ -853,7 +852,7 @@ class Production_receipt extends PS_Controller
   {
     $sc = TRUE;
     $ds = [];
-    $code = trim($this->input->post('baseCode'));
+    $code = trim($this->input->post('baseCode') ?? '');
 
     if( ! empty($code))
     {
@@ -931,7 +930,7 @@ class Production_receipt extends PS_Controller
   public function get_zone_code_and_name($warehouse = NULL)
   {
     $sc = array();
-    $txt = $_REQUEST['term'];
+    $txt = $_REQUEST['term'] ?? '';
     $this->db->select('code, name, warehouse_code')->where('active', 1);
 
     if( ! empty($warehouse))

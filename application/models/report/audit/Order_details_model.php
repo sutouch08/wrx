@@ -59,7 +59,7 @@ class Order_details_model extends CI_Model
 
 
 
-  public function get_data(array $ds = array(), $limit = NULL)
+  public function get_data(array $ds = array(), $limit = 1000, $offset = 0)
   {
     if(! empty($ds))
     {
@@ -106,7 +106,7 @@ class Order_details_model extends CI_Model
 
       if( ! empty($limit))
       {
-        $this->db->limit($limit);
+        $this->db->limit($limit, $offset);
       }
 
       $rs = $this->db->get('orders');

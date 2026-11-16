@@ -68,8 +68,7 @@ class Orders extends REST_Controller
     $start_date = now(TRUE);
     $sc = TRUE;
     $action = 'create';
-    $this->api_path = $this->api_path."/create";
-    //--- Get raw post data
+    $this->api_path = $this->api_path."/create";   
     $json = file_get_contents("php://input");
 
     if( ! $this->api)
@@ -185,7 +184,7 @@ class Orders extends REST_Controller
     $tax_status = empty($data->tax_status) ? 0 : ($data->tax_status == 'Y' ? 1 : 0);
     $is_etax = empty($data->ETAX) ? 0 : ($data->ETAX == 'Y' && $tax_status == 1 ? 1 : 0);
     $bill_to = empty($data->bill_to) ? NULL : (array) $data->bill_to;
-    $customer_ref = empty(trim($data->customer_ref)) ? NULL : get_null(trim($data->customer_ref));
+    $customer_ref = empty(trim($data->customer_ref ?? '')) ? NULL : get_null(trim($data->customer_ref ?? ''));
 
     $taxType = array(
       'NIDN' => 'NIDN', //-- บุคคลธรรมดา
@@ -355,7 +354,7 @@ class Orders extends REST_Controller
     }
 
     //---- for check duplicate order number
-    $order = $this->orders_model->get_active_order_by_reference(trim($data->order_number));
+    $order = $this->orders_model->get_active_order_by_reference(trim($data->order_number ?? ''));
 
     if($sc === TRUE && ! empty($order))
     {
@@ -509,7 +508,7 @@ class Orders extends REST_Controller
       {
         $gp = explode('%', $data->GP);
 
-        $GP = empty($gp[0]) ? '0.00' : trim($gp[0]).'%';
+        $GP = empty($gp[0]) ? '0.00' : trim($gp[0] ?? '').'%';
       }
     }
 
@@ -617,7 +616,7 @@ class Orders extends REST_Controller
       $doc_date = empty($data->doc_date) ? date('Y-m-d H:i:s') : db_date($data->doc_date, TRUE);
       $date_add = $doc_date;
       $due_date = empty($data->due_date) ? NULL : db_date($data->due_date, TRUE);
-      $ref_code = trim($data->order_number);
+      $ref_code = trim($data->order_number ?? '');
       $sale_code = empty($customer) ? -1 : $customer->sale_code;
 
       $state = 3; //--- default state for order
@@ -933,7 +932,7 @@ class Orders extends REST_Controller
   					{
   						$img = explode(',', $data->payslip);
 
-  						if(count($img) == 1)
+  						if(count($img ?? []) == 1)
   						{
   							$imageData = base64_decode($img[0]);
   						}
@@ -1012,7 +1011,7 @@ class Orders extends REST_Controller
           {
             $arr = array(
               'doc_total' => $total_amount,
-              'total_sku' => count($total_sku),
+              'total_sku' => count($total_sku ?? []),
               'is_backorder' => $is_backorder == TRUE ? 1 : 0,
               'is_hold' => $is_hold
             );
@@ -2396,7 +2395,7 @@ class Orders extends REST_Controller
 
   public function verify_data($data, $role = 'S')
 	{
-    $this->order_code = $this->orders_model->get_active_code_by_reference(trim($data->order_number));
+    $this->order_code = $this->orders_model->get_active_code_by_reference(trim($data->order_number ?? ''));
     
     if( ! empty($this->order_code))
     {
@@ -2404,7 +2403,7 @@ class Orders extends REST_Controller
 			return FALSE;
     }
 
-    if( ! property_exists($data, 'customer_code') OR trim($data->customer_code) == '' OR $data->customer_code == NULL)
+    if( ! property_exists($data, 'customer_code') OR trim($data->customer_code ?? '') == '' OR $data->customer_code == NULL)
     {
       $this->error = 'Missing required parameter : customer_code';
 			return FALSE;
@@ -2412,13 +2411,13 @@ class Orders extends REST_Controller
 
     if($role == 'S')
     {
-      if( ! property_exists($data, 'channel') OR trim($data->channel) == '' OR $data->channel == NULL)
+      if( ! property_exists($data, 'channel') OR trim($data->channel ?? '') == '' OR $data->channel == NULL)
       {
         $this->error = "Missing required parameter : channel";
         return FALSE;
       }
 
-      if( ! property_exists($data, 'payment_method') OR trim($data->payment_method) == '' OR $data->payment_method == NULL)
+      if( ! property_exists($data, 'payment_method') OR trim($data->payment_method ?? '') == '' OR $data->payment_method == NULL)
       {
         $this->error = "Missing required parameter : payment_method";
         return FALSE;
@@ -2427,13 +2426,13 @@ class Orders extends REST_Controller
 
     if($role == 'C')
     {
-      if( ! property_exists($data, 'zone_code') OR trim($data->zone_code) == '' OR $data->zone_code == NULL)
+      if( ! property_exists($data, 'zone_code') OR trim($data->zone_code ?? '') == '' OR $data->zone_code == NULL)
       {
         $this->error = "Missing required parameter : zone_code";
         return FALSE;
       }
 
-      if( ! property_exists($data, 'GP') OR trim($data->GP) == '' OR $data->GP == NULL)
+      if( ! property_exists($data, 'GP') OR trim($data->GP ?? '') == '' OR $data->GP == NULL)
       {
         $this->error = "Missing required parameter : GP";
         return FALSE;
@@ -2442,7 +2441,7 @@ class Orders extends REST_Controller
 
     if($role == 'T')
     {
-      if( ! property_exists($data, 'uname'))
+      if( ! property_exists($data, 'uname') OR trim($data->uname ?? '') == '' OR $data->uname == NULL)
       {
         $this->error = "Missing required parameter : uname";
         return FALSE;

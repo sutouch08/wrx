@@ -36,25 +36,36 @@ function parse_discount_text($discText = '', $price = 0)
 }
 
 //--- แสดงป้ายส่วนลด
-function discountLabel($disc = 0, $disc2 = 0, $disc3 = 0)
+function discountLabel($disc1 = 0, $disc2 = 0, $disc3 = 0)
 {
-	$label = '';
-	$label = $disc == 0 ? 0 : getDiscLabel($disc);
-	$label .= $disc2 == 0 ? '' : '+' . getDiscLabel($disc2);
-	$label .= $disc3 == 0 ? '' : '+' . getDiscLabel($disc3);
+	$disc1 = getDiscLabel($disc1);
+	$disc2 = getDiscLabel($disc2);
+	$disc3 = getDiscLabel($disc3);
+
+	$label = empty($disc1) ? '' : $disc1;
+	$label .= ! empty($disc1) && ! empty($disc2) ? '+' . $disc2 : '';
+	$label .= ! empty($disc2) && ! empty($disc3) ? '+' . $disc3 : '';
 	return $label;
 }
 
 function getDiscLabel($disc)
 {
-	$arr = explode('%', $disc);
+	$disc = trim($disc ?? '');
 
-	if (count($arr) > 1)
+	if(!empty($disc))
 	{
-		return trim($arr[0]) . '%';
+		$arr = explode('%', $disc);
+		
+		if (count($arr ?? []) > 1)
+		{
+			$d = floatval(trim($arr[0] ?? ''));
+			return $d > 0 ? $d . '%' : '';
+		}
+
+		return floatval(trim($arr[0] ?? ''));
 	}
 
-	return $arr[0];
+	return "";
 }
 
 function discountAmountToPercent($amount = 0, $qty = 0, $price = 0)

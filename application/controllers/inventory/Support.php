@@ -15,8 +15,7 @@ class Support extends PS_Controller
     $this->load->model('orders/orders_model');
     $this->load->model('orders/support_model');
     $this->load->model('masters/customers_model');
-    $this->load->model('orders/order_state_model');
-    $this->load->model('masters/product_tab_model');
+    $this->load->model('orders/order_state_model');    
     $this->load->model('stock/stock_model');
     $this->load->model('masters/product_style_model');
     $this->load->model('masters/products_model');

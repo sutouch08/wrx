@@ -1,5 +1,8 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class Reserv_stock extends PS_Controller
 {
@@ -41,35 +44,21 @@ class Reserv_stock extends PS_Controller
     if( $this->input->post('search'))
     {
       redirect($this->home);
+      exit;
     }
-    else
-    {
-      //--- แสดงผลกี่รายการต่อหน้า
-      $perpage = get_rows();
 
-      $segment = 4; //-- url segment
-
-      $rows = $this->reserv_stock_model->count_rows($filter);
-
-      //--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-      $init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
-      $this->pagination->initialize($init);
-      $filter['data'] = $this->reserv_stock_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
-      $this->load->view('reserv_stock/reserv_stock_list', $filter);
-    }
+    $perpage = get_rows();
+    $rows = $this->reserv_stock_model->count_rows($filter);
+    $filter['data'] = $this->reserv_stock_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+    $init  = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $this->pagination->initialize($init);
+    $this->load->view('reserv_stock/reserv_stock_list', $filter);
   }
 
 
   public function add_new()
   {
-    if($this->pm->can_add)
-    {
-      $this->load->view('reserv_stock/reserv_stock_add');
-    }
-    else
-    {
-      $this->deny_page();
-    }
+    $this->load->view('reserv_stock/reserv_stock_add');    
   }
 
 
@@ -79,7 +68,7 @@ class Reserv_stock extends PS_Controller
 
     if($this->pm->can_add)
     {
-      $ds = json_decode($this->input->post('data'));
+      $ds = json_decode($this->input->post('data') ?? '{}');
 
       if( ! empty($ds) && ! empty($ds->name) && ! empty($ds->start_date) && ! empty($ds->end_date))
       {
@@ -138,7 +127,7 @@ class Reserv_stock extends PS_Controller
 
   public function edit($id)
   {
-    if($this->pm->can_add OR $this->pm->can_eidt)
+    if($this->pm->can_add OR $this->pm->can_edit)
     {
       $doc = $this->reserv_stock_model->get($id);
 
@@ -158,7 +147,7 @@ class Reserv_stock extends PS_Controller
     }
     else
     {
-      $this->deny_page();
+      $this->deny_page(TRUE);
     }
   }
 
@@ -169,7 +158,7 @@ class Reserv_stock extends PS_Controller
 
     if($this->pm->can_add OR $this->pm->can_edit)
     {
-      $ds = json_decode($this->input->post('data'));
+      $ds = json_decode($this->input->post('data') ?? '{}');
 
       if( ! empty($ds) && ! empty($ds->name) && ! empty($ds->start_date) && ! empty($ds->end_date))
       {
@@ -393,7 +382,7 @@ class Reserv_stock extends PS_Controller
   {
     $sc = TRUE;
 
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds) && ! empty($ds->id) && ! empty($ds->code) && ! empty($ds->product_code) && ! empty($ds->qty))
     {
@@ -502,7 +491,7 @@ class Reserv_stock extends PS_Controller
   {
     $sc = TRUE;
 
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds) && ! empty($ds->id) && ! empty($ds->code) && ! empty($ds->items))
     {
@@ -667,12 +656,10 @@ class Reserv_stock extends PS_Controller
 
   public function import_items()
   {
-    $sc = TRUE;
-
     ini_set('max_execution_time', 1200);
     ini_set('memory_limit','1000M');
-    $this->load->library('excel');
 
+    $sc = TRUE;    
     $doc_id = $this->input->post('id');
     $file = isset( $_FILES['uploadFile'] ) ? $_FILES['uploadFile'] : FALSE;
     $path = $this->config->item('upload_path').'reserv_stock/';
@@ -694,16 +681,14 @@ class Reserv_stock extends PS_Controller
     }
     else
     {
-      $info = $this->upload->data();
-      /// read file
-      $excel = PHPExcel_IOFactory::load($info['full_path']);
-      //get only the Cell Collection
-      $collection	= $excel->getActiveSheet()->toArray(NULL, TRUE, TRUE, TRUE);
+      $info = $this->upload->data();     
+      $excel = IOFactory::load($info['full_path']);      
+      $collection	= $excel->getActiveSheet()->toArray('', TRUE, TRUE, TRUE);
 
       if( ! empty($collection))
       {
-        $count = count($collection);
-        $limit = intval(getConfig('IMPORT_ROWS_LIMIT')) + 1;
+        $count = count($collection ?? []);
+        $limit = intval(getConfig('IMPORT_ROWS_LIMIT') ?? 0) + 1;
 
         if($count > $limit)
         {
@@ -755,9 +740,9 @@ class Reserv_stock extends PS_Controller
             }
             else
             {
-              $id = empty(trim($rs['A'])) ? NULL : trim($rs['A']);
-              $pdCode =  empty(trim($rs['B'])) ? NULL : trim($rs['B']);
-              $del = empty(trim($rs['E'])) ? NULL : trim($rs['E']);
+              $id = empty(trim($rs['A'] ?? '')) ? NULL : trim($rs['A'] ?? '');
+              $pdCode =  empty(trim($rs['B'] ?? '')) ? NULL : trim($rs['B'] ?? '');
+              $del = empty(trim($rs['E'] ?? '')) ? NULL : trim($rs['E'] ?? '');
 
               if( ! empty($pdCode))
               {
@@ -777,7 +762,7 @@ class Reserv_stock extends PS_Controller
 
                       if( ! empty($row))
                       {
-                        $qty = intval(trim($rs['C']));
+                        $qty = intval(trim($rs['C'] ?? ''));
                         $dif = $row->qty - $row->reserv_qty;
                         $reserv_qty = $qty - $dif;
 
@@ -798,7 +783,7 @@ class Reserv_stock extends PS_Controller
 
                       if(empty($row))
                       {
-                        $qty = intval($rs['C']);
+                        $qty = intval($rs['C'] ?? '');
                         $arr = array(
                           'reserv_id' => $doc->id,
                           'reserv_code' => $doc->code,
@@ -813,7 +798,7 @@ class Reserv_stock extends PS_Controller
                       }
                       else
                       {
-                        $qty = intval(trim($rs['C']));
+                        $qty = intval(trim($rs['C'] ?? ''));
                         $dif = $row->qty - $row->reserv_qty;
                         $reserv_qty = $qty - $dif;
 
@@ -864,7 +849,7 @@ class Reserv_stock extends PS_Controller
 
       flush();
       readfile($file_name);
-      die();
+      exit;
     }
     else
     {
@@ -878,21 +863,25 @@ class Reserv_stock extends PS_Controller
     $code = $this->input->post('code');
     $id = $this->input->post('id');
     $token = $this->input->post('token');
-
     $details = $this->reserv_stock_model->get_details($id);
 
-    //--- load excel library
-    $this->load->library('excel');
-
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle($code);
+    $excel = new Spreadsheet();    
+    $excel->setActiveSheetIndex(0);
+    $sheet = $excel->getActiveSheet();
+    $sheet->setTitle($code);
 
     //--- set header
-    $this->excel->getActiveSheet()->setCellValue('A1', 'ID');
-    $this->excel->getActiveSheet()->setCellValue('B1', 'SKU');
-    $this->excel->getActiveSheet()->setCellValue('C1', 'Qty');
-    $this->excel->getActiveSheet()->setCellValue('D1', 'Balance');
-    $this->excel->getActiveSheet()->setCellValue('E1', 'Del');
+    $sheet->setCellValue('A1', 'ID');
+    $sheet->setCellValue('B1', 'SKU');
+    $sheet->setCellValue('C1', 'Qty');
+    $sheet->setCellValue('D1', 'Balance');
+    $sheet->setCellValue('E1', 'Del');
+
+    $sheet->getColumnDimension('A')->setAutoSize(true);
+    $sheet->getColumnDimension('B')->setAutoSize(true);
+    $sheet->getColumnDimension('C')->setAutoSize(true);
+    $sheet->getColumnDimension('D')->setAutoSize(true);
+    $sheet->getColumnDimension('E')->setAutoSize(true);
 
     $row = 2;
 
@@ -900,19 +889,19 @@ class Reserv_stock extends PS_Controller
     {
       foreach($details as $rs)
       {
-        $this->excel->getActiveSheet()->setCellValue('A'.$row, $rs->id);
-        $this->excel->getActiveSheet()->setCellValue('B'.$row, $rs->product_code);
-        $this->excel->getActiveSheet()->setCellValue('C'.$row, $rs->qty);
-        $this->excel->getActiveSheet()->setCellValue('D'.$row, $rs->reserv_qty);
+        $sheet->setCellValue('A'.$row, $rs->id);
+        $sheet->setCellValue('B'.$row, $rs->product_code);
+        $sheet->setCellValue('C'.$row, $rs->qty);
+        $sheet->setCellValue('D'.$row, $rs->reserv_qty);
         $row++;
       }
     }
 
     setToken($token);
     $file_name = "Reserv Stock - {$code}.xlsx";
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
   }
 
@@ -959,6 +948,4 @@ class Reserv_stock extends PS_Controller
 
     return clear_filter($filter);
   }
-
-}//-- end class
-?>
+}

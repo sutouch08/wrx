@@ -8,9 +8,7 @@ class Production_transfer extends PS_Controller
   public $menu_sub_group_code = '';
 	public $title = 'Transfer For Production';
   public $segment = 4;
-  public $error;
-
-
+ 
   public function __construct()
   {
     parent::__construct();
@@ -117,7 +115,7 @@ class Production_transfer extends PS_Controller
     $sc = TRUE;
     $code = NULL;
     $ex = 0;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds) && ! empty($ds->date_add) && ! empty($ds->fromWhsCode) && ! empty($ds->toWhsCode))
     {
@@ -488,7 +486,7 @@ class Production_transfer extends PS_Controller
     $code = NULL;
     $doc = NULL;
     $ex = 0;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds) && ! empty($ds->code) && ! empty($ds->date_add) && ! empty($ds->fromWhsCode) && ! empty($ds->toWhsCode))
     {
@@ -1429,7 +1427,7 @@ class Production_transfer extends PS_Controller
   {
     $ds = [];
 
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $qr = "SELECT CardCode, CardName FROM OCRD WHERE CardCode LIKE N'%{$txt}%' OR CardName LIKE N'%{$txt}%' ORDER BY CardCode ASC OFFSET 0 ROWS FETCH NEXT 50 ROWS ONLY";
 
@@ -1455,7 +1453,7 @@ class Production_transfer extends PS_Controller
   {
     $ds = [];
 
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $qr  = "SELECT TOP(100) DocNum, ItemCode, Status FROM OWOR WHERE Status != 'C' ";
 
@@ -1556,7 +1554,7 @@ class Production_transfer extends PS_Controller
   public function get_item_batch_rows()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('filter'));
+    $ds = json_decode($this->input->post('filter') ?? '{}');
 
     $data = [];
 
@@ -1605,7 +1603,7 @@ class Production_transfer extends PS_Controller
   public function get_item_code_and_nam()
   {
     $ds = [];
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $qr  = "SELECT i.ItemCode, i.ItemName, i.ManBtchNum, i.InvntryUom AS Uom, i.IUoMEntry AS UomEntry, u.UomCode ";
     $qr .= "FROM OITM AS i LEFT JOIN OUOM AS u ON i.IUoMEntry = u.UomEntry ";
@@ -1666,8 +1664,8 @@ class Production_transfer extends PS_Controller
     $sc = TRUE;
     $ds = [];
 
-    $WhsCode = trim($this->input->post('WhsCode'));
-    $ItemCode = trim($this->input->post('ItemCode'));
+    $WhsCode = trim($this->input->post('WhsCode') ?? '');
+    $ItemCode = trim($this->input->post('ItemCode') ?? '');
 
     $stock = $this->stock_model->get_available_stock_in_zone($ItemCode, $WhsCode);
 

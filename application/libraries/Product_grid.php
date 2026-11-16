@@ -1,6 +1,8 @@
 <?php
 class Product_grid
 {
+  public $ci;
+
   public function __construct()
   {
     // Assign the CodeIgniter super-object
@@ -8,19 +10,13 @@ class Product_grid
     $this->ci->load->model('masters/products_model');
     $this->ci->load->model('masters/product_style_model');
     $this->ci->load->model('stock/stock_model');
-
   }
-
-
-
-
-
-
 
   public function getOrderGrid($style_code)
 	{
 		$sc = '';
     $style = $this->ci->product_style_model->get($style_code);
+
     if(!empty($style))
     {
       $attrs = $this->getAttribute($style->code);
@@ -33,7 +29,6 @@ class Product_grid
       {
         $sc .= $this->orderGridTwoAttribute($style);
       }
-
     }
     else
     {
@@ -42,8 +37,6 @@ class Product_grid
 
 		return $sc;
 	}
-
-
 
 
   public function orderGridOneAttribute($style, $attr)
@@ -58,22 +51,16 @@ class Product_grid
     {
       $sc .= $i%2 == 0 ? '<tr>' : '';
       $stock	= $this->ci->stock_model->get_stock($item->code); //---- สต็อกทั้งหมดทุกคลัง
-
       $code = $attr == 'color' ? $item->color_code : $item->size_code;
-
 			$sc 	.= '<td class="middle" style="border-right:0px;">';
 			$sc 	.= '<strong>' .	$code.' ('.$data[$code].')' . '</strong>';
 			$sc 	.= '</td>';
-
 			$sc 	.= '<td class="middle text-center" class="one-attribute">';
 			$sc 	.= '<span class="green">'.ac_format($stock).'</span>';
-
 			$sc 	.= '</td>';
-
 			$i++;
 
 			$sc 	.= $i%2 == 0 ? '</tr>' : '';
-
     }
 
 		$sc	.= "</table>";
@@ -82,19 +69,16 @@ class Product_grid
 	}
 
 
-
-
-
   public function orderGridTwoAttribute($style)
 	{
 		$colors	= $this->getAllColors($style->code);
 		$sizes 	= $this->getAllSizes($style->code);
-		$sc 		= '';
-		$sc 		.= '<table class="table table-bordered">';
-		$sc 		.= $this->gridHeader($colors);
+		$sc = '';
+		$sc .= '<table class="table table-bordered">';
+		$sc .= $this->gridHeader($colors);
 
-    $sCol   = array();
-		$total  = 0;
+    $sCol = array();
+		$total = 0;
 
 		foreach( $sizes as $size_code => $size )
 		{
@@ -108,6 +92,7 @@ class Product_grid
 			{
         $item = $this->ci->products_model->get_item_by_color_and_size($style->code, $color_code, $size_code);
         $stock = 0;
+
 				if( !empty($item) )
 				{
 					$stock	= $this->ci->stock_model->get_stock($item->code); //---- สต็อกทั้งหมดทุกคลัง
@@ -154,11 +139,6 @@ class Product_grid
 	}
 
 
-
-
-
-
-
   public function getAttribute($style_code)
   {
     $sc = array();
@@ -173,26 +153,25 @@ class Product_grid
     {
       $sc[] = "size";
     }
+
     return $sc;
   }
-
-
-
 
 
   public function gridHeader(array $colors)
   {
     $sc = '<tr class="font-size-12"><td style="width:70px;">&nbsp;</td>';
+
     foreach( $colors as $code => $name )
     {
       $sc .= '<td class="text-center middle" style="width:70px; white-space:normal;">'.$code . '<br/>'. $name.'</td>';
     }
+
     $sc .= '<td class="text-center middle" style="width:70px; white-space:normal;">รวม</td>';
     $sc .= '</tr>';
+
     return $sc;
   }
-
-
 
 
 
@@ -200,11 +179,12 @@ class Product_grid
 	{
 		$sc = array();
     $colors = $this->ci->products_model->get_all_colors($style_code);
-    if($colors !== FALSE)
+
+    if($colors)
     {
       foreach($colors as $color)
       {
-        $sc[$color->code] = $color->name;
+        if(!empty($color->code)) $sc[$color->code] = $color->name;
       }
     }
 
@@ -212,19 +192,19 @@ class Product_grid
 	}
 
 
-
-
   public function getAllSizes($style_code)
 	{
 		$sc = array();
 		$sizes = $this->ci->products_model->get_all_sizes($style_code);
-		if( $sizes !== FALSE )
+
+		if( $sizes )
 		{
       foreach($sizes as $size)
       {
-        $sc[$size->code] = $size->name;
+        if(!empty($size->code)) $sc[$size->code] = $size->name;
       }
 		}
+
 		return $sc;
 	}
 
@@ -259,6 +239,7 @@ class Product_grid
     $tdWidth = 70;  //----- แต่ละช่อง
     $padding = 70; //----- สำหรับช่องแสดงไซส์
     $color = $this->ci->products_model->count_color($style_code);
+
     if($color > 1)
     {
       $sc = $color * $tdWidth + $padding;
@@ -267,5 +248,3 @@ class Product_grid
     return $sc;
   }
 }
-
- ?>

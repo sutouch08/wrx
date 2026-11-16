@@ -1,14 +1,15 @@
 <?php
+
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+
 class Import_order extends CI_Controller
 {
   public $ms;
   public $mc;
-	public $wms;
+  public $wms;
   public $_user;
-  public $sokoApi;
-  public $wmsApi;
-  public $isAPI;
-	public $sync_chatbot_stock = FALSE;
+  public $sync_chatbot_stock = FALSE;
   public $error;
   public $message;
 
@@ -18,11 +19,11 @@ class Import_order extends CI_Controller
     parent::__construct();
     $this->ms = $this->load->database('ms', TRUE); //--- SAP database
     $this->mc = $this->load->database('mc', TRUE); //--- Temp Database
-		$this->wms = $this->load->database('wms', TRUE);
+    $this->wms = $this->load->database('wms', TRUE);
 
     $uid = get_cookie('uid');
 
-		$this->_user = $this->user_model->get_user_by_uid($uid);
+    $this->_user = $this->user_model->get_user_by_uid($uid);
 
     $this->load->model('orders/orders_model');
     $this->load->model('orders/order_state_model');
@@ -33,590 +34,583 @@ class Import_order extends CI_Controller
     $this->load->model('masters/products_model');
     $this->load->model('masters/customers_model');
     $this->load->model('masters/products_model');
-		$this->load->model('masters/warehouse_model');
-		$this->load->model('masters/sender_model');
+    $this->load->model('masters/warehouse_model');
+    $this->load->model('masters/sender_model');
     $this->load->model('address/address_model');
     $this->load->model('stock/stock_model');
 
     $this->load->library('excel');
     $this->load->library('stock');
-
-    $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
-
   }
 
 
   public function index()
   {
     ini_set('max_execution_time', 1200);
-    ini_set('memory_limit','1000M');
+    ini_set('memory_limit', '1000M');
 
     $sc = TRUE;
-
     $import = 0;
     $success = 0;
     $failed = 0;
     $skip = 0;
 
-    $file = isset( $_FILES['uploadFile'] ) ? $_FILES['uploadFile'] : FALSE;
-    $path = $this->config->item('upload_path').'orders/';
-    $file	= 'uploadFile';
+    $file = isset($_FILES['uploadFile']) ? $_FILES['uploadFile'] : FALSE;
+    $path = $this->config->item('upload_path') . 'orders/';
+    $file  = 'uploadFile';
     $config = array(   // initial config for upload class
       "allowed_types" => "xlsx",
       "upload_path" => $path,
-      "file_name"	=> "import_order-".date('YmdHis'),
+      "file_name"  => "import_order-" . date('YmdHis'),
       "max_size" => 5120,
       "overwrite" => TRUE
     );
 
     $this->load->library("upload", $config);
-    $this->load->library("soko_order_api");
 
-    if(! $this->upload->do_upload($file))
+    if (! $this->upload->do_upload($file))
     {
       echo $this->upload->display_errors();
+      exit;
     }
-    else
+
+    $info = $this->upload->data();   
+    $excel = IOFactory::load($info['full_path']);   
+    $collection  = $excel->getActiveSheet()->toArray('', TRUE, TRUE, TRUE);
+
+    if (! empty($collection))
     {
-      $info = $this->upload->data();
-      /// read file
-      $excel = PHPExcel_IOFactory::load($info['full_path']);
-      //get only the Cell Collection
-      $collection	= $excel->getActiveSheet()->toArray(NULL, TRUE, TRUE, TRUE);
+      $count = count($collection ?? []);
+      $limit = intval(getConfig('IMPORT_ROWS_LIMIT')) + 1;
 
-      if( ! empty($collection))
+      if ($count > $limit)
       {
-        $count = count($collection);
-        $limit = intval(getConfig('IMPORT_ROWS_LIMIT')) + 1;
+        $sc = FALSE;
+        $this->error = "ไฟล์มีจำนวนรายการเกิน {$limit} บรรทัด";
+      }
 
-        if($count > $limit)
+      if ($sc === TRUE)
+      {
+        $ds = $this->parse_order_data($collection);
+
+        if (! empty($ds))
         {
-          $sc = FALSE;
-          $this->error = "ไฟล์มีจำนวนรายการเกิน {$limit} บรรทัด";
-        }
+          $shipping_item_code = getConfig('SHIPPING_ITEM_CODE');
+          $shipping_item = ! empty($shipping_item_code) ? $this->products_model->get($shipping_item_code) : NULL;
+          $ix_backorder = is_true(getConfig('IX_BACK_ORDER'));
 
-        if($sc === TRUE)
-        {
-          $ds = $this->parse_order_data($collection);
-
-          if( ! empty($ds))
+          foreach ($ds as $order)
           {
-            $shipping_item_code = getConfig('SHIPPING_ITEM_CODE');
-            $shipping_item = ! empty($shipping_item_code) ? $this->products_model->get($shipping_item_code) : NULL;
-            $ix_backorder = is_true(getConfig('IX_BACK_ORDER'));
+            $import++;
 
-            foreach($ds as $order)
+            $res = TRUE;
+            $message = "";
+            //---- เช็คว่ามีออเดอร์ที่สร้างด้วย reference แล้วหรือยัง
+            //---- ถ้ายังไม่มีให้สร้างใหม่
+            //---- ถ้ามีแล้วและยังไม่ได้ยกเลิก ไม่สามารถเพิ่มใหม่ได้
+            $order_code = $this->orders_model->get_active_order_code_by_reference($order->reference);
+            $is_backorder = 0;
+            $is_hold = 0;
+            $backorderList = [];
+            $total_amount = 0;
+            $total_qty = 0;
+
+            if (empty($order_code))
             {
-              $import++;
+              $this->db->trans_begin();
 
-              $res = TRUE;
-              $message = "";
-              //---- เช็คว่ามีออเดอร์ที่สร้างด้วย reference แล้วหรือยัง
-              //---- ถ้ายังไม่มีให้สร้างใหม่
-              //---- ถ้ามีแล้วและยังไม่ได้ยกเลิก ไม่สามารถเพิ่มใหม่ได้
-              $order_code = $this->orders_model->get_active_order_code_by_reference($order->reference);
-              $is_backorder = 0;
-              $is_hold = 0;
-              $backorderList = [];
-              $total_amount = 0;
-              $total_qty = 0;
+              $order_code = $this->get_new_code($order->date_add);
 
-              if( empty($order_code) )
+              $arr = array(
+                'code' => $order_code,
+                'role' => $order->role,
+                'bookcode' => $order->bookcode,
+                'reference' => $order->reference,
+                'customer_code' => $order->customer_code,
+                'customer_name' => $order->customer_name,
+                'customer_ref' => $order->customer_ref,
+                'channels_code' => $order->channels_code,
+                'payment_code' => $order->payment_code,
+                'sale_code' => $order->sale_code,
+                'state' => $order->state,
+                'is_paid' => $order->is_paid,
+                'is_term' => $order->is_term,
+                'shipping_code' => $order->shipping_code,
+                'shipping_fee' => $order->shipping_fee,
+                'cod_amount' => $order->cod_amount,
+                'status' => $order->status,
+                'date_add' => $order->date_add,
+                'warehouse_code' => $order->warehouse_code,
+                'user' => $order->user,
+                'is_import' => $order->is_import,
+                'remark' => $order->remark,
+                'is_wms' => $order->is_wms,
+                'id_address' => $order->id_address,
+                'id_sender' => $order->id_sender,
+                'is_pre_order' => $order->is_pre_order,
+                'tax_status' => $order->tax_status,
+                'is_etax' => $order->is_etax,
+                'tax_id' => $order->tax_id,
+                'name' => $order->name,
+                'branch_code' => $order->branch_code,
+                'branch_name' => $order->branch_name,
+                'address' => $order->address,
+                'sub_district' => $order->sub_district,
+                'district' => $order->district,
+                'province' => $order->province,
+                'postcode' => $order->postcode,
+                'phone' => $order->phone,
+                'email' => $order->email,
+                'shop_id' => $order->shop_id
+              );
+
+              //--- add order
+              if (! $this->orders_model->add($arr))
               {
-                $this->db->trans_begin();
-
-                $order_code = $this->get_new_code($order->date_add);
-
-                $arr = array(
-                  'code' => $order_code,
-                  'role' => $order->role,
-                  'bookcode' => $order->bookcode,
-                  'reference' => $order->reference,
-                  'customer_code' => $order->customer_code,
-                  'customer_name' => $order->customer_name,
-                  'customer_ref' => $order->customer_ref,
-                  'channels_code' => $order->channels_code,
-                  'payment_code' => $order->payment_code,
-                  'sale_code' => $order->sale_code,
-                  'state' => $order->state,
-                  'is_paid' => $order->is_paid,
-                  'is_term' => $order->is_term,
-                  'shipping_code' => $order->shipping_code,
-                  'shipping_fee' => $order->shipping_fee,
-                  'cod_amount' => $order->cod_amount,
-                  'status' => $order->status,
-                  'date_add' => $order->date_add,
-                  'warehouse_code' => $order->warehouse_code,
-                  'user' => $order->user,
-                  'is_import' => $order->is_import,
-                  'remark' => $order->remark,
-                  'is_wms' => $order->is_wms,
-                  'id_address' => $order->id_address,
-                  'id_sender' => $order->id_sender,
-                  'is_pre_order' => $order->is_pre_order,
-                  'tax_status' => $order->tax_status,
-                  'is_etax' => $order->is_etax,
-                  'tax_id' => $order->tax_id,
-                  'name' => $order->name,
-                  'branch_code' => $order->branch_code,
-                  'branch_name' => $order->branch_name,
-                  'address' => $order->address,
-                  'sub_district' => $order->sub_district,
-                  'district' => $order->district,
-                  'province' => $order->province,
-                  'postcode' => $order->postcode,
-                  'phone' => $order->phone,
-                  'email' => $order->email,
-                  'shop_id' => $order->shop_id
-                );
-
-                //--- add order
-                if( ! $this->orders_model->add($arr))
-                {
-                  $res = FALSE;
-                  $message = "Failed to create order for orderNumber {$order->reference}";
-                }
-
-                if($res === TRUE)
-                {
-                  if( ! empty($order->items))
-                  {
-                    foreach($order->items as $row)
-                    {
-                      if($row->price <= 0)
-                      {
-                        $is_hold = 1;
-                      }
-
-                      $arr = array(
-                        'order_code' => $order_code,
-                        'style_code' => $row->style_code,
-                        'product_code' => $row->product_code,
-                        'product_name' => $row->product_name,
-                        'cost' => $row->cost,
-                        'price' => $row->price,
-                        'qty' => $row->qty,
-                        'discount1' => $row->discount1,
-                        'discount2' => $row->discount2,
-                        'discount3' => $row->discount3,
-                        'discount_amount' => $row->discount_amount,
-                        'total_amount' => $row->total_amount,
-                        'id_rule' => $row->id_rule,
-                        'is_count' => $row->is_count,
-                        'is_import' => $row->is_import
-                      );
-
-                      if( ! $this->orders_model->add_detail($arr))
-                      {
-                        $res = FALSE;
-                        $message = "Failed to add order row of {$order->reference} : {$row->product_code}";
-                      }
-                      else
-                      {
-                        $total_amount += $row->total_amount;
-                        $total_qty += $row->qty;
-
-                        if($ix_backorder && $row->is_count && ! $order->is_pre_order)
-                        {
-                          $available = $this->stock->get_available_stock($row->product_code, $order->warehouse_code);
-
-                          if($available < $row->qty)
-                          {
-                            $is_backorder = 1;
-
-                            $backorderList[] = (object) array(
-                              'order_code' => $order_code,
-                              'product_code' => $row->product_code,
-                              'order_qty' => $row->qty,
-                              'available_qty' => $available
-                            );
-                          }
-                        }
-                      }
-
-                      if($res == FALSE)
-                      {
-                        break;
-                      }
-                    } //--- end foreach
-
-                    //---- if has shipping fee  add shipping sku to order
-                    if($res === TRUE && $order->shipping_fee > 0 && ! empty($shipping_item))
-                    {
-                      $arr = array(
-                        "order_code" => $order_code,
-                        "style_code" => $shipping_item->style_code,
-                        "product_code" => $shipping_item->code,
-                        "product_name" => $shipping_item->name,
-                        "cost" => $shipping_item->cost,
-                        "price"	=> $order->shipping_fee,
-                        "qty"	=> 1,
-                        "discount1"	=> 0,
-                        "discount2" => 0,
-                        "discount3" => 0,
-                        "discount_amount" => 0,
-                        "total_amount"	=> $order->shipping_fee,
-                        "id_rule"	=> NULL,
-                        "is_count" => $shipping_item->count_stock,
-                        "is_import" => 1
-                      );
-
-                      if( ! $this->orders_model->add_detail($arr))
-                      {
-                        $sc = FALSE;
-                        $message = "Failed to insert shipping item row of {$order->reference}";
-                      }
-                      else
-                      {
-                        $total_amount += $order->shipping_fee;
-                        $total_qty += 1;
-                      }
-                    } //--- end if($order->shipping_fee)
-                  } //--- end if ! empty($order->items)
-                } //--- $sc === TRUE
-
-                //-- add state
-                if($res === TRUE)
-                {
-                  $arr = array(
-                    'doc_total' => $total_amount,
-                    'total_sku' => $this->orders_model->count_order_sku($order_code),
-                    'is_backorder' => $is_backorder,
-                    'is_hold' => $is_hold
-                  );
-
-                  $this->orders_model->update($order_code, $arr);
-
-                  $arr = array(
-                    'order_code' => $order_code,
-                    'state' => $order->state,
-                    'update_user' => $this->_user->uname
-                  );
-
-                  //--- add state event
-                  $this->order_state_model->add_state($arr);
-
-                  if($ix_backorder && ! empty($backorderList))
-                  {
-                    foreach($backorderList as $rs)
-                    {
-                      $backlogs = array(
-                        'order_code' => $rs->order_code,
-                        'product_code' => $rs->product_code,
-                        'order_qty' => $rs->order_qty,
-                        'available_qty' => $rs->available_qty
-                      );
-
-                      $this->orders_model->add_backlogs_detail($backlogs);
-                    }
-                  }
-                }
-
-                if($res === TRUE)
-                {
-                  $this->db->trans_commit();
-                  $success++;
-                }
-                else
-                {
-                  $this->db->trans_rollback();
-                  $failed++;
-                }
-
-                //--- add logs
-                $logs = array(
-                  'reference' => $order->reference,
-                  'order_code' => $order_code,
-                  'action' => 'A', //-- A = add , U = update
-                  'status' => $res === TRUE ? 'S' : 'E', //-- S = success, E = error, D = duplication
-                  'message' => $res === TRUE ? NULL : $message,
-                  'user' => $this->_user->uname
-                );
-
-                $this->order_import_logs_model->add($logs);
-
-                if($order->is_wms == 2 && $this->sokoApi && ! $order->hold)
-      					{
-                  $this->soko_order_api->export_order($order_code);
-      					}
+                $res = FALSE;
+                $message = "Failed to create order for orderNumber {$order->reference}";
               }
-              else
-              {
-                if($order->force_update)
-                {
-                  $doc = $this->orders_model->get($order_code);
 
-                  if( ! empty($doc) && $doc->state <= 3)
+              if ($res === TRUE)
+              {
+                if (! empty($order->items))
+                {
+                  foreach ($order->items as $row)
                   {
-                    $this->db->trans_begin();
+                    if ($row->price <= 0)
+                    {
+                      $is_hold = 1;
+                    }
 
                     $arr = array(
-                      'customer_code' => $order->customer_code,
-                      'customer_name' => $order->customer_name,
-                      'customer_ref' => $order->customer_ref,
-                      'channels_code' => $order->channels_code,
-                      'payment_code' => $order->payment_code,
-                      'sale_code' => $order->sale_code,
-                      'state' => $order->state,
-                      'is_term' => $order->is_term,
-                      'shipping_code' => $order->shipping_code,
-                      'shipping_fee' => $order->shipping_fee,
-                      'cod_amount' => $order->cod_amount,
-                      'status' => $order->status,
-                      'date_add' => $order->date_add,
-                      'warehouse_code' => $order->warehouse_code,
-                      'user' => $order->user,
-                      'is_import' => $order->is_import,
-                      'remark' => $order->remark,
-                      'is_wms' => $order->is_wms,
-                      'id_address' => $order->id_address,
-                      'id_sender' => $order->id_sender,
-                      'is_pre_order' => $order->is_pre_order,
-                      'tax_status' => $order->tax_status,
-                      'is_etax' => $order->is_etax,
-                      'tax_id' => $order->tax_id,
-                      'name' => $order->name,
-                      'branch_code' => $order->branch_code,
-                      'branch_name' => $order->branch_name,
-                      'address' => $order->address,
-                      'sub_district' => $order->sub_district,
-                      'district' => $order->district,
-                      'province' => $order->province,
-                      'postcode' => $order->postcode,
-                      'phone' => $order->phone,
-                      'email' => $order->email,
-                      'shop_id' => $order->shop_id
+                      'order_code' => $order_code,
+                      'style_code' => $row->style_code,
+                      'product_code' => $row->product_code,
+                      'product_name' => $row->product_name,
+                      'cost' => $row->cost,
+                      'price' => $row->price,
+                      'qty' => $row->qty,
+                      'discount1' => $row->discount1,
+                      'discount2' => $row->discount2,
+                      'discount3' => $row->discount3,
+                      'discount_amount' => $row->discount_amount,
+                      'total_amount' => $row->total_amount,
+                      'id_rule' => $row->id_rule,
+                      'is_count' => $row->is_count,
+                      'is_import' => $row->is_import
                     );
 
-                    if( ! $this->orders_model->update($order_code, $arr))
+                    if (! $this->orders_model->add_detail($arr))
                     {
                       $res = FALSE;
-                      $message = "Failed to update order {$order_code} for {$order->reference}";
-                    }
-
-                    if($res === TRUE)
-                    {
-                      //---- drop previous order rows
-                      if( ! $this->orders_model->remove_all_details($order_code))
-                      {
-                        $res = FALSE;
-                        $message = "Failed to remove previous order rows";
-                      }
-                      else
-                      {
-                        if( ! empty($order->items))
-                        {
-                          foreach($order->items as $row)
-                          {
-                            if($row->price <= 0)
-                            {
-                              $is_hold = 1;
-                            }
-                            
-                            $arr = array(
-                              'order_code' => $order_code,
-                              'style_code' => $row->style_code,
-                              'product_code' => $row->product_code,
-                              'product_name' => $row->product_name,
-                              'cost' => $row->cost,
-                              'price' => $row->price,
-                              'qty' => $row->qty,
-                              'discount1' => $row->discount1,
-                              'discount2' => $row->discount2,
-                              'discount3' => $row->discount3,
-                              'discount_amount' => $row->discount_amount,
-                              'total_amount' => $row->total_amount,
-                              'id_rule' => $row->id_rule,
-                              'is_count' => $row->is_count,
-                              'is_import' => $row->is_import
-                            );
-
-                            if( ! $this->orders_model->add_detail($arr))
-                            {
-                              $res = FALSE;
-                              $message = "Failed to add order row of {$order->reference} : {$row->product_code}";
-                            }
-                            else
-                            {
-                              $total_amount += $row->total_amount;
-                              $total_qty += $row->qty;
-
-                              if($ix_backorder && $row->is_count && ! $order->is_pre_order)
-                              {
-                                $available = $this->stock->get_available_stock($row->product_code, $order->warehouse_code);
-
-                                if($available < $row->qty)
-                                {
-                                  $is_backorder = 1;
-
-                                  $backorderList[] = (object) array(
-                                    'order_code' => $order_code,
-                                    'product_code' => $row->product_code,
-                                    'order_qty' => $row->qty,
-                                    'available_qty' => $available
-                                  );
-                                }
-                              }
-                            }
-
-                            if($res == FALSE)
-                            {
-                              break;
-                            }
-                          } //--- end foreach
-
-                          //---- if has shipping fee  add shipping sku to order
-                          if($res === TRUE && $order->shipping_fee > 0 && ! empty($shipping_item))
-                          {
-                            $arr = array(
-                              "order_code" => $order_code,
-                              "style_code" => $shipping_item->style_code,
-                              "product_code" => $shipping_item->code,
-                              "product_name" => $shipping_item->name,
-                              "cost" => $shipping_item->cost,
-                              "price"	=> $order->shipping_fee,
-                              "qty"	=> 1,
-                              "discount1"	=> 0,
-                              "discount2" => 0,
-                              "discount3" => 0,
-                              "discount_amount" => 0,
-                              "total_amount"	=> $order->shipping_fee,
-                              "id_rule"	=> NULL,
-                              "is_count" => $shipping_item->count_stock,
-                              "is_import" => 1
-                            );
-
-                            if( ! $this->orders_model->add_detail($arr))
-                            {
-                              $sc = FALSE;
-                              $message = "Failed to insert shipping item row of {$order->reference}";
-                            }
-                            else
-                            {
-                              $total_amount += $order->shipping_fee;
-                              $total_qty += 1;
-                            }
-                          } //--- end if($order->shipping_fee)
-                        } //--- end if ! empty($order->items)
-                      } //--- end if remove all detail
-                    } //--- if($res === TRUE)
-
-                    //-- add state
-                    if($res === TRUE)
-                    {
-                      $arr = array(
-                        'doc_total' => $total_amount,
-                        'total_sku' => $this->orders_model->count_order_sku($order_code),
-                        'is_backorder' => $is_backorder,
-                        'is_hold' => $is_hold
-                      );
-
-                      $this->orders_model->update($order_code, $arr);
-
-                      $arr = array(
-                        'order_code' => $order_code,
-                        'state' => $order->state,
-                        'update_user' => $this->_user->uname
-                      );
-                      //--- add state event
-                      $this->order_state_model->add_state($arr);
-
-                      if($ix_backorder)
-                      {
-                        if( $this->orders_model->drop_backlogs_list($order_code))
-                        {
-                          if( ! empty($backorderList))
-                          {
-                            foreach($backorderList as $rs)
-                            {
-                              $backlogs = array(
-                                'order_code' => $rs->order_code,
-                                'product_code' => $rs->product_code,
-                                'order_qty' => $rs->order_qty,
-                                'available_qty' => $rs->available_qty
-                              );
-
-                              $this->orders_model->add_backlogs_detail($backlogs);
-                            }
-                          }
-                        }
-                      }
-                    }
-
-                    if($res === TRUE)
-                    {
-                      $this->db->trans_commit();
-                      $success++;
+                      $message = "Failed to add order row of {$order->reference} : {$row->product_code}";
                     }
                     else
                     {
-                      $this->db->trans_rollback();
-                      $failed++;
+                      $total_amount += $row->total_amount;
+                      $total_qty += $row->qty;
+
+                      if ($ix_backorder && $row->is_count && ! $order->is_pre_order)
+                      {
+                        $available = $this->stock->get_available_stock($row->product_code, $order->warehouse_code);
+
+                        if ($available < $row->qty)
+                        {
+                          $is_backorder = 1;
+
+                          $backorderList[] = (object) array(
+                            'order_code' => $order_code,
+                            'product_code' => $row->product_code,
+                            'order_qty' => $row->qty,
+                            'available_qty' => $available
+                          );
+                        }
+                      }
                     }
 
-                    //--- add logs
-                    $logs = array(
-                      'reference' => $order->reference,
-                      'order_code' => $order_code,
-                      'action' => 'U', //-- A = add , U = update
-                      'status' => $res === TRUE ? 'S' : 'E', //-- S = success, E = error, D = duplication
-                      'message' => $message,
-                      'user' => $this->_user->uname
+                    if ($res == FALSE)
+                    {
+                      break;
+                    }
+                  } //--- end foreach
+
+                  //---- if has shipping fee  add shipping sku to order
+                  if ($res === TRUE && $order->shipping_fee > 0 && ! empty($shipping_item))
+                  {
+                    $arr = array(
+                      "order_code" => $order_code,
+                      "style_code" => $shipping_item->style_code,
+                      "product_code" => $shipping_item->code,
+                      "product_name" => $shipping_item->name,
+                      "cost" => $shipping_item->cost,
+                      "price"  => $order->shipping_fee,
+                      "qty"  => 1,
+                      "discount1"  => 0,
+                      "discount2" => 0,
+                      "discount3" => 0,
+                      "discount_amount" => 0,
+                      "total_amount"  => $order->shipping_fee,
+                      "id_rule"  => NULL,
+                      "is_count" => $shipping_item->count_stock,
+                      "is_import" => 1
                     );
 
-                    $this->order_import_logs_model->add($logs);
+                    if (! $this->orders_model->add_detail($arr))
+                    {
+                      $sc = FALSE;
+                      $message = "Failed to insert shipping item row of {$order->reference}";
+                    }
+                    else
+                    {
+                      $total_amount += $order->shipping_fee;
+                      $total_qty += 1;
+                    }
+                  } //--- end if($order->shipping_fee)
+                } //--- end if ! empty($order->items)
+              } //--- $sc === TRUE
 
-                    if($order->is_wms == 2 && $this->sokoApi && ! $order->hold)
-          					{
-                      $this->soko_order_api->export_order($order_code);
-          					}
+              //-- add state
+              if ($res === TRUE)
+              {
+                $arr = array(
+                  'doc_total' => $total_amount,
+                  'total_sku' => $this->orders_model->count_order_sku($order_code),
+                  'is_backorder' => $is_backorder,
+                  'is_hold' => $is_hold
+                );
+
+                $this->orders_model->update($order_code, $arr);
+
+                $arr = array(
+                  'order_code' => $order_code,
+                  'state' => $order->state,
+                  'update_user' => $this->_user->uname
+                );
+
+                //--- add state event
+                $this->order_state_model->add_state($arr);
+
+                if ($ix_backorder && ! empty($backorderList))
+                {
+                  foreach ($backorderList as $rs)
+                  {
+                    $backlogs = array(
+                      'order_code' => $rs->order_code,
+                      'product_code' => $rs->product_code,
+                      'order_qty' => $rs->order_qty,
+                      'available_qty' => $rs->available_qty
+                    );
+
+                    $this->orders_model->add_backlogs_detail($backlogs);
+                  }
+                }
+              }
+
+              if ($res === TRUE)
+              {
+                $this->db->trans_commit();
+                $success++;
+              }
+              else
+              {
+                $this->db->trans_rollback();
+                $failed++;
+              }
+
+              //--- add logs
+              $logs = array(
+                'reference' => $order->reference,
+                'order_code' => $order_code,
+                'action' => 'A', //-- A = add , U = update
+                'status' => $res === TRUE ? 'S' : 'E', //-- S = success, E = error, D = duplication
+                'message' => $res === TRUE ? NULL : $message,
+                'user' => $this->_user->uname
+              );
+
+              $this->order_import_logs_model->add($logs);
+
+              if ($order->is_wms == 2 && $this->sokoApi && ! $order->hold)
+              {
+                $this->soko_order_api->export_order($order_code);
+              }
+            }
+            else
+            {
+              if ($order->force_update)
+              {
+                $doc = $this->orders_model->get($order_code);
+
+                if (! empty($doc) && $doc->state <= 3)
+                {
+                  $this->db->trans_begin();
+
+                  $arr = array(
+                    'customer_code' => $order->customer_code,
+                    'customer_name' => $order->customer_name,
+                    'customer_ref' => $order->customer_ref,
+                    'channels_code' => $order->channels_code,
+                    'payment_code' => $order->payment_code,
+                    'sale_code' => $order->sale_code,
+                    'state' => $order->state,
+                    'is_term' => $order->is_term,
+                    'shipping_code' => $order->shipping_code,
+                    'shipping_fee' => $order->shipping_fee,
+                    'cod_amount' => $order->cod_amount,
+                    'status' => $order->status,
+                    'date_add' => $order->date_add,
+                    'warehouse_code' => $order->warehouse_code,
+                    'user' => $order->user,
+                    'is_import' => $order->is_import,
+                    'remark' => $order->remark,
+                    'is_wms' => $order->is_wms,
+                    'id_address' => $order->id_address,
+                    'id_sender' => $order->id_sender,
+                    'is_pre_order' => $order->is_pre_order,
+                    'tax_status' => $order->tax_status,
+                    'is_etax' => $order->is_etax,
+                    'tax_id' => $order->tax_id,
+                    'name' => $order->name,
+                    'branch_code' => $order->branch_code,
+                    'branch_name' => $order->branch_name,
+                    'address' => $order->address,
+                    'sub_district' => $order->sub_district,
+                    'district' => $order->district,
+                    'province' => $order->province,
+                    'postcode' => $order->postcode,
+                    'phone' => $order->phone,
+                    'email' => $order->email,
+                    'shop_id' => $order->shop_id
+                  );
+
+                  if (! $this->orders_model->update($order_code, $arr))
+                  {
+                    $res = FALSE;
+                    $message = "Failed to update order {$order_code} for {$order->reference}";
+                  }
+
+                  if ($res === TRUE)
+                  {
+                    //---- drop previous order rows
+                    if (! $this->orders_model->remove_all_details($order_code))
+                    {
+                      $res = FALSE;
+                      $message = "Failed to remove previous order rows";
+                    }
+                    else
+                    {
+                      if (! empty($order->items))
+                      {
+                        foreach ($order->items as $row)
+                        {
+                          if ($row->price <= 0)
+                          {
+                            $is_hold = 1;
+                          }
+
+                          $arr = array(
+                            'order_code' => $order_code,
+                            'style_code' => $row->style_code,
+                            'product_code' => $row->product_code,
+                            'product_name' => $row->product_name,
+                            'cost' => $row->cost,
+                            'price' => $row->price,
+                            'qty' => $row->qty,
+                            'discount1' => $row->discount1,
+                            'discount2' => $row->discount2,
+                            'discount3' => $row->discount3,
+                            'discount_amount' => $row->discount_amount,
+                            'total_amount' => $row->total_amount,
+                            'id_rule' => $row->id_rule,
+                            'is_count' => $row->is_count,
+                            'is_import' => $row->is_import
+                          );
+
+                          if (! $this->orders_model->add_detail($arr))
+                          {
+                            $res = FALSE;
+                            $message = "Failed to add order row of {$order->reference} : {$row->product_code}";
+                          }
+                          else
+                          {
+                            $total_amount += $row->total_amount;
+                            $total_qty += $row->qty;
+
+                            if ($ix_backorder && $row->is_count && ! $order->is_pre_order)
+                            {
+                              $available = $this->stock->get_available_stock($row->product_code, $order->warehouse_code);
+
+                              if ($available < $row->qty)
+                              {
+                                $is_backorder = 1;
+
+                                $backorderList[] = (object) array(
+                                  'order_code' => $order_code,
+                                  'product_code' => $row->product_code,
+                                  'order_qty' => $row->qty,
+                                  'available_qty' => $available
+                                );
+                              }
+                            }
+                          }
+
+                          if ($res == FALSE)
+                          {
+                            break;
+                          }
+                        } //--- end foreach
+
+                        //---- if has shipping fee  add shipping sku to order
+                        if ($res === TRUE && $order->shipping_fee > 0 && ! empty($shipping_item))
+                        {
+                          $arr = array(
+                            "order_code" => $order_code,
+                            "style_code" => $shipping_item->style_code,
+                            "product_code" => $shipping_item->code,
+                            "product_name" => $shipping_item->name,
+                            "cost" => $shipping_item->cost,
+                            "price"  => $order->shipping_fee,
+                            "qty"  => 1,
+                            "discount1"  => 0,
+                            "discount2" => 0,
+                            "discount3" => 0,
+                            "discount_amount" => 0,
+                            "total_amount"  => $order->shipping_fee,
+                            "id_rule"  => NULL,
+                            "is_count" => $shipping_item->count_stock,
+                            "is_import" => 1
+                          );
+
+                          if (! $this->orders_model->add_detail($arr))
+                          {
+                            $sc = FALSE;
+                            $message = "Failed to insert shipping item row of {$order->reference}";
+                          }
+                          else
+                          {
+                            $total_amount += $order->shipping_fee;
+                            $total_qty += 1;
+                          }
+                        } //--- end if($order->shipping_fee)
+                      } //--- end if ! empty($order->items)
+                    } //--- end if remove all detail
+                  } //--- if($res === TRUE)
+
+                  //-- add state
+                  if ($res === TRUE)
+                  {
+                    $arr = array(
+                      'doc_total' => $total_amount,
+                      'total_sku' => $this->orders_model->count_order_sku($order_code),
+                      'is_backorder' => $is_backorder,
+                      'is_hold' => $is_hold
+                    );
+
+                    $this->orders_model->update($order_code, $arr);
+
+                    $arr = array(
+                      'order_code' => $order_code,
+                      'state' => $order->state,
+                      'update_user' => $this->_user->uname
+                    );
+                    //--- add state event
+                    $this->order_state_model->add_state($arr);
+
+                    if ($ix_backorder)
+                    {
+                      if ($this->orders_model->drop_backlogs_list($order_code))
+                      {
+                        if (! empty($backorderList))
+                        {
+                          foreach ($backorderList as $rs)
+                          {
+                            $backlogs = array(
+                              'order_code' => $rs->order_code,
+                              'product_code' => $rs->product_code,
+                              'order_qty' => $rs->order_qty,
+                              'available_qty' => $rs->available_qty
+                            );
+
+                            $this->orders_model->add_backlogs_detail($backlogs);
+                          }
+                        }
+                      }
+                    }
+                  }
+
+                  if ($res === TRUE)
+                  {
+                    $this->db->trans_commit();
+                    $success++;
                   }
                   else
                   {
+                    $this->db->trans_rollback();
                     $failed++;
-                    //--- add logs
-                    $logs = array(
-                      'reference' => $order->reference,
-                      'order_code' => $order_code,
-                      'action' => 'U', //-- A = add , U = update
-                      'status' => 'E', //-- S = success, E = error, D = Skip (duplicated and not force to update)
-                      'message' => "Invalid order state",
-                      'user' => $this->_user->uname
-                    );
-
-                    $this->order_import_logs_model->add($logs);
                   }
-                }
-                else
-                {
-                  $skip++;
+
                   //--- add logs
                   $logs = array(
                     'reference' => $order->reference,
                     'order_code' => $order_code,
-                    'action' => 'A', //-- A = add , U = update
-                    'status' => 'D', //-- S = success, E = error, D = Skip (duplicated and not force to update)
-                    'message' => "{$order->reference} already exists",
+                    'action' => 'U', //-- A = add , U = update
+                    'status' => $res === TRUE ? 'S' : 'E', //-- S = success, E = error, D = duplication
+                    'message' => $message,
+                    'user' => $this->_user->uname
+                  );
+
+                  $this->order_import_logs_model->add($logs);
+
+                  if ($order->is_wms == 2 && $this->sokoApi && ! $order->hold)
+                  {
+                    $this->soko_order_api->export_order($order_code);
+                  }
+                }
+                else
+                {
+                  $failed++;
+                  //--- add logs
+                  $logs = array(
+                    'reference' => $order->reference,
+                    'order_code' => $order_code,
+                    'action' => 'U', //-- A = add , U = update
+                    'status' => 'E', //-- S = success, E = error, D = Skip (duplicated and not force to update)
+                    'message' => "Invalid order state",
                     'user' => $this->_user->uname
                   );
 
                   $this->order_import_logs_model->add($logs);
                 }
-              } //--- end if order exists
-            } //--- end foreach
-          } //--- end if ! empty ds
-          else
-          {
-            $sc = FALSE;
-          }
+              }
+              else
+              {
+                $skip++;
+                //--- add logs
+                $logs = array(
+                  'reference' => $order->reference,
+                  'order_code' => $order_code,
+                  'action' => 'A', //-- A = add , U = update
+                  'status' => 'D', //-- S = success, E = error, D = Skip (duplicated and not force to update)
+                  'message' => "{$order->reference} already exists",
+                  'user' => $this->_user->uname
+                );
+
+                $this->order_import_logs_model->add($logs);
+              }
+            } //--- end if order exists
+          } //--- end foreach
+        } //--- end if ! empty ds
+        else
+        {
+          $sc = FALSE;
         }
       }
-      else
-      {
-        $sc = FALSE;
-        $this->error = "Cannot get data from import file : empty data collection";
-      }
-    } //-- end upload success
+    }
+    else
+    {
+      $sc = FALSE;
+      $this->error = "Cannot get data from import file : empty data collection";
+    }
+
 
     $message = "Imported : {$import} <br/> Success : {$success} <br/> Failed : {$failed} <br/> Skip : {$skip}";
     $message .= $failed > 0 ? "<br/><br/> พบรายการที่ไม่สำเร็จ กรุณาตรวจสอบ Import logs" : "";
@@ -630,17 +624,15 @@ class Import_order extends CI_Controller
   }
 
 
-	private function parse_order_data($collection)
+  private function parse_order_data($collection)
   {
     $sc = TRUE;
     $whsItems = [];
 
-    if( ! empty($collection))
+    if (! empty($collection))
     {
       $bookcode = getConfig('BOOK_CODE_ORDER');
-      $role = 'S';
-
-      $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
+      $role = 'S';      
 
       $default_warehouse = getConfig('WEB_SITE_WAREHOUSE_CODE');
       //---- กำหนดช่องทางขายสำหรับเว็บไซต์ เพราะมีลูกค้าแยกตามช่องทางการชำระเงินอีกที
@@ -656,9 +648,7 @@ class Import_order extends CI_Controller
       $web_customer_2c2p = getConfig('CUSTOMER_CODE_2C2P');
 
       //--- รหัสลูกค้าเริ่มต้น หากพอว่าไม่มีการระบุรหัสลูกค้าไว้ จะใช้รหัสนี้แทน
-      $default_customer = getConfig('DEFAULT_CUSTOMER');
-
-      $prefix = getConfig('PREFIX_SHIPPING_NUMBER');
+      $default_customer = getConfig('DEFAULT_CUSTOMER');      
 
       $ds = array(); //---- ได้เก็บข้อมูล orders
 
@@ -674,11 +664,7 @@ class Import_order extends CI_Controller
       $customerCache = array(
         $default_customer => $this->customers_model->get($default_customer)
       );
-
-      $senderCache = array();
-
-      $addrCache = array();
-
+     
       $itemsCache = array(); //--- เก็บ item cache
 
       $taxType = array(
@@ -734,27 +720,24 @@ class Import_order extends CI_Controller
 
       $i = 1;
       //---- รวมข้อมูลให้เป็น array ก่อนนำไปใช้สร้างออเดอร์
-      foreach($collection as $rs)
+      foreach ($collection as $rs)
       {
-        if($sc === FALSE)
-        {
-          break;
-        }
+        if ($sc === FALSE) break;        
 
-        if($i == 1)
+        if ($i == 1)
         {
           $i++;
 
-          foreach($headCol as $col => $field)
+          foreach ($headCol as $col => $field)
           {
-            if( ! isset($rs[$col]) OR $rs[$col] !== $field)
+            if (! isset($rs[$col]) or $rs[$col] !== $field)
             {
               $sc = FALSE;
-              $this->error .= 'Column '.$col.' Should be '.$field.'<br/>';
+              $this->error .= 'Column ' . $col . ' Should be ' . $field . '<br/>';
             }
           }
 
-          if($sc === FALSE)
+          if ($sc === FALSE)
           {
             $this->error .= "<br/><br/>You should download new template !";
             break;
@@ -763,35 +746,35 @@ class Import_order extends CI_Controller
         else
         {
           //--- ชื่อผู้รับ / orderNumber / itemId ต้องไม่เป็นค่าว่าง
-          if($sc === TRUE && ! empty($rs['A']) && ! empty($rs['I']) && ! empty($rs['M']))
+          if ($sc === TRUE && ! empty($rs['A']) && ! empty($rs['I']) && ! empty($rs['M']))
           {
             //--- ใช้ orderNumber เป็น key array
             //---  ถ้า orderNumber เริ่มต้นด้วย LA ให้ตัด 2 ตัวหน้าออก
-            $ref_code = trim($rs['I']);
+            $ref_code = trim($rs['I'] ?? '');
             $ref_code = substr($ref_code, 0, 2) == 'LA' ? substr($ref_code, 2) : $ref_code;
 
             //--- เช็คว่ามี key อยู่แล้วหรือไม่
             //--- ถ้ายังไม่มีให้สร้างใหม่ ถ้ามีแล้ว ให้เพิ่ม รายการสินค้าเข้าไป
-            if( ! isset($ds[$ref_code]))
+            if (! isset($ds[$ref_code]))
             {
-              $date_add = db_date(trim($rs['J']));
+              $date_add = db_date(trim($rs['J'] ?? ''));
 
               //--- check date format only check not convert
-              if( ! is_valid_date($date_add))
+              if (! is_valid_date($date_add))
               {
                 $sc = FALSE;
                 $this->error = "Invalid Date format at Line{$i}";
               }
 
-              $warehouse_code = empty(trim($rs['X'])) ? $default_warehouse : trim($rs['X']);
+              $warehouse_code = empty(trim($rs['X'] ?? '')) ? $default_warehouse : trim($rs['X'] ?? '');
 
               //--- check warehouse cache
               //--- if not extsts get form database and add to cache
-              if( ! isset($whsCache[$warehouse_code]))
+              if (! isset($whsCache[$warehouse_code]))
               {
                 $warehouse = $this->warehouse_model->get($warehouse_code);
 
-                if( ! empty($warehouse))
+                if (! empty($warehouse))
                 {
                   $whsCache[$warehouse_code] = $warehouse_code;
                 }
@@ -802,24 +785,23 @@ class Import_order extends CI_Controller
                 }
               }
 
-              $is_wms = $warehouse_code == $sokoWh ? 2 : 0;
+              $is_wms = 0;
 
-              $hold = $rs['U'] == 1 ? TRUE : FALSE;
+              $hold = ($rs['U'] ?? '') == 1 ? TRUE : FALSE;
 
-              $preorder = trim($rs['AP']);
-              $is_preorder = ($preorder === 1 OR $preorder === '1' OR $preorder === 'Y' OR $preorder === 'y') ? TRUE : FALSE;
-
+              $preorder = trim($rs['AP'] ?? '');
+              $is_preorder = is_true($preorder);
               //---- กำหนดช่องทางการขายเป็นรหัส
-              $channels_code = trim($rs['L']);
+              $channels_code = trim($rs['L'] ?? '');
 
-              if( ! empty($channels_code))
+              if (! empty($channels_code))
               {
                 //--- check channels cache
-                if( ! isset($channelsCache[$channels_code]))
+                if (! isset($channelsCache[$channels_code]))
                 {
                   $channels = $this->channels_model->get($channels_code);
 
-                  if( ! empty($channels))
+                  if (! empty($channels))
                   {
                     $channelsCache[$channels_code] = $channels;
                   }
@@ -839,15 +821,15 @@ class Import_order extends CI_Controller
               }
 
               //--- กำหนดช่องทางการชำระเงิน
-              $payment_code = trim($rs['K']);
+              $payment_code = trim($rs['K'] ?? '');
 
-              if( ! empty($payment_code))
+              if (! empty($payment_code))
               {
-                if( ! isset($paymentsCache[$payment_code]))
+                if (! isset($paymentsCache[$payment_code]))
                 {
                   $payment = $this->payment_methods_model->get($payment_code);
 
-                  if( ! empty($payment))
+                  if (! empty($payment))
                   {
                     $paymentsCache[$payment_code] = $payment;
                   }
@@ -866,18 +848,18 @@ class Import_order extends CI_Controller
                 $this->error .= "Payment Method is required at Line {$i} <br/>";
               }
 
-              $customer_code = empty(trim($rs['Z'])) ? NULL : trim($rs['Z']);
+              $customer_code = empty(trim($rs['Z'] ?? '')) ? NULL : trim($rs['Z'] ?? '');
 
-              if(empty($customer_code))
+              if (empty($customer_code))
               {
-                if($channels_code === $web_channels)
+                if ($channels_code === $web_channels)
                 {
-                  if($payment_code === '2C2P')
+                  if ($payment_code === '2C2P')
                   {
                     //---- กำหนดรหัสลูกค้าตามค่าที่ config สำหรับเว็บไซต์ที่ชำระโดยบัตรเครดติ(2c2p)
                     $customer_code = $web_customer_2c2p;
                   }
-                  else if($payment_code === 'COD')
+                  else if ($payment_code === 'COD')
                   {
                     //---- กำหนดรหัสลูกค้าตามค่าที่ config สำหรับเว็บไซต์ที่ชำระแบบ COD
                     $customer_code = $web_customer_cod;
@@ -897,11 +879,11 @@ class Import_order extends CI_Controller
               }
 
               //--- check customer Cache
-              if( ! isset($customerCache[$customer_code]))
+              if (! isset($customerCache[$customer_code]))
               {
                 $customer = $this->customers_model->get($customer_code);
 
-                if( ! empty($customer))
+                if (! empty($customer))
                 {
                   $customerCache[$customer_code] = $customer;
                 }
@@ -915,18 +897,18 @@ class Import_order extends CI_Controller
               $customer = $customerCache[$customer_code];
 
               //--- check item cache
-              $item_code = trim($rs['M']);
+              $item_code = trim($rs['M'] ?? '');
 
-              if( ! isset($itemsCache[$item_code]))
+              if (! isset($itemsCache[$item_code]))
               {
                 $item = $this->products_model->get($item_code);
 
-                if(empty($item))
+                if (empty($item))
                 {
                   $item = $this->products_model->get_by_old_code($item_code);
                 }
 
-                if( ! empty($item))
+                if (! empty($item))
                 {
                   $itemsCache[$item->code] = $item;
                   $item_code = $item->code;
@@ -940,34 +922,34 @@ class Import_order extends CI_Controller
 
               $item = empty($itemsCache[$item_code]) ? NULL : $itemsCache[$item_code];
 
-              $tax_status = empty(trim($rs['AB'])) ? 0 : (trim($rs['AB']) == 1 ? 1 : 0);
+              $tax_status = empty(trim($rs['AB'] ?? '')) ? 0 : (trim($rs['AB'] ?? '') == 1 ? 1 : 0);
 
-              if($tax_status)
+              if ($tax_status)
               {
-                $is_etax = empty(trim($rs['AC'])) ? 0 : (trim($rs['AC']) && $tax_status == 1 ? 1 : 0);
+                $is_etax = empty(trim($rs['AC'] ?? '')) ? 0 : (trim($rs['AC'] ?? '') && $tax_status == 1 ? 1 : 0);
 
-                $tax_type = empty(trim($rs['AD'])) ? "NIDN" : trim($rs['AD']);
+                $tax_type = empty(trim($rs['AD'] ?? '')) ? "NIDN" : trim($rs['AD'] ?? '');
                 $tax_type = empty($taxType[$tax_type]) ? "NIDN" : $tax_type;
 
-                $tax_id = empty(trim($rs['AE'])) ? NULL : trim($rs['AE']);
-                $name = empty(trim($rs['AF'])) ? NULL : trim($rs['AF']);
-                $branch_code = empty(trim($rs['AG'])) ? '00000' : trim($rs['AG']);
-                $branch_name = empty(trim($rs['AH'])) ? 'สำนักงานใหญ่' : trim($rs['AH']);
-                $address = empty(trim($rs['AI'])) ? NULL : trim($rs['AI']);
-                $sub_district = empty(trim($rs['AJ'])) ? NULL : trim($rs['AJ']);
-                $district = empty(trim($rs['AK'])) ? NULL : trim($rs['AK']);
-                $province = empty(trim($rs['AL'])) ? NULL : trim($rs['AL']);
-                $postcode = empty(trim($rs['AM'])) ? NULL : trim($rs['AM']);
-                $phone = empty(trim($rs['AN'])) ? NULL : trim($rs['AN']);
-                $email = empty(trim($rs['AO'])) ? NULL : trim($rs['AO']);
+                $tax_id = empty(trim($rs['AE'] ?? '')) ? NULL : trim($rs['AE'] ?? '');
+                $name = empty(trim($rs['AF'] ?? '')) ? NULL : trim($rs['AF'] ?? '');
+                $branch_code = empty(trim($rs['AG'] ?? '')) ? '00000' : trim($rs['AG'] ?? '');
+                $branch_name = empty(trim($rs['AH'] ?? '')) ? 'สำนักงานใหญ่' : trim($rs['AH'] ?? '');
+                $address = empty(trim($rs['AI'] ?? '')) ? NULL : trim($rs['AI'] ?? '');
+                $sub_district = empty(trim($rs['AJ'] ?? '')) ? NULL : trim($rs['AJ'] ?? '');
+                $district = empty(trim($rs['AK'] ?? '')) ? NULL : trim($rs['AK'] ?? '');
+                $province = empty(trim($rs['AL'] ?? '')) ? NULL : trim($rs['AL'] ?? '');
+                $postcode = empty(trim($rs['AM'] ?? '')) ? NULL : trim($rs['AM'] ?? '');
+                $phone = empty(trim($rs['AN'] ?? '')) ? NULL : trim($rs['AN'] ?? '');
+                $email = empty(trim($rs['AO'] ?? '')) ? NULL : trim($rs['AO'] ?? '');
 
-                if($is_etax && empty($email))
+                if ($is_etax && empty($email))
                 {
                   $sc  = FALSE;
                   $this->error .= "Email is required for E-Tax receipt at row{$i}";
                 }
 
-                if(empty($tax_id) OR empty($name) OR empty($address) OR empty($sub_district) OR empty($sub_district) OR empty($province))
+                if (empty($tax_id) or empty($name) or empty($address) or empty($sub_district) or empty($district) or empty($province))
                 {
                   $sc = FALSE;
                   $this->error .= "When Tax staus = 1. You must fill in all required fields [tax_id, name, address, sub_district, district, province] at row{$i}";
@@ -975,27 +957,27 @@ class Import_order extends CI_Controller
               }
 
 
-              if($sc === TRUE)
+              if ($sc === TRUE)
               {
                 //---	ถ้าเป็นออเดอร์ขาย จะมี id_sale
                 $sale_code = empty($customer) ? NULL : $customer->sale_code;
 
                 //---	หากเป็นออนไลน์ ลูกค้าออนไลน์ชื่ออะไร
-                $customer_ref = addslashes(trim($rs['A']));
+                $customer_ref = addslashes(trim($rs['A'] ?? ''));
 
                 //--- ค่าจัดส่ง
-                $shipping_fee = empty($rs['Q']) ? 0.00 : trim($rs['Q']);
+                $shipping_fee = empty($rs['Q'] ?? '') ? 0.00 : trim($rs['Q'] ?? '');
                 $shipping_fee = is_numeric($shipping_fee) ? $shipping_fee : 0.00;
 
                 //--- shipping Number
-                $shipping_code = trim($rs['T']);
+                $shipping_code = trim($rs['T'] ?? '');
 
                 //--- shop_id
-                $shop_id = get_null(trim($rs['R']));
+                $shop_id = get_null(trim($rs['R'] ?? ''));
 
-                if($channels_code == 'SHOPEE' OR $channels_code == '0009' OR $channels_code == 'LAZADA')
+                if ($channels_code == 'SHOPEE' or $channels_code == '0009' or $channels_code == 'LAZADA')
                 {
-                  if(empty($shop_id))
+                  if (empty($shop_id))
                   {
                     $sc = FALSE;
                     $this->error .= "Error at line {$i} : Shop Id is required for channels {$channels_code} ";
@@ -1003,26 +985,26 @@ class Import_order extends CI_Controller
                 }
 
                 //---	Cod amount
-                $cod_amount = $payment_code == 'COD' ? (empty($rs['AA']) ? 0.00 : $rs['AA']) : 0.00;
+                $cod_amount = $payment_code == 'COD' ? (empty($rs['AA'] ?? '') ? 0.00 : $rs['AA'] ?? 0.00) : 0.00;
                 $cod_amount = is_numeric($cod_amount) ? $cod_amount : 0;
 
                 //-- remark
-                $remark = get_null(trim($rs['V']));
+                $remark = get_null(trim($rs['V'] ?? ''));
 
-                $id_address = $this->address_model->get_id($customer_ref, trim($rs['B']), trim($rs['E']), trim($rs['D']), trim($rs['C']), $customer_ref, trim($rs['H']));
+                $id_address = $this->address_model->get_id($customer_ref, trim($rs['B'] ?? ''), trim($rs['E'] ?? ''), trim($rs['D'] ?? ''), trim($rs['C'] ?? ''), $customer_ref, trim($rs['H'] ?? ''));
 
-                if( empty($id_address))
+                if (empty($id_address))
                 {
                   $arr = array(
                     'code' => $customer_ref,
                     'name' => $customer_ref,
-                    'address' => trim($rs['B']),
-                    'sub_district' => trim($rs['E']),
-                    'district' => trim($rs['D']),
-                    'province' => trim($rs['C']),
-                    'postcode' => trim($rs['F']),
-                    'phone' => trim($rs['H']),
-                    'country' => empty(trim($rs['Y'])) ? "Thailand" : trim($rs['Y']),
+                    'address' => trim($rs['B'] ?? ''),
+                    'sub_district' => trim($rs['E'] ?? ''),
+                    'district' => trim($rs['D'] ?? ''),
+                    'province' => trim($rs['C'] ?? ''),
+                    'postcode' => trim($rs['F'] ?? ''),
+                    'phone' => trim($rs['H'] ?? ''),
+                    'country' => empty(trim($rs['Y'] ?? '')) ? "Thailand" : trim($rs['Y'] ?? ''),
                     'alias' => 'Home',
                     'is_default' => 1
                   );
@@ -1030,16 +1012,16 @@ class Import_order extends CI_Controller
                   $id_address = $this->address_model->add_shipping_address($arr);
                 }
 
-                $qty = empty(trim($rs['N'])) ? 1 : str_replace(',', '', $rs['N']);
+                $qty = empty(trim($rs['N'] ?? '')) ? 1 : str_replace(',', '', $rs['N'] ?? '');
                 $qty = is_numeric($qty) ? $qty : 1;
 
                 //--- ราคา (เอาราคาที่ใส่มา / จำนวน + ส่วนลดต่อชิ้น)
-                $price = empty($rs['O']) ? 0.00 : str_replace(",", "", $rs['O']); //--- ราคารวมไม่หักส่วนลด
+                $price = empty($rs['O'] ?? '') ? 0.00 : str_replace(",", "", $rs['O'] ?? ''); //--- ราคารวมไม่หักส่วนลด
                 $price = is_numeric($price) ? $price : 0;
-                $price = $price > 0 ? ($price/$qty) : 0; //--- ราคาต่อชิ้น
+                $price = $price > 0 ? ($price / $qty) : 0; //--- ราคาต่อชิ้น
 
                 //--- ส่วนลด (รวม)
-                $discount_amount = empty(trim($rs['P'])) ? 0.00 : str_replace(',', '', trim($rs['P']));
+                $discount_amount = empty(trim($rs['P'] ?? '')) ? 0.00 : str_replace(',', '', trim($rs['P'] ?? ''));
                 $discount_amount = is_numeric($discount_amount) ? $discount_amount : 0;
 
                 //--- ส่วนลด (ต่อชิ้น)
@@ -1073,8 +1055,8 @@ class Import_order extends CI_Controller
                   'remark' => $remark,
                   'is_wms' => $is_wms,
                   'id_address' => $id_address,
-                  'id_sender' => empty(trim($rs['W'])) ? NULL : $this->sender_model->get_id(trim($rs['W'])),
-                  'force_update' => ($rs['S'] == 1 OR $rs['S'] == 'Y' OR $rs['S'] == 'y') ? TRUE : FALSE,
+                  'id_sender' => empty(trim($rs['W'] ?? '')) ? NULL : $this->sender_model->get_id(trim($rs['W'] ?? '')),
+                  'force_update' => ($rs['S'] == 1 or $rs['S'] == 'Y' or $rs['S'] == 'y') ? TRUE : FALSE,
                   'hold' => $hold,
                   'is_pre_order' => $is_preorder ? 1 : 0,
                   'tax_status' => $tax_status,
@@ -1102,21 +1084,21 @@ class Import_order extends CI_Controller
                   'cost' => $item->cost,
                   'price' => $price,
                   'qty' => $qty,
-                  "discount1"	=> $discount,
+                  "discount1"  => $discount,
                   "discount2" => 0,
                   "discount3" => 0,
                   "discount_amount" => $discount_amount,
-                  "total_amount"	=> round($total_amount,2),
-                  "id_rule"	=> NULL,
+                  "total_amount"  => round($total_amount, 2),
+                  "id_rule"  => NULL,
                   "is_count" => $item->count_stock,
                   "is_import" => 1
                 );
 
                 $ds[$ref_code]->items[$item->code] = $row;
 
-                if($item->count_stock && ! $is_preorder)
+                if ($item->count_stock && ! $is_preorder)
                 {
-                  if( ! isset($whsItems[$warehouse_code][$item->code]))
+                  if (! isset($whsItems[$warehouse_code][$item->code]))
                   {
                     $whsItems[$warehouse_code][$item->code] = $qty;
                   }
@@ -1130,18 +1112,18 @@ class Import_order extends CI_Controller
             else
             {
               //--- check item cache
-              $item_code = trim($rs['M']);
+              $item_code = trim($rs['M'] ?? '');
 
-              if( ! isset($itemsCache[$item_code]))
+              if (! isset($itemsCache[$item_code]))
               {
                 $item = $this->products_model->get($item_code);
 
-                if(empty($item))
+                if (empty($item))
                 {
                   $item = $this->products_model->get_by_old_code($item_code);
                 }
 
-                if( ! empty($item))
+                if (! empty($item))
                 {
                   $itemsCache[$item_code] = $item;
                 }
@@ -1154,16 +1136,16 @@ class Import_order extends CI_Controller
 
               $item = $itemsCache[$item_code];
 
-              $qty = empty(trim($rs['N'])) ? 1 : str_replace(',', '', $rs['N']);
+              $qty = empty(trim($rs['N'] ?? '')) ? 1 : str_replace(',', '', $rs['N'] ?? '');
               $qty = is_numeric($qty) ? $qty : 1;
 
               //--- ราคา (เอาราคาที่ใส่มา / จำนวน + ส่วนลดต่อชิ้น)
-              $price = empty($rs['O']) ? 0.00 : str_replace(",", "", $rs['O']); //--- ราคารวมไม่หักส่วนลด
+              $price = empty($rs['O'] ?? '') ? 0.00 : str_replace(",", "", $rs['O'] ?? ''); //--- ราคารวมไม่หักส่วนลด
               $price = is_numeric($price) ? $price : 0;
-              $price = $price > 0 ? ($price/$qty) : 0; //--- ราคาต่อชิ้น
+              $price = $price > 0 ? ($price / $qty) : 0; //--- ราคาต่อชิ้น
 
               //--- ส่วนลด (รวม)
-              $discount_amount = empty(trim($rs['P'])) ? 0.00 : str_replace(',', '', trim($rs['P']));
+              $discount_amount = empty(trim($rs['P'] ?? '')) ? 0.00 : str_replace(',', '', trim($rs['P'] ?? ''));
               $discount_amount = is_numeric($discount_amount) ? $discount_amount : 0;
 
               //--- ส่วนลด (ต่อชิ้น)
@@ -1172,7 +1154,7 @@ class Import_order extends CI_Controller
               //--- total_amount
               $total_amount = ($price * $qty) - $discount_amount;
 
-              if(isset($ds[$ref_code]->items[$item->code]))
+              if (isset($ds[$ref_code]->items[$item->code]))
               {
                 $row = $ds[$ref_code]->items[$item->code];
                 $newPrice = ($row->price + $price) / 2; //--- เฉลี่ยราคา
@@ -1196,23 +1178,23 @@ class Import_order extends CI_Controller
                   'cost' => $item->cost,
                   'price' => $price,
                   'qty' => $qty,
-                  "discount1"	=> $discount,
+                  "discount1"  => $discount,
                   "discount2" => 0,
                   "discount3" => 0,
                   "discount_amount" => $discount_amount,
-                  "total_amount"	=> round($total_amount,2),
-                  "id_rule"	=> NULL,
+                  "total_amount"  => round($total_amount, 2),
+                  "id_rule"  => NULL,
                   "is_count" => $item->count_stock,
                   "is_import" => 1
                 );
 
                 $ds[$ref_code]->items[$item->code] = $row;
 
-                if($item->count_stock && ! $ds[$ref_code]->is_pre_order)
+                if ($item->count_stock && ! $ds[$ref_code]->is_pre_order)
                 {
                   $warehouse_code = $ds[$ref_code]->warehouse_code;
 
-                  if( ! isset($whsItems[$warehouse_code][$item->code]))
+                  if (! isset($whsItems[$warehouse_code][$item->code]))
                   {
                     $whsItems[$warehouse_code][$item->code] = $qty;
                   }
@@ -1235,19 +1217,19 @@ class Import_order extends CI_Controller
       $this->error = "Empty data collection";
     }
 
-    if($sc === TRUE && ! is_true(getConfig('ALLOW_IMPORT_BACKORDER')) && ! empty($whsItems))
+    if ($sc === TRUE && ! is_true(getConfig('ALLOW_IMPORT_BACKORDER')) && ! empty($whsItems))
     {
       $this->error = "สต็อกคงเหลือไม่พอ <br/>";
 
-      foreach($whsItems as $warehouse_code => $items)
+      foreach ($whsItems as $warehouse_code => $items)
       {
-        if( ! empty($items))
+        if (! empty($items))
         {
-          foreach($items as $item_code => $qty)
+          foreach ($items as $item_code => $qty)
           {
             $available = $this->stock->get_available_stock($item_code, $warehouse_code);
 
-            if($available < $qty)
+            if ($available < $qty)
             {
               $sc = FALSE;
               $this->error .= "{$warehouse_code} | {$item_code} | Qty : {$qty} | Available : {$available} <br/>";
@@ -1268,20 +1250,18 @@ class Import_order extends CI_Controller
     $M = date('m', strtotime($date));
     $prefix = getConfig('PREFIX_ORDER');
     $run_digit = getConfig('RUN_DIGIT_ORDER');
-    $pre = $prefix .'-'.$Y.$M;
+    $pre = $prefix . '-' . $Y . $M;
     $code = $this->orders_model->get_max_code($pre);
-    if(! is_null($code))
+    if (! is_null($code))
     {
-      $run_no = mb_substr($code, ($run_digit*-1), NULL, 'UTF-8') + 1;
-      $new_code = $prefix . '-' . $Y . $M . sprintf('%0'.$run_digit.'d', $run_no);
+      $run_no = mb_substr($code, ($run_digit * -1), NULL, 'UTF-8') + 1;
+      $new_code = $prefix . '-' . $Y . $M . sprintf('%0' . $run_digit . 'd', $run_no);
     }
     else
     {
-      $new_code = $prefix . '-' . $Y . $M . sprintf('%0'.$run_digit.'d', '001');
+      $new_code = $prefix . '-' . $Y . $M . sprintf('%0' . $run_digit . 'd', '001');
     }
 
     return $new_code;
   }
 }
-
- ?>

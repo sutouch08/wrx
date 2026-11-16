@@ -1,6 +1,7 @@
 <?php
 class Authentication extends CI_Controller
 {
+  public $home;
 
   public function __construct()
 	{
@@ -8,13 +9,10 @@ class Authentication extends CI_Controller
 		$this->home = base_url()."users/authentication";
 	}
 
-
 	public function index()
 	{
 		$this->load->view("login");
 	}
-
-
 
 	public function validate_credentials()
 	{
@@ -68,15 +66,12 @@ class Authentication extends CI_Controller
       {
         redirect(base_url().'main');
       }
-
     }
     else
     {
       redirect($this->home);
     }
 	}
-
-
 
   public function create_user_data(array $ds = array(), $remember = NULL )
   {
@@ -98,19 +93,12 @@ class Authentication extends CI_Controller
     }
   }
 
-
-
-
 	public function logout()
 	{
 		delete_cookie('uid');
     delete_cookie('displayName');
     delete_cookie('id_profile');
+    delete_cookie('uname');
     redirect($this->home);
 	}
-
-
-} //--- end class
-
-
- ?>
+} 

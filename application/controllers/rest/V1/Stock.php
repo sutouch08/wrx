@@ -2,6 +2,7 @@
 require(APPPATH.'/libraries/REST_Controller.php');
 use Restserver\Libraries\REST_Controller;
 
+//--- Stock API for chatbot
 class Stock extends REST_Controller
 {
   public $ms;
@@ -17,8 +18,7 @@ class Stock extends REST_Controller
 		if($this->api)
 		{
 			$this->load->model('stock/stock_model');
-	    $this->load->model('orders/orders_model');
-	    //$this->load->model('masters/products_model');
+	    $this->load->model('orders/orders_model');	    
 		}
 		else
 		{

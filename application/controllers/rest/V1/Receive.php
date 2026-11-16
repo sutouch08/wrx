@@ -2,6 +2,7 @@
 require(APPPATH.'/libraries/REST_Controller.php');
 use Restserver\Libraries\REST_Controller;
 
+//--- Receive API for WMS
 class Receive extends REST_Controller
 {
 	public $error;

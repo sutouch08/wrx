@@ -5,7 +5,7 @@ class Consign_acception_model extends CI_Model
   {
     parent::__construct();
   }
-
+  
   public function get_list(array $ds = array())
   {
     $this->db
@@ -67,7 +67,4 @@ class Consign_acception_model extends CI_Model
 
     return NULL;
   }
-
-} //-- end class
-
- ?>
+} 

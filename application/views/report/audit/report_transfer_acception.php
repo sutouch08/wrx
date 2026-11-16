@@ -85,10 +85,10 @@
 
 <script id="template" type="text/x-handlebars-template">
 {{#if data}}
-	<table class="table table-striped border-1" style="min-width:950px;">
+	<table class="table table-striped table-medium border-1" style="min-width:950px;">
 		<thead>
 			<tr>
-				<th class="fix-width-60 text-center">#</th>
+				<th class="fix-width-40 text-center">#</th>
 				<th class="fix-width-100 text-center">วันที่เอกสาร</th>
 				<th class="fix-width-120">เลขที่เอกสาร</th>
 				<th class="fix-width-150">เจ้าของโซน</th>

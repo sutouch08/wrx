@@ -1,4 +1,7 @@
 <?php
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+
 class Import_consign_order extends CI_Controller
 {
   public $ms;
@@ -28,9 +31,7 @@ class Import_consign_order extends CI_Controller
     $this->load->model('masters/zone_model');
 		$this->load->model('masters/sender_model');
     $this->load->model('address/customer_address_model');
-    $this->load->model('orders/order_import_logs_model');
-
-    $this->load->library('excel');
+    $this->load->model('orders/order_import_logs_model');    
     $this->load->library('stock');
   }
 
@@ -69,9 +70,8 @@ class Import_consign_order extends CI_Controller
     else
     {
       $info = $this->upload->data();
-      $excel = PHPExcel_IOFactory::load($info['full_path']);
+      $excel = IOFactory::load($info['full_path']);
       $excel->setActiveSheetIndex(0);
-
       $worksheet	= $excel->getSheet(0);
 
       if( ! empty($worksheet))
@@ -519,13 +519,8 @@ class Import_consign_order extends CI_Controller
 
     if( ! empty($sheet))
     {
-      $bookcode = $role == 'C' ? getConfig('BOOK_CODE_CONSIGN_SO') : getConfig('BOOK_CODE_CONSIGN_TR');
-      $default_warehouse = getConfig('DEFAULT_WAREHOUSE');
-      $default_sender = 'WARRIX';
-
-      $ds = array(); //---- ได้เก็บข้อมูล orders
-
-      $whsCache = array(); //--- ไว้เก็บ  warehouse cache
+      $bookcode = $role == 'C' ? getConfig('BOOK_CODE_CONSIGN_SO') : getConfig('BOOK_CODE_CONSIGN_TR');     
+      $ds = array(); //---- ได้เก็บข้อมูล orders      
 
       //--- เก็บ customer cache
       $customerCache = [];
@@ -533,10 +528,6 @@ class Import_consign_order extends CI_Controller
       $zoneCache = [];
       $senderCache = [];
       $itemCache = [];
-
-      $totalSKU = 0;
-      $docTotal = 0;
-
       $headCol = array(
         'A' => 'Ref Code',
         'B' => 'Date',
@@ -596,14 +587,14 @@ class Import_consign_order extends CI_Controller
           //--- Ref Code / Customer code / Wareouse Code / Zone Code / Item Code ต้องไม่เป็นค่าว่าง
           if($sc === TRUE && ! empty($rs['A']) && ! empty($rs['C']) && ! empty($rs['D']) && ! empty($rs['E']) && ! empty($rs['F']))
           {
-            $ref_code = trim($rs['A']);
-            $customer_code = trim($rs['C']);
-            $warehouse_code = trim($rs['D']);
-            $zone_code = trim($rs['E']);
-            $itemCode = trim($rs['F']);
-            $sender_code = empty(trim($rs['J'])) ? 'WARRIX' : trim($rs['J']);
-            $remark = get_null(trim($rs['K']));
-            $force = trim($rs['L']);
+            $ref_code = trim($rs['A'] ?? '');
+            $customer_code = trim($rs['C'] ?? '');
+            $warehouse_code = trim($rs['D'] ?? '');
+            $zone_code = trim($rs['E'] ?? '');
+            $itemCode = trim($rs['F'] ?? '');
+            $sender_code = empty(trim($rs['J'] ?? '')) ? 'WARRIX' : trim($rs['J'] ?? '');
+            $remark = get_null(trim($rs['K'] ?? ''));
+            $force = trim($rs['L'] ?? '');
             $force = ($force == 'Y' OR $force == 'y' OR $force == 1) ? TRUE : FALSE;
 
             //--- เช็คว่ามี key อยู่แล้วหรือไม่
@@ -670,11 +661,11 @@ class Import_consign_order extends CI_Controller
               if($sc === TRUE)
               {
                 $cell = $sheet->getCell("B{$i}");
-                $date = trim($cell->getValue());
+                $date = trim($cell->getValue() ?? '');
 
-                if (PHPExcel_Shared_Date::isDateTime($cell))
+                if (Date::isDateTime($cell))
                 {
-                  $dateTimeObject = PHPExcel_Shared_Date::ExcelToPHPObject($date);
+                  $dateTimeObject = Date::excelToDateTimeObject($date);
                   $date_add = $dateTimeObject->format('Y-m-d');
                 }
                 else
@@ -723,18 +714,18 @@ class Import_consign_order extends CI_Controller
               {
                 $id_address = $this->customer_address_model->get_customer_ship_to_id($customer->code);
 
-                $price = str_replace(',', '', trim($rs['G']));
+                $price = str_replace(',', '', trim($rs['G'] ?? ''));
                 $price = is_numeric($price) ? $price : "";
                 $price = ($price == "" OR $price == NULL) ? $item->price : $price;
 
-                $gp = str_replace(',', '', trim($rs['H']));
+                $gp = str_replace(',', '', trim($rs['H'] ?? ''));
                 $gp = is_numeric($gp) ? $gp : 0.00;
                 $gp = $gp > 100 ? 100 : $gp;
 
                 $discLabel = $gp > 0 ? $gp.'%' : $gp;
                 $discAmount = $price * ($gp * 0.01);
 
-                $qty = str_replace(',', '', trim($rs['I']));
+                $qty = str_replace(',', '', trim($rs['I'] ?? ''));
                 $qty = is_numeric($qty) ? $qty : 1;
 
                 $lineTotal = $price * $qty;
@@ -820,18 +811,18 @@ class Import_consign_order extends CI_Controller
 
               if($sc === TRUE)
               {
-                $price = str_replace(',', '', trim($rs['G']));
+                $price = str_replace(',', '', trim($rs['G'] ?? ''));
                 $price = is_numeric($price) ? $price : "";
                 $price = ($price == "" OR $price == NULL) ? $item->price : $price;
 
-                $gp = str_replace(',', '', trim($rs['H']));
+                $gp = str_replace(',', '', trim($rs['H'] ?? ''));
                 $gp = is_numeric($gp) ? $gp : 0.00;
                 $gp = $gp > 100 ? 100 : $gp;
 
                 $discLabel = $gp > 0 ? $gp.'%' : $gp;
                 $discAmount = $price * ($gp * 0.01);
 
-                $qty = str_replace(',', '', trim($rs['I']));
+                $qty = str_replace(',', '', trim($rs['I'] ?? ''));
                 $qty = is_numeric($qty) ? $qty : 1;
 
                 $lineTotal = $price * $qty;

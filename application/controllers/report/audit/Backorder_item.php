@@ -1,5 +1,8 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 class Backorder_item extends PS_Controller
 {
   public $menu_code = 'RADBKO';
@@ -21,7 +24,7 @@ class Backorder_item extends PS_Controller
   public function index()
   {
     $ds = array(
-      'channels_list' => $this->channels_model->get_data(),
+      'channels_list' => $this->channels_model->get_all(),
       'warehouse_list' => $this->warehouse_model->get_sell_warehouse_list()
     );
 
@@ -32,9 +35,10 @@ class Backorder_item extends PS_Controller
   public function get_report()
   {
     ini_set('memory_limit','2048M');
+    ini_set('max_execution_time', 300); // 5 minutes
 
     $sc = TRUE;
-    $ds = json_decode($this->input->post('json'));
+    $ds = json_decode($this->input->post('json') ?? '{}');
     $res = [];
 
     if( ! empty($ds))
@@ -57,6 +61,7 @@ class Backorder_item extends PS_Controller
         $no = 1;
 
         $ch = [];
+        $sh = shop_name_array();
 
         foreach($result as $rs)
         {
@@ -70,6 +75,7 @@ class Backorder_item extends PS_Controller
             'date_upd' => thai_date($rs->date_upd),
             'order_code' => $rs->order_code,
             'channels' => empty($rs->channels_code) ? NULL : $ch[$rs->channels_code],
+            'shop' => empty($rs->shop_id) ? "" : $sh[$rs->shop_id],
             'warehouse' => $rs->warehouse_code,
             'product_code' => $rs->product_code,
             'order_qty' => number($rs->order_qty),
@@ -100,24 +106,26 @@ class Backorder_item extends PS_Controller
   public function do_export()
   {
     ini_set('memory_limit','2048M');
-
+    ini_set('max_execution_time', 300); // 5 minutes
+    
     $token = $this->input->post('token');
-    $ds = json_decode($this->input->post('filter'));
+    $ds = json_decode($this->input->post('filter') ?? '{}');
 
-    $this->load->library('excel');
-
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle("Back order items");
-    $sheet = $this->excel->getActiveSheet();
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();    
+    $sheet->setTitle("Back order items");
     $sheet->getColumnDimension("A")->setAutoSize(true);
     $sheet->getColumnDimension("B")->setAutoSize(true);
     $sheet->getColumnDimension("C")->setAutoSize(true);
     $sheet->getColumnDimension("D")->setAutoSize(true);
     $sheet->getColumnDimension("E")->setAutoSize(true);
     $sheet->getColumnDimension("F")->setAutoSize(true);
+    $sheet->getColumnDimension("G")->setAutoSize(true);
+    $sheet->getColumnDimension("H")->setAutoSize(true);
+    $sheet->getColumnDimension("I")->setAutoSize(true);
 
     $sheet->setCellValue('A1', $this->title);
-    $sheet->mergeCells('A1:F1');
+    $sheet->mergeCells('A1:J1');
 
     //--- set Table header
     $sheet->setCellValue('A2', '#');
@@ -125,9 +133,10 @@ class Backorder_item extends PS_Controller
     $sheet->setCellValue('C2', 'ออเดอร์');
     $sheet->setCellValue('D2', 'รหัสสินค้า');
     $sheet->setCellValue('E2', 'ช่องทางขาย');
-    $sheet->setCellValue('F2', 'คลัง');
-    $sheet->setCellValue('G2', 'Order Qty');
-    $sheet->setCellValue('H2', 'Available Qty');
+    $sheet->setCellValue('F2', 'Shop Name');
+    $sheet->setCellValue('G2', 'คลัง');
+    $sheet->setCellValue('H2', 'Order Qty');
+    $sheet->setCellValue('I2', 'Available Qty');
 
     if( ! empty($ds))
     {
@@ -151,6 +160,7 @@ class Backorder_item extends PS_Controller
         $no = 1;
 
         $ch = [];
+        $sh = shop_name_array();
 
         foreach($res as $rs)
         {
@@ -164,9 +174,10 @@ class Backorder_item extends PS_Controller
           $sheet->setCellValue("C{$row}", $rs->order_code);
           $sheet->setCellValue("D{$row}", $rs->product_code);
           $sheet->setCellValue("E{$row}", empty($rs->channels_code) ? NULL : $ch[$rs->channels_code]);
-          $sheet->setCellValue("F{$row}", $rs->warehouse_code);
-          $sheet->setCellValue("G{$row}", $rs->order_qty);
-          $sheet->setCellValue("H{$row}", $rs->available_qty);
+          $sheet->setCellValue("F{$row}", empty($rs->shop_id) ? NULL : $sh[$rs->shop_id]);
+          $sheet->setCellValue("G{$row}", $rs->warehouse_code);
+          $sheet->setCellValue("H{$row}", $rs->order_qty);
+          $sheet->setCellValue("I{$row}", $rs->available_qty);
           $row++;
           $no++;
         }
@@ -177,17 +188,7 @@ class Backorder_item extends PS_Controller
     $file_name = "Report Back Order Items.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"', true);
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
   }
-
-} //--- end class
-
-
-
-
-
-
-
-
- ?>
+} 

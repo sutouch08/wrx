@@ -8,9 +8,7 @@ class Production_issue extends PS_Controller
   public $menu_sub_group_code = '';
 	public $title = 'Goods Issue For Production';
   public $segment = 4;
-  public $error;
-
-
+ 
   public function __construct()
   {
     parent::__construct();
@@ -37,21 +35,18 @@ class Production_issue extends PS_Controller
       'is_exported' => get_filter('is_exported', 'issue_is_exported', 'all')
     );
 
-
     if($this->input->post('search'))
     {
       redirect($this->home);
+      exit;
     }
-    else
-    {
-      $perpage = get_rows();
-      $rows = $this->production_issue_model->count_rows($filter);
-      $filter['data'] = $this->production_issue_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
 
-      $init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
-      $this->pagination->initialize($init);
-      $this->load->view('productions/production_issue/production_issue_list', $filter);
-    }
+    $perpage = get_rows();
+    $rows = $this->production_issue_model->count_rows($filter);
+    $filter['data'] = $this->production_issue_model->get_list($filter, $perpage, $this->uri->segment($this->segment));
+    $init  = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $this->pagination->initialize($init);
+    $this->load->view('productions/production_issue/production_issue_list', $filter);
   }
 
 
@@ -79,28 +74,7 @@ class Production_issue extends PS_Controller
             'orderRef' => $code,
             'ItemCode' => $pdo->ItemCode,
             'details' => []
-          );
-
-          // $details = $this->production_issue_model->get_production_order_details($pdo->DocEntry);
-          //
-          // if( ! empty($details))
-          // {
-          //   foreach($details as $rs)
-          //   {
-          //     $balance = $rs->PlannedQty - $rs->IssuedQty;
-          //     $instock = $this->stock_model->get_item_stock($rs->ItemCode,  $rs->wareHouse);
-          //
-          //     $rs->uid = genUid();
-          //     $rs->fromWhsCode = $rs->wareHouse;
-          //     $rs->PlannedQty = number($rs->PlannedQty, 2);
-          //     $rs->IssuedQty = number($rs->IssuedQty, 2);
-          //     $rs->BalanceQty = $balance > 0 ? number($balance, 2) : 0.00;
-          //     $rs->InStock = number($instock, 2);
-          //     $rs->hasBatch = $rs->ManBtchNum == 'Y' ? TRUE : FALSE;
-          //   }
-          //
-          //   $ds['details'] = $details;
-          // }
+          );          
         }
       }
     }
@@ -114,7 +88,7 @@ class Production_issue extends PS_Controller
     $sc = TRUE;
     $code = NULL;
     $ex = 0;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds) && ! empty($ds->date_add) && ! empty($ds->baseRef))
     {
@@ -397,15 +371,12 @@ class Production_issue extends PS_Controller
 
         if( ! empty($details))
         {
-          $no = 1;
-
           foreach($details as $rs)
           {
             $rs->InStock = $this->stock_model->get_item_stock($rs->ItemCode, $rs->WhsCode, $rs->BinCode);
             $rs->batchRows = $this->production_issue_model->get_batch_rows($rs->id);
           }
         }
-
 
         $ds = array(
           'doc' => $doc,
@@ -431,7 +402,7 @@ class Production_issue extends PS_Controller
     $sc = TRUE;
     $code = NULL;
     $ex = 0;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($ds) && ! empty($ds->code) && ! empty($ds->date_add) && ! empty($ds->baseRef))
     {
@@ -749,15 +720,12 @@ class Production_issue extends PS_Controller
       $details = $this->production_issue_model->get_details($code);
 
       if( ! empty($details))
-      {
-        $no = 1;
-
+      {     
         foreach($details as $rs)
         {
           $rs->batchRows = $this->production_issue_model->get_batch_rows($rs->id);
         }
       }
-
 
       $ds = array(
         'doc' => $doc,
@@ -1243,9 +1211,7 @@ class Production_issue extends PS_Controller
       $details = $this->production_issue_model->get_details($code);
 
       if( ! empty($details))
-      {
-        $no = 1;
-
+      {       
         foreach($details as $rs)
         {
           $rs->batchRows = $this->production_issue_model->get_batch_rows($rs->id);
@@ -1322,7 +1288,7 @@ class Production_issue extends PS_Controller
   {
     $ds = [];
 
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $qr  = "SELECT TOP(100) DocNum, ItemCode, Status FROM OWOR WHERE Status != 'C' ";
 
@@ -1420,7 +1386,7 @@ class Production_issue extends PS_Controller
   public function get_item_batch_rows()
   {
     $sc = TRUE;
-    $ds = json_decode($this->input->post('filter'));
+    $ds = json_decode($this->input->post('filter') ?? '{}');
 
     $data = [];
 
@@ -1469,7 +1435,7 @@ class Production_issue extends PS_Controller
   public function get_item_code_and_nam()
   {
     $ds = [];
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $this->ms
     ->select('i.ItemCode, i.ItemName, i.ManBtchNum, i.InvntryUom AS Uom, i.IUoMEntry AS UomEntry, u.UomCode')

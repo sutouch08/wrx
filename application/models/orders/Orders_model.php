@@ -600,9 +600,9 @@ class Orders_model extends CI_Model
   {
     $this->db->where('role', $role);
 
-    if (isset($ds['range']) && $ds['range'] != 'all')
+    if (isset($ds['id']) && $ds['id'] != "")
     {
-      $this->db->where('id >', $this->get_max_id());
+      $this->db->where('id >', intval($ds['id']));
     }
 
     if (! empty($ds['from_date']) && ! empty($ds['to_date']))
@@ -876,11 +876,11 @@ class Orders_model extends CI_Model
     ->select('is_wms, wms_export, is_backorder, is_approved, user, empName, is_cancled, shop_id')
     ->where('role', $role);
 
-    if(isset($ds['range']) && $ds['range'] != 'all')
+    if(isset($ds['id']) && $ds['id'] != "")
     {
-      $this->db->where('id >', $this->get_max_id());
+      $this->db->where('id >', intval($ds['id']));
     }
-
+    
     if( ! empty($ds['from_date']) && ! empty($ds['to_date']))
     {
       if(! empty($ds['startTime']) && ! empty($ds['endTime']))
@@ -1959,18 +1959,18 @@ class Orders_model extends CI_Model
   {
     return $this->db->where('order_code', $code)->where('price', 0)->count_all_results($this->td) > 0;    
   }
-
-  public function get_max_id()
+  
+  public function get_max_id($range = 0)
   {
-    $limit = $this->get_limit_rows();
-    $rs = $this->db->query("SELECT MAX(id) AS id FROM orders");
+    $range = intval($range);
 
-    if ($rs->num_rows() === 1)
+    if ($range == 0)
     {
-      return $rs->row()->id - $limit;
+      return 0;
     }
 
-    return $limit;
+    $max_id = intval($this->db->select_max('id')->get('orders')->row()->id);
+    return $max_id >= $range ? $max_id - $range : 0;
   }
 
   public function get_limit_rows()

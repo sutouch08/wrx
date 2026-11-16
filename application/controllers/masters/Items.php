@@ -25,8 +25,7 @@ class Items extends PS_Controller
     $this->load->model('masters/product_collection_model');
     $this->load->model('masters/product_category_model');
     $this->load->model('masters/product_color_model');
-    $this->load->model('masters/product_size_model');
-    $this->load->model('masters/product_tab_model');
+    $this->load->model('masters/product_size_model');    
     $this->load->model('masters/product_image_model');        
     $this->load->helper('product_brand');    
     $this->load->helper('product_kind');

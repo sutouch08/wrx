@@ -35,9 +35,4 @@ class Maintenance extends CI_Controller
     $rs = $this->config_model->get('CLOSE_SYSTEM');
     echo $rs == 1 ? 'close' : 'open';
   }
-
-
 }
-
-
- ?>

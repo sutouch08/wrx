@@ -39,17 +39,13 @@ class WT extends REST_Controller
   //--- for POS
 	public function get_get($code = NULL)
 	{
-    $api_path = $this->path."get/{$code}";
-
-    $sc = TRUE;
-
+    $api_path = $this->path."get/{$code}";    
     $json = file_get_contents("php://input");
-		$ds = json_decode($json);
+		$ds = json_decode($json ?? '{}');
     $force = empty($ds) ? FALSE : ($ds->force ? TRUE : FALSE);
 
     if(empty($code))
-    {
-      $sc = FALSE;
+    {      
       $this->error = "Missing required parameter : document code";
 
       $arr = array(
@@ -80,8 +76,7 @@ class WT extends REST_Controller
     $order = $this->orders_model->get($code);
 
     if(empty($order))
-    {
-      $sc = FALSE;
+    {     
       $this->error = "Invalid document number : {$code}";
 
       $arr = array(
@@ -110,8 +105,7 @@ class WT extends REST_Controller
     }
 
     if($order->role != 'N')
-    {
-      $sc = FALSE;
+    {     
       $this->error = "Invalid document type : {$code}";
 
       $arr = array(
@@ -140,8 +134,7 @@ class WT extends REST_Controller
     }
 
     if($order->state != 8)
-    {
-      $sc = FALSE;
+    {     
       $this->error = "Invalid document status : document not shipping";
 
       $arr = array(
@@ -174,8 +167,7 @@ class WT extends REST_Controller
       $draft = $this->transfer_model->get_transfer_draft($code);
 
       if( empty($draft))
-      {
-        $sc = FALSE;
+      {        
         $this->error = "The document was not found in the temp transfer draft.";
 
         $arr = array(
@@ -246,7 +238,7 @@ class WT extends REST_Controller
     $sc = TRUE;
 
     $json = file_get_contents("php://input");
-		$ds = json_decode($json);
+		$ds = json_decode($json ?? '{}');
 
     if(empty($ds) OR empty($ds->code))
     {

@@ -27,7 +27,7 @@ class Products extends REST_Controller
   public function getItem_get()
   {
     $json = file_get_contents("php://input");
-		$data = json_decode($json);
+		$data = json_decode($json ?? '{}');
 
     if(empty($data))
     {

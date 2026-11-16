@@ -29,13 +29,11 @@ class Products extends PS_Controller
     $this->load->model('masters/product_brand_model');
     $this->load->model('masters/product_category_model');
     $this->load->model('masters/product_color_model');
-    $this->load->model('masters/product_size_model');
-    $this->load->model('masters/product_tab_model');
+    $this->load->model('masters/product_size_model');   
     $this->load->model('masters/product_image_model');
 
     //---- load helper
-    $this->load->helper('product_brand');
-    $this->load->helper('product_tab');
+    $this->load->helper('product_brand');    
     $this->load->helper('product_kind');
     $this->load->helper('product_collection');
     $this->load->helper('product_type');

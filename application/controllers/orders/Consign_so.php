@@ -1,25 +1,23 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class Consign_so extends PS_Controller
 {
   public $menu_code = 'SOCCSO';
 	public $menu_group_code = 'SO';
   public $menu_sub_group_code = 'ORDER';
-	public $title = 'ฝากขาย(ใบกำกับ)';
-  public $filter;
+	public $title = 'ฝากขาย(ใบกำกับ)'; 
   public $role = 'C';
-  public $wmsApi;
-  public $sokoApi;
-
+  public $segment = 4;
+  
   public function __construct()
   {
     parent::__construct();
     $this->home = base_url().'orders/consign_so';
     $this->load->model('orders/orders_model');
     $this->load->model('masters/customers_model');
-    $this->load->model('orders/order_state_model');
-    $this->load->model('masters/product_tab_model');
+    $this->load->model('orders/order_state_model');    
     $this->load->model('stock/stock_model');
     $this->load->model('masters/product_style_model');
     $this->load->model('masters/products_model');
@@ -32,12 +30,7 @@ class Consign_so extends PS_Controller
     $this->load->helper('product_images');
     $this->load->helper('discount');
     $this->load->helper('zone');
-    $this->load->helper('warehouse');
-
-    $this->filter = getConfig('STOCK_FILTER');
-
-    $this->wmsApi = is_true(getConfig('WMS_API'));
-    $this->sokoApi = is_true(getConfig('SOKOJUNG_API'));
+    $this->load->helper('warehouse');    
   }
 
 
@@ -74,7 +67,6 @@ class Consign_so extends PS_Controller
     );
 
     $state_list = array();
-
     $button = array();
 
     for($i =1; $i <= 9; $i++)
@@ -91,42 +83,32 @@ class Consign_so extends PS_Controller
     $button['not_save'] = empty($filter['notSave']) ? '' : 'btn-info';
     $button['only_me'] = empty($filter['onlyMe']) ? '' : 'btn-info';
     $button['is_expire'] = empty($filter['isExpire']) ? '' : 'btn-info';
-
-
     $filter['state_list'] = empty($state_list) ? NULL : $state_list;
 
-
-
-
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_rows();
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = 20;
-		}
-
-		$segment  = 4; //-- url segment
-		$rows     = $this->orders_model->count_rows($filter, 'C');
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	    = pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-		$orders   = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($segment), 'C');
-
-    if( ! empty($orders))
+    if($this->input->post('search'))
     {
-      foreach($orders as $rs)
+      redirect($this->home);
+      exit;
+    }
+
+		$perpage = get_rows();		
+		$rows = $this->orders_model->count_rows($filter, 'C');				
+		$filter['orders'] = $this->orders_model->get_list($filter, $perpage, $this->uri->segment($this->segment), $this->role);
+
+    if( ! empty($filter['orders']))
+    {
+      foreach($filter['orders'] as $rs)
       {
-        $rs->customer_name = $this->customers_model->get_name($rs->customer_code);
-        $rs->total_amount  = $this->orders_model->get_order_total_amount($rs->code);
-        $rs->state_name    = get_state_name($rs->state);
-        $rs->zone_name     = $this->zone_model->get_name($rs->zone_code);
+        $rs->customer_name = empty($rs->customer_name) ? $this->customers_model->get_name($rs->customer_code) : $rs->customer_name;
+        $rs->total_amount = empty($rs->total_amount) ? $this->orders_model->get_order_total_amount($rs->code) : $rs->total_amount;
+        $rs->state_name = get_state_name($rs->state);
+        $rs->zone_name = $this->zone_model->get_name($rs->zone_code);
       }
     }
 
-    $filter['orders'] = $orders;
     $filter['state'] = $state;
     $filter['btn'] = $button;
-
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
 		$this->pagination->initialize($init);
     $this->load->view('order_consign/consign_list', $filter);
   }
@@ -141,6 +123,7 @@ class Consign_so extends PS_Controller
     $result_rows = empty($list) ? 0 :count($list);
 
     $ds = array();
+    
     if( ! empty($list))
     {
       foreach($list as $rs)
@@ -165,33 +148,24 @@ class Consign_so extends PS_Controller
   }
 
 
-
   public function add_new()
   {
     $this->load->view('order_consign/consign_add');
   }
-
 
   public function add()
   {
     $sc = TRUE;
 
     $this->load->model('masters/warehouse_model');
-
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
-    {
-      $wmsWh = getConfig('WMS_WAREHOUSE');
-      $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
+    {     
       $book_code = getConfig('BOOK_CODE_CONSIGN_SO');
-
       $date_add = db_date($data->date_add);
-
       $code = $this->get_new_code($date_add);
-
       $role = 'C'; //--- C = ฝากขายเปิดใบกำกับ
-
       $zone = $this->zone_model->get($data->zone_code);
 
       if( ! empty($zone))
@@ -201,12 +175,7 @@ class Consign_so extends PS_Controller
           $wh = $this->warehouse_model->get($data->warehouse_code);
 
           if( ! empty($wh))
-          {
-            $isSoko = $wh->code == $sokoWh ? TRUE : FALSE;
-            $isWms = $wh->code == $wmsWh ? TRUE : FALSE;
-
-            $is_wms = $isWms ? 1 : ($isSoko ? 2 : 0);
-
+          {            
             $customer = $this->customers_model->get($data->customer_code);
 
             if( ! empty($customer))
@@ -224,8 +193,7 @@ class Consign_so extends PS_Controller
                 'user' => $this->_user->uname,
                 'remark' => get_null($data->remark),
                 'zone_code' => $zone->code,
-                'warehouse_code' => $wh->code,
-                'is_wms' => $is_wms
+                'warehouse_code' => $wh->code
               );
 
               if( ! $this->orders_model->add($ds))
@@ -284,7 +252,6 @@ class Consign_so extends PS_Controller
   }
 
 
-
   public function edit_order($code, $approve_view = NULL)
   {
     $this->load->model('approve_logs_model');
@@ -293,21 +260,21 @@ class Consign_so extends PS_Controller
     $video_on_pack = is_true(getConfig('VIDEO_ON_PACK'));
 
     $ds = array();
-
     $rs = $this->orders_model->get($code);
 
     if( ! empty($rs))
     {
       $rs->customer_name = empty($rs->customer_name) ? $this->customers_model->get_name($rs->customer_code) : $rs->customer_name;
       $rs->total_amount  = $rs->doc_total <= 0 ? $this->orders_model->get_order_total_amount($rs->code) : $rs->doc_total;
-      $rs->user          = $this->user_model->get_name($rs->user);
-      $rs->state_name    = get_state_name($rs->state);
+      $rs->user = $this->user_model->get_name($rs->user);
+      $rs->state_name = get_state_name($rs->state);
       $rs->zone_name = $this->zone_model->get_name($rs->zone_code);
       $rs->has_video = $video_on_pack ? $this->orders_model->has_video($rs->code) : FALSE;
     }
 
     $state = $this->order_state_model->get_order_state($code);
     $ost = array();
+
     if( ! empty($state))
     {
       foreach($state as $st)
@@ -334,15 +301,13 @@ class Consign_so extends PS_Controller
 		$ds['cancle_reason'] = ($rs->state == 9 ? $this->orders_model->get_cancle_reason($code) : NULL);
     $ds['allowEditDisc'] = getConfig('ALLOW_EDIT_DISCOUNT') == 1 ? TRUE : FALSE;
     $ds['allowEditPrice'] = getConfig('ALLOW_EDIT_PRICE') == 1 ? TRUE : FALSE;
-    $ds['edit_order'] = TRUE; //--- ใช้เปิดปิดปุ่มแก้ไขราคาสินค้าไม่นับสต็อก
-    $ds['is_api'] = is_api($rs->is_wms, $this->wmsApi, $this->sokoApi);
+    $ds['edit_order'] = TRUE; //--- ใช้เปิดปิดปุ่มแก้ไขราคาสินค้าไม่นับสต็อก    
     $this->load->view('order_consign/consign_edit', $ds);
   }
 
 
   public function edit_detail($code)
-  {
-    $this->load->helper('product_tab');
+  {    
     $ds = array();
     $rs = $this->orders_model->get($code);
     if($rs->state <= 3)
@@ -361,20 +326,15 @@ class Consign_so extends PS_Controller
   }
 
 
-
-
   public function update_order()
   {
     $sc = TRUE;
 
-    $data = json_decode($this->input->post('data'));
+    $data = json_decode($this->input->post('data') ?? '{}');
 
     if( ! empty($data))
     {
-			$this->load->model('masters/warehouse_model');
-      $sokoWh = getConfig('SOKOJUNG_WAREHOUSE');
-      $wmsWh = getConfig('WMS_WAREHOUSE');
-
+			$this->load->model('masters/warehouse_model');     
       $code = $data->code;
 
       if( ! empty($code))
@@ -382,12 +342,7 @@ class Consign_so extends PS_Controller
         $wh = $this->warehouse_model->get($data->warehouse_code);
 
         if( ! empty($wh))
-        {
-          $isSoko = $wh->code == $sokoWh ? TRUE : FALSE;
-          $isWms = $wh->code == $wmsWh ? TRUE : FALSE;
-
-          $is_wms = $isWms ? 1 : ($isSoko ? 2 : 0);
-
+        {          
           $zone = $this->zone_model->get($data->zone_code);
 
           if( ! empty($zone))
@@ -401,8 +356,7 @@ class Consign_so extends PS_Controller
                 'date_add' => db_date($data->date_add),
                 'remark' => get_null($data->remark),
                 'zone_code' => $data->zone_code,
-                'warehouse_code' => $wh->code,
-      					'is_wms' => $is_wms,
+                'warehouse_code' => $wh->code,      					
       					'id_address' => NULL,
       					'id_sender' => NULL
               );
@@ -447,7 +401,6 @@ class Consign_so extends PS_Controller
   }
 
 
-
   public function save($code)
   {
     $sc = TRUE;
@@ -455,9 +408,7 @@ class Consign_so extends PS_Controller
     $order = $this->orders_model->get($code);
     //--- ถ้าออเดอร์เป็นแบบเครดิต
     if($order->is_term == 1)
-    {
-      //---- check credit balance
-      $amount = $this->orders_model->get_order_total_amount($code);
+    {      
       //--- creadit used
       $credit_used = $this->orders_model->get_sum_not_complete_amount($order->customer_code);
       //--- credit balance from sap
@@ -491,12 +442,10 @@ class Consign_so extends PS_Controller
 			}
 		}
 
-
 		if(empty($order->id_sender))
 		{
 			$this->load->model('masters/sender_model');
 			$id_sender = NULL;
-
 			$sender = $this->sender_model->get_customer_sender_list($order->customer_code);
 
 			if( ! empty($sender))
@@ -512,7 +461,6 @@ class Consign_so extends PS_Controller
         $arr['id_sender'] = $id_sender;
 			}
 		}
-
 
     if($sc === TRUE)
     {
@@ -548,12 +496,7 @@ class Consign_so extends PS_Controller
       {
         if($doc->state < 3 && $doc->status != 2)
         {
-          $uid = genUid();
-          $import = 0;
-          $success = 0;
-          $failed = 0;
-          $skip = 0;
-
+          $uid = genUid();          
           $file = isset( $_FILES['uploadFile'] ) ? $_FILES['uploadFile'] : FALSE;
         	$path = $this->config->item('upload_path').'WC/';
           $file	= 'uploadFile';
@@ -574,15 +517,11 @@ class Consign_so extends PS_Controller
             $this->error = $this->upload->display_errors();
       		}
           else
-          {
-            $this->load->library('excel');
-            $info = $this->upload->data();
-            /// read file
-      			$excel = PHPExcel_IOFactory::load($info['full_path']);
-      			//get only the Cell Collection
-            $cs	= $excel->getActiveSheet()->toArray(NULL, TRUE, TRUE, TRUE);
-
-            $count = count($cs);
+          {            
+            $info = $this->upload->data();            
+      			$excel = IOFactory::load($info['full_path']);      			
+            $cs	= $excel->getActiveSheet()->toArray('', TRUE, TRUE, TRUE);
+            $count = count($cs ?? []);
             $limit = intval(getConfig('IMPORT_ROWS_LIMIT')) + 1;
 
             if($count > $limit)
@@ -731,7 +670,7 @@ class Consign_so extends PS_Controller
 
                   if( ! $this->orders_model->add_detail($arr))
                   {
-                    $res = FALSE;
+                    $sc = FALSE;
                     $this->error = "Failed to add item row of {$row->product_code}";
                   }
                 }
@@ -754,7 +693,7 @@ class Consign_so extends PS_Controller
 
                   if( ! $this->orders_model->update_detail($detail->id, $arr))
                   {
-                    $res = FALSE;
+                    $sc = FALSE;
                     $this->error = "Failed to update item row of {$row->product_code}";
                   }
                 }
@@ -912,4 +851,3 @@ class Consign_so extends PS_Controller
     clear_filter($filter);
   }
 }
-?>

@@ -1,7 +1,8 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Permission extends PS_Controller{
+class Permission extends PS_Controller
+{
 	public $menu_code = 'SCPERM'; //--- Add/Edit Profile
 	public $menu_group_code = 'SC'; //--- System security
 	public $title = 'Permission';
@@ -22,50 +23,37 @@ class Permission extends PS_Controller{
 		$this->load->model('menu');
   }
 
-
-
   public function index()
   {
 		$filter = array(
-			'name' => get_filter('name', 'profileNam', ''),
+			'name' => get_filter('name', 'profileName', ''),
 			'menu' => get_filter('menu', 'menux', 'all'),
 			'permission' => get_filter('permission', 'permission', 'all')
 		);
 
-
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_filter('set_rows', 'rows', 20);
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
+		if($this->input->post('search'))
 		{
-			$perpage = get_filter('rows', 'rows', 300);
+			redirect($this->home);
+			exit;
 		}
-
-		$segment = 4; //-- url segment
+		
+		$perpage = get_rows();
+		$segment = 4;
 		$rows = $this->profile_model->count_rows($filter);
-
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-
-		$result = $this->profile_model->get_list($filter, $perpage, $this->uri->segment($segment));
-
-    $data = array();
-
-    if(!empty($result))
+		$filter['data'] = $this->profile_model->get_list($filter, $perpage, $this->uri->segment($segment));
+   
+    if(!empty($filter['data']))
     {
-      foreach($result as $rs)
+      foreach($filter['data'] as $rs)
       {
 				$rs->member = $this->profile_model->count_members($rs->id);
       }
     }
 
-		$filter['data'] = $result;
-
+		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
-
     $this->load->view('users/permission_view', $filter);
   }
-
 
 
   public function edit_permission($id)
@@ -76,6 +64,7 @@ class Permission extends PS_Controller{
     $data['data'] = $profile;
     $data['menus'] = array();
     $groups = $this->menu->get_menu_groups();
+
     if(!empty($groups))
     {
       foreach($groups as $group)
@@ -92,35 +81,30 @@ class Permission extends PS_Controller{
 
 					if(!empty($menus))
 					{
-						$item = array();
+						$item = [];
+
 						foreach($menus as $menu)
 						{
 							if($menu->valid)
 							{
-								$arr = array(
+								$item[] = array(
 									'menu_code' => $menu->code,
 									'menu_name' => $menu->name,
 									'permission' => $this->permission_model->get_permission($menu->code, $id)
-								);
-								array_push($item, $arr);
+								);								
 							}
-
 						}
 
 						$ds['menu'] = $item;
 					}
 
-					array_push($data['menus'], $ds);
+					$data['menus'][] = $ds;
 				}
       }
     }
 
     $this->load->view('users/permission_edit_view', $data);
   }
-
-
-
-
 
 
 	public function save_profile_permission()
@@ -161,17 +145,9 @@ class Permission extends PS_Controller{
 		}
 	}
 
-
-
-
-
-
   public function clear_filter()
   {
 		$filter = array('profileName', 'menux', 'permission');
-    clear_filter($filter);
-    echo 'done';
+    return clear_filter($filter);    
   }
-
-} //-- end class
-  ?>
+}

@@ -13,54 +13,31 @@ class Profiles extends PS_Controller{
     $this->load->model('users/profile_model');
   }
 
-
-
-
   public function index()
   {
-		$profileName = get_filter('profileName', 'profileName', '');
-
-		//--- แสดงผลกี่รายการต่อหน้า
-		$perpage = get_filter('set_rows', 'rows', 20);
-		//--- หาก user กำหนดการแสดงผลมามากเกินไป จำกัดไว้แค่ 300
-		if($perpage > 300)
-		{
-			$perpage = get_filter('rows', 'rows', 300);
-		}
-
-		$segment = 4; //-- url segment
+		$profileName = get_filter('profileName', 'profileName', '');		
+		$perpage = get_rows();
+		$segment = 4;
 		$rows = $this->profile_model->count_rows($profileName);
-
-		//--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
-
 		$result = $this->profile_model->get_profiles($profileName, $perpage, $this->uri->segment($segment));
-    $data = array();
-
+    
     if(!empty($result))
     {
       foreach($result as $rs)
-      {
-        $row = new stdClass();
-        $row->id = $rs->id;
-        $row->name = $rs->name;
-        $row->member = $this->profile_model->count_members($rs->id);
-        $data[] = $row;
+      {        
+        $rs->member = $this->profile_model->count_members($rs->id);        
       }
     }
 
     $ds = array(
       'profileName' => $profileName,
-			'data' => $data
+			'data' => $result
     );
 
+		$init	= pagination_config($this->home.'/index/', $rows, $perpage, $segment);
 		$this->pagination->initialize($init);
-
     $this->load->view('users/profile_view', $ds);
   }
-
-
-
 
   public function add_profile()
   {
@@ -70,16 +47,12 @@ class Profiles extends PS_Controller{
   }
 
 
-
-
   public function edit_profile($id)
   {
     $data['data'] = $this->profile_model->get_profile($id);
     $this->title = 'Edit Profile';
     $this->load->view('users/profile_edit_view', $data);
   }
-
-
 
 
   public function update_profile()
@@ -113,10 +86,6 @@ class Profiles extends PS_Controller{
     redirect($this->home.'/edit_profile/'.$id);
   }
 
-
-
-
-
   public function new_profile()
   {
     if($this->input->post('profileName'))
@@ -144,10 +113,6 @@ class Profiles extends PS_Controller{
     redirect($this->home.'/add_profile');
   }
 
-
-
-
-
   public function delete_profile($id)
   {
     if($this->profile_model->delete($id))
@@ -162,13 +127,8 @@ class Profiles extends PS_Controller{
     redirect($this->home);
   }
 
-
-
-
   public function clear_filter()
 	{
-		clear_filter('profileName');
-		echo 'done';
+		return clear_filter('profileName');		
 	}
 }
-?>

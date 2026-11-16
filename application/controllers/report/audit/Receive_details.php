@@ -1,12 +1,16 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+
 class Receive_details extends PS_Controller
 {
   public $menu_code = 'RARCDT';
 	public $menu_group_code = 'RE';
   public $menu_sub_group_code = 'REAUDIT';
 	public $title = 'รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด';
-  public $filter;
+  
   public function __construct()
   {
     parent::__construct();
@@ -56,15 +60,16 @@ class Receive_details extends PS_Controller
 
   public function get_report()
   {
-    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
-    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
-    ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
+    ini_set('memory_limit','2048M');
+    ini_set('max_execution_time', 600);
+    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); 
+    ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); 
 
     $sc = TRUE;
 
     if($this->input->get("json"))
     {
-      $json = json_decode($this->input->get("json"));
+      $json = json_decode($this->input->get("json") ?? '{}');
 
       if( ! empty($json))
       {
@@ -106,7 +111,7 @@ class Receive_details extends PS_Controller
                 'date_add' => thai_date($rs->date_add, FALSE, '/'),
                 'date_upd' => thai_date($rs->date_upd, FALSE, '/'),
                 'total_amount' => number($this->receive_details_model->get_doc_total($rs->code, 'WR'), 2),
-                'warehouse_name' => empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code],
+                'warehouse_name' => empty($rs->warehouse_code) ? NULL : (empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]),
                 'state_name' => $state[$rs->status],
                 'uname' => $rs->user,
                 'emp_name' => $this->user_model->get_name($rs->user),
@@ -139,7 +144,7 @@ class Receive_details extends PS_Controller
                 'date_add' => thai_date($rs->date_add, FALSE, '/'),
                 'date_upd' => thai_date($rs->date_upd, FALSE, '/'),
                 'total_amount' => number($this->receive_details_model->get_doc_total($rs->code, 'RT'), 2),
-                'warehouse_name' => empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code],
+                'warehouse_name' => empty($rs->warehouse_code) ? NULL : (empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]),
                 'state_name' => $state[$rs->status],
                 'uname' => $rs->user,
                 'emp_name' => $this->user_model->get_name($rs->user),
@@ -171,10 +176,10 @@ class Receive_details extends PS_Controller
                 'date_add' => thai_date($rs->date_add, FALSE, '/'),
                 'date_upd' => thai_date($rs->date_upd, FALSE, '/'),
                 'total_amount' => number($this->receive_details_model->get_doc_total($rs->code, 'RN'), 2),
-                'warehouse_name' => empty($wh[$rs->to_warehouse]) ? NULL : $wh[$rs->to_warehouse],
+                'warehouse_name' => empty($rs->to_warehouse) ? NULL : (empty($wh[$rs->to_warehouse]) ? NULL : $wh[$rs->to_warehouse]),
                 'state_name' => $state[$rs->status],
                 'uname' => $rs->user,
-                'emp_name' => $this->user_model->get_name($rs->user),
+                'emp_name' => $this->user_model->get_name($rs->user ?? ''),
                 'remark' => $rs->remark,
                 'cancel_reason' => $rs->status == 2 ? $rs->cancle_reason : NULL
               );
@@ -195,8 +200,8 @@ class Receive_details extends PS_Controller
 
             foreach($details as $rs)
             {
-              $customer_name = empty($custs[$rs->customer_code]) ? $this->customers_model->get_name($rs->customer_code) : $custs[$rs->customer_code];
-              $custs[$rs->customer_code] = $customer_name;
+              $customer_name = empty($rs->customer_code) ? '' : (empty($custs[$rs->customer_code]) ? $this->customers_model->get_name($rs->customer_code) : $custs[$rs->customer_code]);
+              if(! empty($rs->customer_code) && empty($custs[$rs->customer_code])) $custs[$rs->customer_code] = $customer_name;
 
               $arr = array(
                 'no' => number($no),
@@ -211,7 +216,7 @@ class Receive_details extends PS_Controller
                 'warehouse_name' => empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code],
                 'state_name' => $state[$rs->status],
                 'uname' => $rs->user,
-                'emp_name' => $this->user_model->get_name($rs->user),
+                'emp_name' => $this->user_model->get_name($rs->user ?? ''),
                 'remark' => $rs->remark,
                 'cancel_reason' => $rs->status == 2 ? $rs->cancle_reason : NULL
               );
@@ -232,8 +237,8 @@ class Receive_details extends PS_Controller
 
             foreach($details as $rs)
             {
-              $customer_name = empty($custs[$rs->customer_code]) ? $this->customers_model->get_name($rs->customer_code) : $custs[$rs->customer_code];
-              $custs[$rs->customer_code] = $customer_name;
+              $customer_name = empty($rs->customer_code) ? '' : (empty($custs[$rs->customer_code]) ? $this->customers_model->get_name($rs->customer_code) : $custs[$rs->customer_code]);
+              if(! empty($rs->customer_code) && empty($custs[$rs->customer_code])) $custs[$rs->customer_code] = $customer_name;
 
               $arr = array(
                 'no' => number($no),
@@ -283,613 +288,555 @@ class Receive_details extends PS_Controller
     ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
     ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
 
-    $token = $this->input->post('token');
+    $token = $this->input->post('token');        
+    $state = $this->state_array();
+    $wh = $this->warehouse_array();
 
-    //--- load excel library
-    $this->load->library('excel');
+    $role = $this->input->post('role');
+    $all = $this->input->post('allRole') == 1 ? TRUE : FALSE;
 
 
+    $allRole = $this->input->post('allRole');
+    $allWarehouse = $this->input->post('allWarehouse');
+    $allState = $this->input->post('allState');
+    $is_expired = $this->input->post('is_expired');
+    $fromDate = $this->input->post('fromDate');
+    $toDate = $this->input->post('toDate');
+    $warehouse = $this->input->post('warehouse');
+    $status = $this->input->post('state');
 
-    if($this->input->post('fromDate'))
+    $filter = array(
+      "from_date" => $fromDate,
+      "to_date" => $toDate,
+      "all_role" => $allRole,
+      "is_expired" => $is_expired,
+      "all_state" => $allState,
+      "state" => $status,
+      "all_warehouse" => $allWarehouse,
+      "warehouse" => $warehouse
+    );
+
+    $excel = new Spreadsheet();
+    $index = 0;
+
+    if (! empty($role['WR']) or $all)
     {
-      $state = $this->state_array();
-      $wh = $this->warehouse_array();
+      $sheet = $index === 0 ? $excel->getActiveSheet() : $excel->createSheet();      
+      $sheet->setTitle('WR');
 
-      $role = $this->input->post('role');
-      $all = $this->input->post('allRole') == 1 ? TRUE : FALSE;
+      $index++;
 
+      //---  Report title
+      $report_title = "รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด";
+      $role_title = "เอกสาร : รับสินค้าจากการซื้อ";
+      $expire_title = "อายุเอกสาร : " . ($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
+      $wh_title     = 'คลัง :  ' . ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
+      $state_title = "สถานะ : " . ($allState == 1 ? "ทั้งหมด" : $this->get_state_title($status));
+      //--- set report title header
+      $sheet->setCellValue('A1', $report_title);
+      $sheet->setCellValue('A2', $role_title);
+      $sheet->setCellValue('A3', $expire_title);
+      $sheet->setCellValue('A4', $state_title);
+      $sheet->setCellValue('A5', $wh_title);
+      $sheet->setCellValue('A6', 'วันที่เอกสาร : (' . thai_date($fromDate, '/') . ') - (' . thai_date($toDate, '/') . ')');
 
-      $allRole = $this->input->post('allRole');
-      $allWarehouse = $this->input->post('allWarehouse');
-      $allState = $this->input->post('allState');
-      $is_expired = $this->input->post('is_expired');
-      $fromDate = $this->input->post('fromDate');
-      $toDate = $this->input->post('toDate');
-      $warehouse = $this->input->post('warehouse');
-      $status = $this->input->post('state');
+      //--- set Table header
+      $row = 7;
 
-      $filter = array(
-        "from_date" => $fromDate,
-        "to_date" => $toDate,
-        "all_role" => $allRole,
-        "is_expired" => $is_expired,
-        "all_state" => $allState,
-        "state" => $status,
-        "all_warehouse" => $allWarehouse,
-        "warehouse" => $warehouse
-      );
+      $sheet->setCellValue("A{$row}", 'ลำดับ');
+      $sheet->setCellValue("B{$row}", 'วันที่');
+      $sheet->setCellValue("C{$row}", 'เลขที่');
+      $sheet->setCellValue("D{$row}", 'อ้างอิง');
+      $sheet->setCellValue("E{$row}", 'มูลค่า');
+      $sheet->setCellValue("F{$row}", 'รหัสลูกค้า');
+      $sheet->setCellValue("G{$row}", 'ชื่อลูกค้า');
+      $sheet->setCellValue("H{$row}", 'สถานะ');
+      $sheet->setCellValue("I{$row}", 'หมดอายุ');
+      $sheet->setCellValue("J{$row}", 'วันที่แก้ไข');
+      $sheet->setCellValue("K{$row}", 'รหัสคลัง');
+      $sheet->setCellValue("L{$row}", 'ชื่อคลัง');
+      $sheet->setCellValue("M{$row}", 'Username');
+      $sheet->setCellValue("N{$row}", 'พนักงาน');
+      $sheet->setCellValue("O{$row}", 'หมายเหตุ');
+      $sheet->setCellValue("P{$row}", 'cancel reason');
+      $row++;
 
-      $index = 0;
+      //---- กำหนดความกว้างของคอลัมภ์
+      $sheet->getColumnDimension('B')->setWidth(15);
+      $sheet->getColumnDimension('C')->setWidth(20);
+      $sheet->getColumnDimension('D')->setWidth(20);
+      $sheet->getColumnDimension('E')->setWidth(20);
+      $sheet->getColumnDimension('F')->setWidth(20);
+      $sheet->getColumnDimension('G')->setWidth(90);
+      $sheet->getColumnDimension('H')->setWidth(15);
+      $sheet->getColumnDimension('I')->setWidth(10);
+      $sheet->getColumnDimension('J')->setWidth(15);
+      $sheet->getColumnDimension('K')->setWidth(15);
+      $sheet->getColumnDimension('L')->setWidth(40);
+      $sheet->getColumnDimension('M')->setWidth(15);
+      $sheet->getColumnDimension('N')->setWidth(15);
+      $sheet->getColumnDimension('O')->setWidth(40);
+      $sheet->getColumnDimension('P')->setWidth(40);
 
-      if(! empty($role['WR']) OR $all)
-  		{
-  			$worksheet = new PHPExcel_Worksheet($this->excel, "WR");
-  			$this->excel->addSheet($worksheet, $index);
-  			$this->excel->setActiveSheetIndex($index);
-  			$this->excel->getActiveSheet()->setTitle('WR');
+      $details = $this->receive_details_model->WR($filter);
 
-  			$index++;
+      if (! empty($details))
+      {
+        $no = 1;
+        foreach ($details as $rs)
+        {          
+          $date_add = Date::PHPToExcel(new DateTime($rs->date_add));
+          $date_upd = Date::PHPToExcel(new DateTime($rs->date_upd));
+          $amount = $this->receive_details_model->get_doc_total($rs->code, 'WR');
 
-        //---  Report title
-        $report_title = "รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด";
-        $role_title = "เอกสาร : รับสินค้าจากการซื้อ";
-        $expire_title = "อายุเอกสาร : ".($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
-        $wh_title     = 'คลัง :  '. ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
-        $state_title = "สถานะ : ".($allState == 1 ? "ทั้งหมด" : $this->get_state_title($status));
-        //--- set report title header
-        $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
-        $this->excel->getActiveSheet()->setCellValue('A2', $role_title);
-        $this->excel->getActiveSheet()->setCellValue('A3', $expire_title);
-        $this->excel->getActiveSheet()->setCellValue('A4', $state_title);
-        $this->excel->getActiveSheet()->setCellValue('A5', $wh_title);
-        $this->excel->getActiveSheet()->setCellValue('A6', 'วันที่เอกสาร : ('.thai_date($fromDate,'/') .') - ('.thai_date($toDate,'/').')');
+          $sheet->setCellValue("A{$row}", $no);
+          $sheet->setCellValue("B{$row}", $date_add);
+          $sheet->setCellValue("C{$row}", $rs->code);
+          $sheet->setCellValue("D{$row}", $rs->po_code);
+          $sheet->setCellValue("E{$row}", round($amount ?? 0, 2));
+          $sheet->setCellValue("F{$row}", $rs->vendor_code);
+          $sheet->setCellValue("G{$row}", $rs->vendor_name);
+          $sheet->setCellValue("H{$row}", $state[$rs->status]);
+          $sheet->setCellValue("I{$row}", $rs->is_expire == 1 ? 'Y' : 'N');
+          $sheet->setCellValue("J{$row}", $date_upd);
+          $sheet->setCellValue("K{$row}", $rs->warehouse_code);
+          $sheet->setCellValue("L{$row}", empty($rs->warehouse_code) ? '' : (empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]));
+          $sheet->setCellValue("M{$row}", $rs->user);
+          $sheet->setCellValue("N{$row}", $this->user_model->get_name($rs->user ?? ''));
+          $sheet->setCellValue("O{$row}", $rs->remark);
 
-        //--- set Table header
-        $row = 7;
-
-        $this->excel->getActiveSheet()->setCellValue("A{$row}", 'ลำดับ');
-        $this->excel->getActiveSheet()->setCellValue("B{$row}", 'วันที่');
-        $this->excel->getActiveSheet()->setCellValue("C{$row}", 'เลขที่');
-        $this->excel->getActiveSheet()->setCellValue("D{$row}", 'อ้างอิง');
-        $this->excel->getActiveSheet()->setCellValue("E{$row}", 'มูลค่า');
-        $this->excel->getActiveSheet()->setCellValue("F{$row}", 'รหัสลูกค้า');
-        $this->excel->getActiveSheet()->setCellValue("G{$row}", 'ชื่อลูกค้า');
-        $this->excel->getActiveSheet()->setCellValue("H{$row}", 'สถานะ');
-        $this->excel->getActiveSheet()->setCellValue("I{$row}", 'หมดอายุ');
-        $this->excel->getActiveSheet()->setCellValue("J{$row}", 'วันที่แก้ไข');
-        $this->excel->getActiveSheet()->setCellValue("K{$row}", 'รหัสคลัง');
-        $this->excel->getActiveSheet()->setCellValue("L{$row}", 'ชื่อคลัง');
-        $this->excel->getActiveSheet()->setCellValue("M{$row}", 'Username');
-        $this->excel->getActiveSheet()->setCellValue("N{$row}", 'พนักงาน');
-        $this->excel->getActiveSheet()->setCellValue("O{$row}", 'หมายเหตุ');
-        $this->excel->getActiveSheet()->setCellValue("P{$row}", 'cancel reason');
-        $row++;
-
-        //---- กำหนดความกว้างของคอลัมภ์
-        $this->excel->getActiveSheet()->getColumnDimension('B')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('C')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('D')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('E')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('F')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('G')->setWidth(90);
-        $this->excel->getActiveSheet()->getColumnDimension('H')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('I')->setWidth(10);
-        $this->excel->getActiveSheet()->getColumnDimension('J')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('K')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('L')->setWidth(40);
-        $this->excel->getActiveSheet()->getColumnDimension('M')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('N')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('O')->setWidth(40);
-        $this->excel->getActiveSheet()->getColumnDimension('P')->setWidth(40);
-
-        $details = $this->receive_details_model->WR($filter);
-
-        if( ! empty($details))
-        {
-          $no = 1;
-          foreach($details as $rs)
+          if ($rs->status == 2)
           {
-            $ay		= date('Y', strtotime($rs->date_add));
-            $am		= date('m', strtotime($rs->date_add));
-            $ad		= date('d', strtotime($rs->date_add));
-            $date_add = PHPExcel_Shared_Date::FormattedPHPToExcel($ay, $am, $ad);
-
-            $uy		= date('Y', strtotime($rs->date_upd));
-            $um		= date('m', strtotime($rs->date_upd));
-            $ud		= date('d', strtotime($rs->date_upd));
-            $date_upd = PHPExcel_Shared_Date::FormattedPHPToExcel($uy, $um, $ud);
-
-            $amount = $this->receive_details_model->get_doc_total($rs->code, 'WR');
-
-            $this->excel->getActiveSheet()->setCellValue("A{$row}", $no);
-            $this->excel->getActiveSheet()->setCellValue("B{$row}", $date_add);
-            $this->excel->getActiveSheet()->setCellValue("C{$row}", $rs->code);
-            $this->excel->getActiveSheet()->setCellValue("D{$row}", $rs->po_code);
-            $this->excel->getActiveSheet()->setCellValue("E{$row}", $amount);
-            $this->excel->getActiveSheet()->setCellValue("F{$row}", $rs->vendor_code);
-            $this->excel->getActiveSheet()->setCellValue("G{$row}", $rs->vendor_name);
-            $this->excel->getActiveSheet()->setCellValue("H{$row}", $state[$rs->status]);
-            $this->excel->getActiveSheet()->setCellValue("I{$row}", $rs->is_expire == 1 ? 'Y' : 'N');
-            $this->excel->getActiveSheet()->setCellValue("J{$row}", $date_upd);
-            $this->excel->getActiveSheet()->setCellValue("K{$row}", $rs->warehouse_code);
-            $this->excel->getActiveSheet()->setCellValue("L{$row}", empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]);
-            $this->excel->getActiveSheet()->setCellValue("M{$row}", $rs->user);
-            $this->excel->getActiveSheet()->setCellValue("N{$row}", $this->user_model->get_name($rs->user));
-            $this->excel->getActiveSheet()->setCellValue("O{$row}", $rs->remark);
-            if($rs->status == 2)
-            {
-              $this->excel->getActiveSheet()->setCellValue("P{$row}", $rs->cancle_reason);
-            }
-
-            $no++;
-            $row++;
+            $sheet->setCellValue("P{$row}", $rs->cancle_reason);
           }
 
-          $this->excel->getActiveSheet()->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-          $this->excel->getActiveSheet()->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-          $this->excel->getActiveSheet()->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+          $no++;
+          $row++;
         }
-      } //--- endif WR
 
-      if(! empty($role['RT']) OR $all)
-  		{
-  			$worksheet = new PHPExcel_Worksheet($this->excel, "RT");
-  			$this->excel->addSheet($worksheet, $index);
-  			$this->excel->setActiveSheetIndex($index);
-  			$this->excel->getActiveSheet()->setTitle('RT');
+        $sheet->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $sheet->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $sheet->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+      }
+    } //--- endif WR
 
-  			$index++;
+    if (! empty($role['RT']) or $all)
+    {
+      $sheet = $index === 0 ? $excel->getActiveSheet() : $excel->createSheet();      
+      $sheet->setTitle('RT');
+      $index++;
 
-        //---  Report title
-        $report_title = "รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด";
-        $role_title = "เอกสาร : รับสินค้าจากการแปรสภาพ";
-        $expire_title = "อายุเอกสาร : ".($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
-        $wh_title     = 'คลัง :  '. ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
-        $state_title = "สถานะ : ".($allState == 1 ? "ทั้งหมด" : $this->get_state_title($status));
-        //--- set report title header
-        $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
-        $this->excel->getActiveSheet()->setCellValue('A2', $role_title);
-        $this->excel->getActiveSheet()->setCellValue('A3', $expire_title);
-        $this->excel->getActiveSheet()->setCellValue('A4', $state_title);
-        $this->excel->getActiveSheet()->setCellValue('A5', $wh_title);
-        $this->excel->getActiveSheet()->setCellValue('A6', 'วันที่เอกสาร : ('.thai_date($fromDate,'/') .') - ('.thai_date($toDate,'/').')');
+      //---  Report title
+      $report_title = "รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด";
+      $role_title = "เอกสาร : รับสินค้าจากการแปรสภาพ";
+      $expire_title = "อายุเอกสาร : " . ($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
+      $wh_title     = 'คลัง :  ' . ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
+      $state_title = "สถานะ : " . ($allState == 1 ? "ทั้งหมด" : $this->get_state_title($status));
+      //--- set report title header
+      $sheet->setCellValue('A1', $report_title);
+      $sheet->setCellValue('A2', $role_title);
+      $sheet->setCellValue('A3', $expire_title);
+      $sheet->setCellValue('A4', $state_title);
+      $sheet->setCellValue('A5', $wh_title);
+      $sheet->setCellValue('A6', 'วันที่เอกสาร : (' . thai_date($fromDate, '/') . ') - (' . thai_date($toDate, '/') . ')');
 
-        //--- set Table header
-        $row = 7;
+      //--- set Table header
+      $row = 7;
 
-        $this->excel->getActiveSheet()->setCellValue("A{$row}", 'ลำดับ');
-        $this->excel->getActiveSheet()->setCellValue("B{$row}", 'วันที่');
-        $this->excel->getActiveSheet()->setCellValue("C{$row}", 'เลขที่');
-        $this->excel->getActiveSheet()->setCellValue("D{$row}", 'อ้างอิง');
-        $this->excel->getActiveSheet()->setCellValue("E{$row}", 'มูลค่า');
-        $this->excel->getActiveSheet()->setCellValue("F{$row}", 'รหัสลูกค้า');
-        $this->excel->getActiveSheet()->setCellValue("G{$row}", 'ชื่อลูกค้า');
-        $this->excel->getActiveSheet()->setCellValue("H{$row}", 'สถานะ');
-        $this->excel->getActiveSheet()->setCellValue("I{$row}", 'หมดอายุ');
-        $this->excel->getActiveSheet()->setCellValue("J{$row}", 'วันที่แก้ไข');
-        $this->excel->getActiveSheet()->setCellValue("K{$row}", 'รหัสคลัง');
-        $this->excel->getActiveSheet()->setCellValue("L{$row}", 'ชื่อคลัง');
-        $this->excel->getActiveSheet()->setCellValue("M{$row}", 'Username');
-        $this->excel->getActiveSheet()->setCellValue("N{$row}", 'พนักงาน');
-        $this->excel->getActiveSheet()->setCellValue("O{$row}", 'หมายเหตุ');
-        $this->excel->getActiveSheet()->setCellValue("P{$row}", 'cancel reason');
-        $row++;
+      $sheet->setCellValue("A{$row}", 'ลำดับ');
+      $sheet->setCellValue("B{$row}", 'วันที่');
+      $sheet->setCellValue("C{$row}", 'เลขที่');
+      $sheet->setCellValue("D{$row}", 'อ้างอิง');
+      $sheet->setCellValue("E{$row}", 'มูลค่า');
+      $sheet->setCellValue("F{$row}", 'รหัสลูกค้า');
+      $sheet->setCellValue("G{$row}", 'ชื่อลูกค้า');
+      $sheet->setCellValue("H{$row}", 'สถานะ');
+      $sheet->setCellValue("I{$row}", 'หมดอายุ');
+      $sheet->setCellValue("J{$row}", 'วันที่แก้ไข');
+      $sheet->setCellValue("K{$row}", 'รหัสคลัง');
+      $sheet->setCellValue("L{$row}", 'ชื่อคลัง');
+      $sheet->setCellValue("M{$row}", 'Username');
+      $sheet->setCellValue("N{$row}", 'พนักงาน');
+      $sheet->setCellValue("O{$row}", 'หมายเหตุ');
+      $sheet->setCellValue("P{$row}", 'cancel reason');
+      $row++;
 
-        //---- กำหนดความกว้างของคอลัมภ์
-        $this->excel->getActiveSheet()->getColumnDimension('B')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('C')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('D')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('E')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('F')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('G')->setWidth(90);
-        $this->excel->getActiveSheet()->getColumnDimension('H')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('I')->setWidth(10);
-        $this->excel->getActiveSheet()->getColumnDimension('J')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('K')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('L')->setWidth(40);
-        $this->excel->getActiveSheet()->getColumnDimension('M')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('N')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('O')->setWidth(40);
-        $this->excel->getActiveSheet()->getColumnDimension('P')->setWidth(40);
+      //---- กำหนดความกว้างของคอลัมภ์
+      $sheet->getColumnDimension('B')->setWidth(15);
+      $sheet->getColumnDimension('C')->setWidth(20);
+      $sheet->getColumnDimension('D')->setWidth(20);
+      $sheet->getColumnDimension('E')->setWidth(20);
+      $sheet->getColumnDimension('F')->setWidth(20);
+      $sheet->getColumnDimension('G')->setWidth(90);
+      $sheet->getColumnDimension('H')->setWidth(15);
+      $sheet->getColumnDimension('I')->setWidth(10);
+      $sheet->getColumnDimension('J')->setWidth(15);
+      $sheet->getColumnDimension('K')->setWidth(15);
+      $sheet->getColumnDimension('L')->setWidth(40);
+      $sheet->getColumnDimension('M')->setWidth(15);
+      $sheet->getColumnDimension('N')->setWidth(15);
+      $sheet->getColumnDimension('O')->setWidth(40);
+      $sheet->getColumnDimension('P')->setWidth(40);
 
-        $details = $this->receive_details_model->RT($filter);
+      $details = $this->receive_details_model->RT($filter);
 
-        if( ! empty($details))
-        {
-          $no = 1;
-          foreach($details as $rs)
+      if (! empty($details))
+      {
+        $no = 1;
+        foreach ($details as $rs)
+        {         
+          $date_add = Date::PHPToExcel(new DateTime($rs->date_add));
+          $date_upd = Date::PHPToExcel(new DateTime($rs->date_upd));
+          $amount = $this->receive_details_model->get_doc_total($rs->code, 'RT');
+
+          $sheet->setCellValue("A{$row}", $no);
+          $sheet->setCellValue("B{$row}", $date_add);
+          $sheet->setCellValue("C{$row}", $rs->code);
+          $sheet->setCellValue("D{$row}", $rs->order_code);
+          $sheet->setCellValue("E{$row}", round($amount ?? 0, 2));
+          $sheet->setCellValue("F{$row}", $rs->customer_code);
+          $sheet->setCellValue("G{$row}", $rs->customer_name);
+          $sheet->setCellValue("H{$row}", $state[$rs->status ?? 0]);
+          $sheet->setCellValue("I{$row}", $rs->is_expire == 1 ? 'Y' : 'N');
+          $sheet->setCellValue("J{$row}", $date_upd);
+          $sheet->setCellValue("K{$row}", $rs->warehouse_code);
+          $sheet->setCellValue("L{$row}", empty($rs->warehouse_code) ? '' : (empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]));
+          $sheet->setCellValue("M{$row}", $rs->user);
+          $sheet->setCellValue("N{$row}", $this->user_model->get_name($rs->user ?? ''));
+          $sheet->setCellValue("O{$row}", $rs->remark);
+
+          if ($rs->status == 2)
           {
-            $ay		= date('Y', strtotime($rs->date_add));
-            $am		= date('m', strtotime($rs->date_add));
-            $ad		= date('d', strtotime($rs->date_add));
-            $date_add = PHPExcel_Shared_Date::FormattedPHPToExcel($ay, $am, $ad);
-
-            $uy		= date('Y', strtotime($rs->date_upd));
-            $um		= date('m', strtotime($rs->date_upd));
-            $ud		= date('d', strtotime($rs->date_upd));
-            $date_upd = PHPExcel_Shared_Date::FormattedPHPToExcel($uy, $um, $ud);
-
-            $amount = $this->receive_details_model->get_doc_total($rs->code, 'RT');
-
-            $this->excel->getActiveSheet()->setCellValue("A{$row}", $no);
-            $this->excel->getActiveSheet()->setCellValue("B{$row}", $date_add);
-            $this->excel->getActiveSheet()->setCellValue("C{$row}", $rs->code);
-            $this->excel->getActiveSheet()->setCellValue("D{$row}", $rs->order_code);
-            $this->excel->getActiveSheet()->setCellValue("E{$row}", $amount);
-            $this->excel->getActiveSheet()->setCellValue("F{$row}", $rs->customer_code);
-            $this->excel->getActiveSheet()->setCellValue("G{$row}", $rs->customer_name);
-            $this->excel->getActiveSheet()->setCellValue("H{$row}", $state[$rs->status]);
-            $this->excel->getActiveSheet()->setCellValue("I{$row}", $rs->is_expire == 1 ? 'Y' : 'N');
-            $this->excel->getActiveSheet()->setCellValue("J{$row}", $date_upd);
-            $this->excel->getActiveSheet()->setCellValue("K{$row}", $rs->warehouse_code);
-            $this->excel->getActiveSheet()->setCellValue("L{$row}", empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]);
-            $this->excel->getActiveSheet()->setCellValue("M{$row}", $rs->user);
-            $this->excel->getActiveSheet()->setCellValue("N{$row}", $this->user_model->get_name($rs->user));
-            $this->excel->getActiveSheet()->setCellValue("O{$row}", $rs->remark);
-            if($rs->status == 2)
-            {
-              $this->excel->getActiveSheet()->setCellValue("P{$row}", $rs->cancle_reason);
-            }
-
-            $no++;
-            $row++;
+            $sheet->setCellValue("P{$row}", $rs->cancle_reason);
           }
 
-          $this->excel->getActiveSheet()->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-          $this->excel->getActiveSheet()->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-          $this->excel->getActiveSheet()->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+          $no++;
+          $row++;
         }
-      } //--- endif RT
+
+        $sheet->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $sheet->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $sheet->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+      }
+    } //--- endif RT
 
 
-      if(! empty($role['RN']) OR $all)
-  		{
-  			$worksheet = new PHPExcel_Worksheet($this->excel, "RN");
-  			$this->excel->addSheet($worksheet, $index);
-  			$this->excel->setActiveSheetIndex($index);
-  			$this->excel->getActiveSheet()->setTitle('RN');
+    if (! empty($role['RN']) or $all)
+    {
+      $sheet = $index === 0 ? $excel->getActiveSheet() : $excel->createSheet();      
+      $sheet->setTitle('RN');
+      $index++;
 
-  			$index++;
+      //---  Report title
+      $report_title = "รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด";
+      $role_title = "เอกสาร : คืนสินค้าจากการยืม";
+      $expire_title = "อายุเอกสาร : " . ($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
+      $wh_title     = 'คลัง :  ' . ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
+      $state_title = "สถานะ : " . ($allState == 1 ? "ทั้งหมด" : $this->get_state_title($status));
+      //--- set report title header
+      $sheet->setCellValue('A1', $report_title);
+      $sheet->setCellValue('A2', $role_title);
+      $sheet->setCellValue('A3', $expire_title);
+      $sheet->setCellValue('A4', $state_title);
+      $sheet->setCellValue('A5', $wh_title);
+      $sheet->setCellValue('A6', 'วันที่เอกสาร : (' . thai_date($fromDate, '/') . ') - (' . thai_date($toDate, '/') . ')');
 
-        //---  Report title
-        $report_title = "รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด";
-        $role_title = "เอกสาร : คืนสินค้าจากการยืม";
-        $expire_title = "อายุเอกสาร : ".($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
-        $wh_title     = 'คลัง :  '. ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
-        $state_title = "สถานะ : ".($allState == 1 ? "ทั้งหมด" : $this->get_state_title($status));
-        //--- set report title header
-        $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
-        $this->excel->getActiveSheet()->setCellValue('A2', $role_title);
-        $this->excel->getActiveSheet()->setCellValue('A3', $expire_title);
-        $this->excel->getActiveSheet()->setCellValue('A4', $state_title);
-        $this->excel->getActiveSheet()->setCellValue('A5', $wh_title);
-        $this->excel->getActiveSheet()->setCellValue('A6', 'วันที่เอกสาร : ('.thai_date($fromDate,'/') .') - ('.thai_date($toDate,'/').')');
+      //--- set Table header
+      $row = 7;
 
-        //--- set Table header
-        $row = 7;
+      $sheet->setCellValue("A{$row}", 'ลำดับ');
+      $sheet->setCellValue("B{$row}", 'วันที่');
+      $sheet->setCellValue("C{$row}", 'เลขที่');
+      $sheet->setCellValue("D{$row}", 'อ้างอิง');
+      $sheet->setCellValue("E{$row}", 'มูลค่า');
+      $sheet->setCellValue("F{$row}", 'รหัสลูกค้า');
+      $sheet->setCellValue("G{$row}", 'ชื่อลูกค้า');
+      $sheet->setCellValue("H{$row}", 'สถานะ');
+      $sheet->setCellValue("I{$row}", 'หมดอายุ');
+      $sheet->setCellValue("J{$row}", 'วันที่แก้ไข');
+      $sheet->setCellValue("K{$row}", 'รหัสคลัง');
+      $sheet->setCellValue("L{$row}", 'ชื่อคลัง');
+      $sheet->setCellValue("M{$row}", 'Username');
+      $sheet->setCellValue("N{$row}", 'พนักงาน');
+      $sheet->setCellValue("O{$row}", 'หมายเหตุ');
+      $sheet->setCellValue("P{$row}", 'cancel reason');
+      $row++;
 
-        $this->excel->getActiveSheet()->setCellValue("A{$row}", 'ลำดับ');
-        $this->excel->getActiveSheet()->setCellValue("B{$row}", 'วันที่');
-        $this->excel->getActiveSheet()->setCellValue("C{$row}", 'เลขที่');
-        $this->excel->getActiveSheet()->setCellValue("D{$row}", 'อ้างอิง');
-        $this->excel->getActiveSheet()->setCellValue("E{$row}", 'มูลค่า');
-        $this->excel->getActiveSheet()->setCellValue("F{$row}", 'รหัสลูกค้า');
-        $this->excel->getActiveSheet()->setCellValue("G{$row}", 'ชื่อลูกค้า');
-        $this->excel->getActiveSheet()->setCellValue("H{$row}", 'สถานะ');
-        $this->excel->getActiveSheet()->setCellValue("I{$row}", 'หมดอายุ');
-        $this->excel->getActiveSheet()->setCellValue("J{$row}", 'วันที่แก้ไข');
-        $this->excel->getActiveSheet()->setCellValue("K{$row}", 'รหัสคลัง');
-        $this->excel->getActiveSheet()->setCellValue("L{$row}", 'ชื่อคลัง');
-        $this->excel->getActiveSheet()->setCellValue("M{$row}", 'Username');
-        $this->excel->getActiveSheet()->setCellValue("N{$row}", 'พนักงาน');
-        $this->excel->getActiveSheet()->setCellValue("O{$row}", 'หมายเหตุ');
-        $this->excel->getActiveSheet()->setCellValue("P{$row}", 'cancel reason');
-        $row++;
+      //---- กำหนดความกว้างของคอลัมภ์
+      $sheet->getColumnDimension('B')->setWidth(15);
+      $sheet->getColumnDimension('C')->setWidth(20);
+      $sheet->getColumnDimension('D')->setWidth(20);
+      $sheet->getColumnDimension('E')->setWidth(20);
+      $sheet->getColumnDimension('F')->setWidth(20);
+      $sheet->getColumnDimension('G')->setWidth(90);
+      $sheet->getColumnDimension('H')->setWidth(15);
+      $sheet->getColumnDimension('I')->setWidth(10);
+      $sheet->getColumnDimension('J')->setWidth(15);
+      $sheet->getColumnDimension('K')->setWidth(15);
+      $sheet->getColumnDimension('L')->setWidth(40);
+      $sheet->getColumnDimension('M')->setWidth(15);
+      $sheet->getColumnDimension('N')->setWidth(15);
+      $sheet->getColumnDimension('O')->setWidth(40);
+      $sheet->getColumnDimension('P')->setWidth(40);
 
-        //---- กำหนดความกว้างของคอลัมภ์
-        $this->excel->getActiveSheet()->getColumnDimension('B')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('C')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('D')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('E')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('F')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('G')->setWidth(90);
-        $this->excel->getActiveSheet()->getColumnDimension('H')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('I')->setWidth(10);
-        $this->excel->getActiveSheet()->getColumnDimension('J')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('K')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('L')->setWidth(40);
-        $this->excel->getActiveSheet()->getColumnDimension('M')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('N')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('O')->setWidth(40);
-        $this->excel->getActiveSheet()->getColumnDimension('P')->setWidth(40);
+      $details = $this->receive_details_model->RN($filter);
 
-        $details = $this->receive_details_model->RN($filter);
+      if (! empty($details))
+      {
+        $no = 1;
+        foreach ($details as $rs)
+        {          
+          $date_add = Date::PHPToExcel(new DateTime($rs->date_add));
+          $date_upd = Date::PHPToExcel(new DateTime($rs->date_upd));
+          $amount = $this->receive_details_model->get_doc_total($rs->code, 'RN');
 
-        if( ! empty($details))
-        {
-          $no = 1;
-          foreach($details as $rs)
+          $sheet->setCellValue("A{$row}", $no);
+          $sheet->setCellValue("B{$row}", $date_add);
+          $sheet->setCellValue("C{$row}", $rs->code);
+          $sheet->setCellValue("D{$row}", $rs->lend_code);
+          $sheet->setCellValue("E{$row}", round($amount ?? 0, 2));
+          $sheet->setCellValue("F{$row}", $rs->empID);
+          $sheet->setCellValue("G{$row}", $rs->empName);
+          $sheet->setCellValue("H{$row}", $state[$rs->status]);
+          $sheet->setCellValue("I{$row}", $rs->is_expire == 1 ? 'Y' : 'N');
+          $sheet->setCellValue("J{$row}", $date_upd);
+          $sheet->setCellValue("K{$row}", $rs->to_warehouse);
+          $sheet->setCellValue("L{$row}", empty($rs->to_warehouse) ? '' : (empty($wh[$rs->to_warehouse]) ? NULL : $wh[$rs->to_warehouse]));
+          $sheet->setCellValue("M{$row}", $rs->user);
+          $sheet->setCellValue("N{$row}", $this->user_model->get_name($rs->user ?? ''));
+          $sheet->setCellValue("O{$row}", $rs->remark);
+
+          if ($rs->status == 2)
           {
-            $ay		= date('Y', strtotime($rs->date_add));
-            $am		= date('m', strtotime($rs->date_add));
-            $ad		= date('d', strtotime($rs->date_add));
-            $date_add = PHPExcel_Shared_Date::FormattedPHPToExcel($ay, $am, $ad);
-
-            $uy		= date('Y', strtotime($rs->date_upd));
-            $um		= date('m', strtotime($rs->date_upd));
-            $ud		= date('d', strtotime($rs->date_upd));
-            $date_upd = PHPExcel_Shared_Date::FormattedPHPToExcel($uy, $um, $ud);
-
-            $amount = $this->receive_details_model->get_doc_total($rs->code, 'RN');
-
-            $this->excel->getActiveSheet()->setCellValue("A{$row}", $no);
-            $this->excel->getActiveSheet()->setCellValue("B{$row}", $date_add);
-            $this->excel->getActiveSheet()->setCellValue("C{$row}", $rs->code);
-            $this->excel->getActiveSheet()->setCellValue("D{$row}", $rs->lend_code);
-            $this->excel->getActiveSheet()->setCellValue("E{$row}", $amount);
-            $this->excel->getActiveSheet()->setCellValue("F{$row}", $rs->empID);
-            $this->excel->getActiveSheet()->setCellValue("G{$row}", $rs->empName);
-            $this->excel->getActiveSheet()->setCellValue("H{$row}", $state[$rs->status]);
-            $this->excel->getActiveSheet()->setCellValue("I{$row}", $rs->is_expire == 1 ? 'Y' : 'N');
-            $this->excel->getActiveSheet()->setCellValue("J{$row}", $date_upd);
-            $this->excel->getActiveSheet()->setCellValue("K{$row}", $rs->to_warehouse);
-            $this->excel->getActiveSheet()->setCellValue("L{$row}", empty($wh[$rs->to_warehouse]) ? NULL : $wh[$rs->to_warehouse]);
-            $this->excel->getActiveSheet()->setCellValue("M{$row}", $rs->user);
-            $this->excel->getActiveSheet()->setCellValue("N{$row}", $this->user_model->get_name($rs->user));
-            $this->excel->getActiveSheet()->setCellValue("O{$row}", $rs->remark);
-            if($rs->status == 2)
-            {
-              $this->excel->getActiveSheet()->setCellValue("P{$row}", $rs->cancle_reason);
-            }
-
-            $no++;
-            $row++;
+            $sheet->setCellValue("P{$row}", $rs->cancle_reason);
           }
 
-          $this->excel->getActiveSheet()->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-          $this->excel->getActiveSheet()->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-          $this->excel->getActiveSheet()->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+          $no++;
+          $row++;
         }
-      } //--- end if RN
+
+        $sheet->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $sheet->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $sheet->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+      }
+    } //--- end if RN
 
 
-      if(! empty($role['SM']) OR $all)
-  		{
-  			$worksheet = new PHPExcel_Worksheet($this->excel, "SM");
-  			$this->excel->addSheet($worksheet, $index);
-  			$this->excel->setActiveSheetIndex($index);
-  			$this->excel->getActiveSheet()->setTitle('SM');
+    if (! empty($role['SM']) or $all)
+    {
+      $sheet = $index === 0 ? $excel->getActiveSheet() : $excel->createSheet();     
+      $sheet->setTitle('SM');
+      $index++;
 
-  			$index++;
+      //---  Report title
+      $report_title = "รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด";
+      $role_title = "เอกสาร : ลดหนี้ขาย";
+      $expire_title = "อายุเอกสาร : " . ($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
+      $wh_title     = 'คลัง :  ' . ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
+      $state_title = "สถานะ : " . ($allState == 1 ? "ทั้งหมด" : $this->get_state_title($status));
+      //--- set report title header
+      $sheet->setCellValue('A1', $report_title);
+      $sheet->setCellValue('A2', $role_title);
+      $sheet->setCellValue('A3', $expire_title);
+      $sheet->setCellValue('A4', $state_title);
+      $sheet->setCellValue('A5', $wh_title);
+      $sheet->setCellValue('A6', 'วันที่เอกสาร : (' . thai_date($fromDate, '/') . ') - (' . thai_date($toDate, '/') . ')');
 
-        //---  Report title
-        $report_title = "รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด";
-        $role_title = "เอกสาร : รับสินค้าจากการแปรสภาพ";
-        $expire_title = "อายุเอกสาร : ".($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
-        $wh_title     = 'คลัง :  '. ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
-        $state_title = "สถานะ : ".($allState == 1 ? "ทั้งหมด" : $this->get_state_title($status));
-        //--- set report title header
-        $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
-        $this->excel->getActiveSheet()->setCellValue('A2', $role_title);
-        $this->excel->getActiveSheet()->setCellValue('A3', $expire_title);
-        $this->excel->getActiveSheet()->setCellValue('A4', $state_title);
-        $this->excel->getActiveSheet()->setCellValue('A5', $wh_title);
-        $this->excel->getActiveSheet()->setCellValue('A6', 'วันที่เอกสาร : ('.thai_date($fromDate,'/') .') - ('.thai_date($toDate,'/').')');
+      //--- set Table header
+      $row = 7;
 
-        //--- set Table header
-        $row = 7;
+      $sheet->setCellValue("A{$row}", 'ลำดับ');
+      $sheet->setCellValue("B{$row}", 'วันที่');
+      $sheet->setCellValue("C{$row}", 'เลขที่');
+      $sheet->setCellValue("D{$row}", 'อ้างอิง');
+      $sheet->setCellValue("E{$row}", 'มูลค่า');
+      $sheet->setCellValue("F{$row}", 'รหัสลูกค้า');
+      $sheet->setCellValue("G{$row}", 'ชื่อลูกค้า');
+      $sheet->setCellValue("H{$row}", 'สถานะ');
+      $sheet->setCellValue("I{$row}", 'หมดอายุ');
+      $sheet->setCellValue("J{$row}", 'วันที่แก้ไข');
+      $sheet->setCellValue("K{$row}", 'รหัสคลัง');
+      $sheet->setCellValue("L{$row}", 'ชื่อคลัง');
+      $sheet->setCellValue("M{$row}", 'Username');
+      $sheet->setCellValue("N{$row}", 'พนักงาน');
+      $sheet->setCellValue("O{$row}", 'หมายเหตุ');
+      $sheet->setCellValue("P{$row}", 'cancel reason');
+      $row++;
 
-        $this->excel->getActiveSheet()->setCellValue("A{$row}", 'ลำดับ');
-        $this->excel->getActiveSheet()->setCellValue("B{$row}", 'วันที่');
-        $this->excel->getActiveSheet()->setCellValue("C{$row}", 'เลขที่');
-        $this->excel->getActiveSheet()->setCellValue("D{$row}", 'อ้างอิง');
-        $this->excel->getActiveSheet()->setCellValue("E{$row}", 'มูลค่า');
-        $this->excel->getActiveSheet()->setCellValue("F{$row}", 'รหัสลูกค้า');
-        $this->excel->getActiveSheet()->setCellValue("G{$row}", 'ชื่อลูกค้า');
-        $this->excel->getActiveSheet()->setCellValue("H{$row}", 'สถานะ');
-        $this->excel->getActiveSheet()->setCellValue("I{$row}", 'หมดอายุ');
-        $this->excel->getActiveSheet()->setCellValue("J{$row}", 'วันที่แก้ไข');
-        $this->excel->getActiveSheet()->setCellValue("K{$row}", 'รหัสคลัง');
-        $this->excel->getActiveSheet()->setCellValue("L{$row}", 'ชื่อคลัง');
-        $this->excel->getActiveSheet()->setCellValue("M{$row}", 'Username');
-        $this->excel->getActiveSheet()->setCellValue("N{$row}", 'พนักงาน');
-        $this->excel->getActiveSheet()->setCellValue("O{$row}", 'หมายเหตุ');
-        $this->excel->getActiveSheet()->setCellValue("P{$row}", 'cancel reason');
-        $row++;
+      //---- กำหนดความกว้างของคอลัมภ์
+      $sheet->getColumnDimension('B')->setWidth(15);
+      $sheet->getColumnDimension('C')->setWidth(20);
+      $sheet->getColumnDimension('D')->setWidth(20);
+      $sheet->getColumnDimension('E')->setWidth(20);
+      $sheet->getColumnDimension('F')->setWidth(20);
+      $sheet->getColumnDimension('G')->setWidth(90);
+      $sheet->getColumnDimension('H')->setWidth(15);
+      $sheet->getColumnDimension('I')->setWidth(10);
+      $sheet->getColumnDimension('J')->setWidth(15);
+      $sheet->getColumnDimension('K')->setWidth(15);
+      $sheet->getColumnDimension('L')->setWidth(40);
+      $sheet->getColumnDimension('M')->setWidth(15);
+      $sheet->getColumnDimension('N')->setWidth(15);
+      $sheet->getColumnDimension('O')->setWidth(40);
+      $sheet->getColumnDimension('P')->setWidth(40);
 
-        //---- กำหนดความกว้างของคอลัมภ์
-        $this->excel->getActiveSheet()->getColumnDimension('B')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('C')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('D')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('E')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('F')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('G')->setWidth(90);
-        $this->excel->getActiveSheet()->getColumnDimension('H')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('I')->setWidth(10);
-        $this->excel->getActiveSheet()->getColumnDimension('J')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('K')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('L')->setWidth(40);
-        $this->excel->getActiveSheet()->getColumnDimension('M')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('N')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('O')->setWidth(40);
-        $this->excel->getActiveSheet()->getColumnDimension('P')->setWidth(40);
+      $details = $this->receive_details_model->SM($filter);
 
-        $details = $this->receive_details_model->SM($filter);
+      if (! empty($details))
+      {
+        $custs = [];
+        $no = 1;
+        foreach ($details as $rs)
+        {          
+          $date_add = Date::PHPToExcel(new DateTime($rs->date_add));
+          $date_upd = Date::PHPToExcel(new DateTime($rs->date_upd));
+          $amount = $this->receive_details_model->get_doc_total($rs->code, 'SM');
 
-        if( ! empty($details))
-        {
-          $custs = [];
-          $no = 1;
-          foreach($details as $rs)
+          $customer_name = empty($rs->customer_code) ? '' : (empty($custs[$rs->customer_code]) ? $this->customers_model->get_name($rs->customer_code) : $custs[$rs->customer_code]);
+          if(!empty($rs->customer_code) && empty($custs[$rs->customer_code])) $custs[$rs->customer_code] = $customer_name;
+
+          $sheet->setCellValue("A{$row}", $no);
+          $sheet->setCellValue("B{$row}", $date_add);
+          $sheet->setCellValue("C{$row}", $rs->code);
+          $sheet->setCellValue("D{$row}", $rs->invoice);
+          $sheet->setCellValue("E{$row}", round($amount ?? 0, 2));
+          $sheet->setCellValue("F{$row}", $rs->customer_code);
+          $sheet->setCellValue("G{$row}", $customer_name);
+          $sheet->setCellValue("H{$row}", $state[$rs->status]);
+          $sheet->setCellValue("I{$row}", $rs->is_expire == 1 ? 'Y' : 'N');
+          $sheet->setCellValue("J{$row}", $date_upd);
+          $sheet->setCellValue("K{$row}", $rs->warehouse_code);
+          $sheet->setCellValue("L{$row}", empty($rs->warehouse_code) ? NULL : (empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]));
+          $sheet->setCellValue("M{$row}", $rs->user);
+          $sheet->setCellValue("N{$row}", $this->user_model->get_name($rs->user ?? ''));
+          $sheet->setCellValue("O{$row}", $rs->remark);
+
+          if ($rs->status == 2)
           {
-            $ay		= date('Y', strtotime($rs->date_add));
-            $am		= date('m', strtotime($rs->date_add));
-            $ad		= date('d', strtotime($rs->date_add));
-            $date_add = PHPExcel_Shared_Date::FormattedPHPToExcel($ay, $am, $ad);
-
-            $uy		= date('Y', strtotime($rs->date_upd));
-            $um		= date('m', strtotime($rs->date_upd));
-            $ud		= date('d', strtotime($rs->date_upd));
-            $date_upd = PHPExcel_Shared_Date::FormattedPHPToExcel($uy, $um, $ud);
-
-            $amount = $this->receive_details_model->get_doc_total($rs->code, 'SM');
-
-            $customer_name = empty($custs[$rs->customer_code]) ? $this->customers_model->get_name($rs->customer_code) : $custs[$rs->customer_code];
-            $custs[$rs->customer_code] = $customer_name;
-
-            $this->excel->getActiveSheet()->setCellValue("A{$row}", $no);
-            $this->excel->getActiveSheet()->setCellValue("B{$row}", $date_add);
-            $this->excel->getActiveSheet()->setCellValue("C{$row}", $rs->code);
-            $this->excel->getActiveSheet()->setCellValue("D{$row}", $rs->invoice);
-            $this->excel->getActiveSheet()->setCellValue("E{$row}", $amount);
-            $this->excel->getActiveSheet()->setCellValue("F{$row}", $rs->customer_code);
-            $this->excel->getActiveSheet()->setCellValue("G{$row}", $customer_name);
-            $this->excel->getActiveSheet()->setCellValue("H{$row}", $state[$rs->status]);
-            $this->excel->getActiveSheet()->setCellValue("I{$row}", $rs->is_expire == 1 ? 'Y' : 'N');
-            $this->excel->getActiveSheet()->setCellValue("J{$row}", $date_upd);
-            $this->excel->getActiveSheet()->setCellValue("K{$row}", $rs->warehouse_code);
-            $this->excel->getActiveSheet()->setCellValue("L{$row}", empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]);
-            $this->excel->getActiveSheet()->setCellValue("M{$row}", $rs->user);
-            $this->excel->getActiveSheet()->setCellValue("N{$row}", $this->user_model->get_name($rs->user));
-            $this->excel->getActiveSheet()->setCellValue("O{$row}", $rs->remark);
-            if($rs->status == 2)
-            {
-              $this->excel->getActiveSheet()->setCellValue("P{$row}", $rs->cancle_reason);
-            }
-
-            $no++;
-            $row++;
+            $sheet->setCellValue("P{$row}", $rs->cancle_reason);
           }
 
-          $this->excel->getActiveSheet()->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-          $this->excel->getActiveSheet()->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-          $this->excel->getActiveSheet()->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+          $no++;
+          $row++;
         }
-      } //--- endif SM
+
+        $sheet->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $sheet->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $sheet->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+      }
+    } //--- endif SM
 
 
-      if(! empty($role['CN']) OR $all)
-  		{
-  			$worksheet = new PHPExcel_Worksheet($this->excel, "CN");
-  			$this->excel->addSheet($worksheet, $index);
-  			$this->excel->setActiveSheetIndex($index);
-  			$this->excel->getActiveSheet()->setTitle('CN');
+    if (! empty($role['CN']) or $all)
+    {
+      $sheet = $index === 0 ? $excel->getActiveSheet() : $excel->createSheet();     
+      $sheet->setTitle('CN');
+      $index++;
 
-  			$index++;
+      //---  Report title
+      $report_title = "รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด";
+      $role_title = "เอกสาร : ลดหนี้ฝากขายเทียม";
+      $expire_title = "อายุเอกสาร : " . ($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
+      $wh_title     = 'คลัง :  ' . ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
+      $state_title = "สถานะ : " . ($allState == 1 ? "ทั้งหมด" : $this->get_state_title($status));
+      //--- set report title header
+      $sheet->setCellValue('A1', $report_title);
+      $sheet->setCellValue('A2', $role_title);
+      $sheet->setCellValue('A3', $expire_title);
+      $sheet->setCellValue('A4', $state_title);
+      $sheet->setCellValue('A5', $wh_title);
+      $sheet->setCellValue('A6', 'วันที่เอกสาร : (' . thai_date($fromDate, '/') . ') - (' . thai_date($toDate, '/') . ')');
 
-        //---  Report title
-        $report_title = "รายงานสถานะเอกสารขาเข้า แสดงรายละเอียด";
-        $role_title = "เอกสาร : รับสินค้าจากการแปรสภาพ";
-        $expire_title = "อายุเอกสาร : ".($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
-        $wh_title     = 'คลัง :  '. ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
-        $state_title = "สถานะ : ".($allState == 1 ? "ทั้งหมด" : $this->get_state_title($status));
-        //--- set report title header
-        $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
-        $this->excel->getActiveSheet()->setCellValue('A2', $role_title);
-        $this->excel->getActiveSheet()->setCellValue('A3', $expire_title);
-        $this->excel->getActiveSheet()->setCellValue('A4', $state_title);
-        $this->excel->getActiveSheet()->setCellValue('A5', $wh_title);
-        $this->excel->getActiveSheet()->setCellValue('A6', 'วันที่เอกสาร : ('.thai_date($fromDate,'/') .') - ('.thai_date($toDate,'/').')');
+      //--- set Table header
+      $row = 7;
 
-        //--- set Table header
-        $row = 7;
+      $sheet->setCellValue("A{$row}", 'ลำดับ');
+      $sheet->setCellValue("B{$row}", 'วันที่');
+      $sheet->setCellValue("C{$row}", 'เลขที่');
+      $sheet->setCellValue("D{$row}", 'อ้างอิง');
+      $sheet->setCellValue("E{$row}", 'มูลค่า');
+      $sheet->setCellValue("F{$row}", 'รหัสลูกค้า');
+      $sheet->setCellValue("G{$row}", 'ชื่อลูกค้า');
+      $sheet->setCellValue("H{$row}", 'สถานะ');
+      $sheet->setCellValue("I{$row}", 'หมดอายุ');
+      $sheet->setCellValue("J{$row}", 'วันที่แก้ไข');
+      $sheet->setCellValue("K{$row}", 'รหัสคลัง');
+      $sheet->setCellValue("L{$row}", 'ชื่อคลัง');
+      $sheet->setCellValue("M{$row}", 'Username');
+      $sheet->setCellValue("N{$row}", 'พนักงาน');
+      $sheet->setCellValue("O{$row}", 'หมายเหตุ');
+      $sheet->setCellValue("P{$row}", 'cancel reason');
+      $row++;
 
-        $this->excel->getActiveSheet()->setCellValue("A{$row}", 'ลำดับ');
-        $this->excel->getActiveSheet()->setCellValue("B{$row}", 'วันที่');
-        $this->excel->getActiveSheet()->setCellValue("C{$row}", 'เลขที่');
-        $this->excel->getActiveSheet()->setCellValue("D{$row}", 'อ้างอิง');
-        $this->excel->getActiveSheet()->setCellValue("E{$row}", 'มูลค่า');
-        $this->excel->getActiveSheet()->setCellValue("F{$row}", 'รหัสลูกค้า');
-        $this->excel->getActiveSheet()->setCellValue("G{$row}", 'ชื่อลูกค้า');
-        $this->excel->getActiveSheet()->setCellValue("H{$row}", 'สถานะ');
-        $this->excel->getActiveSheet()->setCellValue("I{$row}", 'หมดอายุ');
-        $this->excel->getActiveSheet()->setCellValue("J{$row}", 'วันที่แก้ไข');
-        $this->excel->getActiveSheet()->setCellValue("K{$row}", 'รหัสคลัง');
-        $this->excel->getActiveSheet()->setCellValue("L{$row}", 'ชื่อคลัง');
-        $this->excel->getActiveSheet()->setCellValue("M{$row}", 'Username');
-        $this->excel->getActiveSheet()->setCellValue("N{$row}", 'พนักงาน');
-        $this->excel->getActiveSheet()->setCellValue("O{$row}", 'หมายเหตุ');
-        $this->excel->getActiveSheet()->setCellValue("P{$row}", 'cancel reason');
-        $row++;
+      //---- กำหนดความกว้างของคอลัมภ์
+      $sheet->getColumnDimension('B')->setWidth(15);
+      $sheet->getColumnDimension('C')->setWidth(20);
+      $sheet->getColumnDimension('D')->setWidth(20);
+      $sheet->getColumnDimension('E')->setWidth(20);
+      $sheet->getColumnDimension('F')->setWidth(20);
+      $sheet->getColumnDimension('G')->setWidth(90);
+      $sheet->getColumnDimension('H')->setWidth(15);
+      $sheet->getColumnDimension('I')->setWidth(10);
+      $sheet->getColumnDimension('J')->setWidth(15);
+      $sheet->getColumnDimension('K')->setWidth(15);
+      $sheet->getColumnDimension('L')->setWidth(40);
+      $sheet->getColumnDimension('M')->setWidth(15);
+      $sheet->getColumnDimension('N')->setWidth(15);
+      $sheet->getColumnDimension('O')->setWidth(40);
+      $sheet->getColumnDimension('P')->setWidth(40);
 
-        //---- กำหนดความกว้างของคอลัมภ์
-        $this->excel->getActiveSheet()->getColumnDimension('B')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('C')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('D')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('E')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('F')->setWidth(20);
-        $this->excel->getActiveSheet()->getColumnDimension('G')->setWidth(90);
-        $this->excel->getActiveSheet()->getColumnDimension('H')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('I')->setWidth(10);
-        $this->excel->getActiveSheet()->getColumnDimension('J')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('K')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('L')->setWidth(40);
-        $this->excel->getActiveSheet()->getColumnDimension('M')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('N')->setWidth(15);
-        $this->excel->getActiveSheet()->getColumnDimension('O')->setWidth(40);
-        $this->excel->getActiveSheet()->getColumnDimension('P')->setWidth(40);
+      $details = $this->receive_details_model->CN($filter);
 
-        $details = $this->receive_details_model->CN($filter);
+      if (! empty($details))
+      {
+        $custs = [];
+        $no = 1;
+        foreach ($details as $rs)
+        {          
+          $date_add = Date::PHPToExcel(new DateTime($rs->date_add));
+          $date_upd = Date::PHPToExcel(new DateTime($rs->date_upd));
+          $amount = $this->receive_details_model->get_doc_total($rs->code, 'CN');
 
-        if( ! empty($details))
-        {
-          $custs = [];
-          $no = 1;
-          foreach($details as $rs)
+          $customer_name = empty($rs->customer_code) ? '' : (empty($custs[$rs->customer_code]) ? $this->customers_model->get_name($rs->customer_code) : $custs[$rs->customer_code]);
+          if(!empty($rs->customer_code) && empty($custs[$rs->customer_code])) $custs[$rs->customer_code] = $customer_name;
+
+          $sheet->setCellValue("A{$row}", $no);
+          $sheet->setCellValue("B{$row}", $date_add);
+          $sheet->setCellValue("C{$row}", $rs->code);
+          $sheet->setCellValue("D{$row}", $rs->invoice);
+          $sheet->setCellValue("E{$row}", round($amount ?? 0, 2));
+          $sheet->setCellValue("F{$row}", $rs->customer_code);
+          $sheet->setCellValue("G{$row}", $customer_name);
+          $sheet->setCellValue("H{$row}", $state[$rs->status]);
+          $sheet->setCellValue("I{$row}", 'N');
+          $sheet->setCellValue("J{$row}", $date_upd);
+          $sheet->setCellValue("K{$row}", $rs->warehouse_code);
+          $sheet->setCellValue("L{$row}", empty($rs->warehouse_code) ? '' : (empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]));
+          $sheet->setCellValue("M{$row}", $rs->user);
+          $sheet->setCellValue("N{$row}", $this->user_model->get_name($rs->user ?? ''));
+          $sheet->setCellValue("O{$row}", $rs->remark);
+
+          if ($rs->status == 2)
           {
-            $ay		= date('Y', strtotime($rs->date_add));
-            $am		= date('m', strtotime($rs->date_add));
-            $ad		= date('d', strtotime($rs->date_add));
-            $date_add = PHPExcel_Shared_Date::FormattedPHPToExcel($ay, $am, $ad);
-
-            $uy		= date('Y', strtotime($rs->date_upd));
-            $um		= date('m', strtotime($rs->date_upd));
-            $ud		= date('d', strtotime($rs->date_upd));
-            $date_upd = PHPExcel_Shared_Date::FormattedPHPToExcel($uy, $um, $ud);
-
-            $amount = $this->receive_details_model->get_doc_total($rs->code, 'CN');
-
-            $customer_name = empty($custs[$rs->customer_code]) ? $this->customers_model->get_name($rs->customer_code) : $custs[$rs->customer_code];
-            $custs[$rs->customer_code] = $customer_name;
-
-            $this->excel->getActiveSheet()->setCellValue("A{$row}", $no);
-            $this->excel->getActiveSheet()->setCellValue("B{$row}", $date_add);
-            $this->excel->getActiveSheet()->setCellValue("C{$row}", $rs->code);
-            $this->excel->getActiveSheet()->setCellValue("D{$row}", $rs->invoice);
-            $this->excel->getActiveSheet()->setCellValue("E{$row}", $amount);
-            $this->excel->getActiveSheet()->setCellValue("F{$row}", $rs->customer_code);
-            $this->excel->getActiveSheet()->setCellValue("G{$row}", $customer_name);
-            $this->excel->getActiveSheet()->setCellValue("H{$row}", $state[$rs->status]);
-            $this->excel->getActiveSheet()->setCellValue("I{$row}", 'N');
-            $this->excel->getActiveSheet()->setCellValue("J{$row}", $date_upd);
-            $this->excel->getActiveSheet()->setCellValue("K{$row}", $rs->warehouse_code);
-            $this->excel->getActiveSheet()->setCellValue("L{$row}", empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]);
-            $this->excel->getActiveSheet()->setCellValue("M{$row}", $rs->user);
-            $this->excel->getActiveSheet()->setCellValue("N{$row}", $this->user_model->get_name($rs->user));
-            $this->excel->getActiveSheet()->setCellValue("O{$row}", $rs->remark);
-            if($rs->status == 2)
-            {
-              $this->excel->getActiveSheet()->setCellValue("P{$row}", $rs->cancle_reason);
-            }
-
-            $no++;
-            $row++;
+            $sheet->setCellValue("P{$row}", $rs->cancle_reason);
           }
 
-          $this->excel->getActiveSheet()->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-          $this->excel->getActiveSheet()->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-          $this->excel->getActiveSheet()->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+          $no++;
+          $row++;
         }
-      } //--- endif SM
-    }
+
+        $sheet->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $sheet->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $sheet->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+      }
+    } //--- endif SM    
 
     setToken($token);
     $file_name = "Report Receive Details.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
-
   }
 
 
@@ -939,14 +886,4 @@ class Receive_details extends PS_Controller
     return $list;
   }
 
-
-} //--- end class
-
-
-
-
-
-
-
-
- ?>
+}

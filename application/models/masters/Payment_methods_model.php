@@ -91,6 +91,12 @@ class Payment_methods_model extends CI_Model
     return $rs->num_rows() === 1 ? $rs->row() : FALSE;
   }
 
+  public function get_all()
+  {
+    $rs = $this->db->get($this->tb);
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
+  }
+
   public function get_default()
   {
     $rs = $this->db->where('is_default', 1)->get($this->tb);

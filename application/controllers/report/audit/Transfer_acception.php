@@ -1,13 +1,14 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 class Transfer_acception extends PS_Controller
 {
   public $menu_code = 'RADACT';
 	public $menu_group_code = 'RE';
   public $menu_sub_group_code = 'REAUDIT';
-	public $title = 'รายงานเอกสารโอนคลังที่ต้องกดรับ';
-  public $filter;
-	public $wms;
+	public $title = 'รายงานเอกสารโอนคลังที่ต้องกดรับ'; 
 	public $limit = 2000;
 
   public function __construct()
@@ -25,13 +26,14 @@ class Transfer_acception extends PS_Controller
 
   public function get_report()
   {
-    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
+    ini_set('memory_limit','2048M'); 
+    ini_set('max_execution_time', 600); // Set max execution time to 10 minutes
     ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
     ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
 
     $sc = TRUE;
 
-    $json = json_decode($this->input->post('json'));
+    $json = json_decode($this->input->post('json') ?? '{}');
 
     if( ! empty($json))
     {
@@ -73,7 +75,7 @@ class Transfer_acception extends PS_Controller
               $name = $this->transfer_acception_model->get_accept_list($doc, $rs->code);
             }
 
-            $arr = array(
+            $ds[] = array(
               'no' => $no,
               'date_add' => thai_date($rs->date_add),
               'code' => $rs->code,
@@ -83,9 +85,7 @@ class Transfer_acception extends PS_Controller
               'accept_on' => thai_date($rs->accept_on, TRUE),
               'accept_remark' => $rs->accept_remark
             );
-
-            array_push($ds, $arr);
-
+            
             $no++;
           }
         }
@@ -110,7 +110,8 @@ class Transfer_acception extends PS_Controller
 
   public function do_export()
   {
-    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
+    ini_set('memory_limit','2048M'); 
+    ini_set('max_execution_time', 600); // Set max execution time to 10 minutes
     ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
     ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
 
@@ -139,33 +140,29 @@ class Transfer_acception extends PS_Controller
       'is_accept' => $is_accept
     );
 
-    //--- load excel library
-    $this->load->library('excel');
-
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Transfer Acception Report');
-
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
+    $sheet->setTitle('Transfer Acception Report');
     //--- set report title header
-    $this->excel->getActiveSheet()->getColumnDimension('A')->setWidth(8);
-    $this->excel->getActiveSheet()->getColumnDimension('B')->setWidth(15);
-    $this->excel->getActiveSheet()->getColumnDimension('C')->setWidth(20);
-    $this->excel->getActiveSheet()->getColumnDimension('D')->setWidth(30);
-    $this->excel->getActiveSheet()->getColumnDimension('E')->setWidth(15);
-    $this->excel->getActiveSheet()->getColumnDimension('F')->setWidth(30);
-    $this->excel->getActiveSheet()->getColumnDimension('G')->setWidth(25);
-    $this->excel->getActiveSheet()->getColumnDimension('H')->setWidth(50);
-
-    $this->excel->getActiveSheet()->setCellValue('A1', 'รายงานเอกสารโอนคลังที่ต้องกดรับ');
+    $sheet->getColumnDimension('A')->setWidth(8);
+    $sheet->getColumnDimension('B')->setWidth(15);
+    $sheet->getColumnDimension('C')->setWidth(20);
+    $sheet->getColumnDimension('D')->setWidth(30);
+    $sheet->getColumnDimension('E')->setWidth(15);
+    $sheet->getColumnDimension('F')->setWidth(30);
+    $sheet->getColumnDimension('G')->setWidth(25);
+    $sheet->getColumnDimension('H')->setWidth(50);
+    $sheet->setCellValue('A1', 'รายงานเอกสารโอนคลังที่ต้องกดรับ');
 
     //--- set Table header
-    $this->excel->getActiveSheet()->setCellValue('A2', 'ลำดับ');
-    $this->excel->getActiveSheet()->setCellValue('B2', 'วันที่');
-    $this->excel->getActiveSheet()->setCellValue('C2', 'เลขที่');
-    $this->excel->getActiveSheet()->setCellValue('D2', 'เจ้าของโซน');
-    $this->excel->getActiveSheet()->setCellValue('E2', 'การกดรับ');
-    $this->excel->getActiveSheet()->setCellValue('F2', 'กดรับโดย');
-    $this->excel->getActiveSheet()->setCellValue('G2', 'วันที่กดรับ');
-    $this->excel->getActiveSheet()->setCellValue('H2', 'หมายเหตุ');
+    $sheet->setCellValue('A2', 'ลำดับ');
+    $sheet->setCellValue('B2', 'วันที่');
+    $sheet->setCellValue('C2', 'เลขที่');
+    $sheet->setCellValue('D2', 'เจ้าของโซน');
+    $sheet->setCellValue('E2', 'การกดรับ');
+    $sheet->setCellValue('F2', 'กดรับโดย');
+    $sheet->setCellValue('G2', 'วันที่กดรับ');
+    $sheet->setCellValue('H2', 'หมายเหตุ');
 
 
 		if(! empty($docList))
@@ -189,14 +186,14 @@ class Transfer_acception extends PS_Controller
               $name = $this->transfer_acception_model->get_accept_list($doc, $rs->code);
             }
 
-            $this->excel->getActiveSheet()->setCellValue('A'.$row, $no);
-  	        $this->excel->getActiveSheet()->setCellValue('B'.$row, thai_date($rs->date_add, FALSE, '/'));
-  					$this->excel->getActiveSheet()->setCellValue('C'.$row, $rs->code);
-            $this->excel->getActiveSheet()->setCellValue('D'.$row, $owner);
-  	        $this->excel->getActiveSheet()->setCellValue('E'.$row, $rs->is_accept == 1 ? 'กดรับแล้ว' : 'ยังไม่กดรับ');
-  	        $this->excel->getActiveSheet()->setCellValue('F'.$row, $name);
-  					$this->excel->getActiveSheet()->setCellValue('G'.$row, thai_date($rs->accept_on, TRUE, '/'));
-            $this->excel->getActiveSheet()->setCellValue('H'.$row, $rs->accept_remark);
+            $sheet->setCellValue('A'.$row, $no);
+  	        $sheet->setCellValue('B'.$row, thai_date($rs->date_add, FALSE, '/'));
+  					$sheet->setCellValue('C'.$row, $rs->code);
+            $sheet->setCellValue('D'.$row, $owner);
+  	        $sheet->setCellValue('E'.$row, $rs->is_accept == 1 ? 'กดรับแล้ว' : 'ยังไม่กดรับ');
+  	        $sheet->setCellValue('F'.$row, $name);
+  					$sheet->setCellValue('G'.$row, thai_date($rs->accept_on, TRUE, '/'));
+            $sheet->setCellValue('H'.$row, $rs->accept_remark);
 
   					$no++;
   					$row++;
@@ -209,18 +206,7 @@ class Transfer_acception extends PS_Controller
     $file_name = "รายงานเอกสารโอนคลังที่ต้องกดรับ ".date('Ymd').".xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
-
   }
-
-} //--- end class
-
-
-
-
-
-
-
-
- ?>
+}

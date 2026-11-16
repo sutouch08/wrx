@@ -52,8 +52,7 @@ class Return_order extends REST_Controller
   {
     $sc = TRUE;
 
-    $this->api_path = $this->api_path."/create";
-    //--- Get raw post data
+    $this->api_path = $this->api_path."/create";    
     $json = file_get_contents("php://input");
 
     if( ! $this->api)

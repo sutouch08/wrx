@@ -7,7 +7,8 @@ class Stock_zone extends REST_Controller
   public $ms;
   public $cn;
   public $error;
-
+  public $api;
+  
   public function __construct()
   {
     parent::__construct();
@@ -30,8 +31,7 @@ class Stock_zone extends REST_Controller
   public function countItems_get()
   {
     $json = file_get_contents("php://input");
-
-    $data = json_decode($json);
+    $data = json_decode($json ?? '{}');
 
     if( ! empty($data) && ! empty($data->zone_code))
     {
@@ -85,8 +85,7 @@ class Stock_zone extends REST_Controller
   {
     //--- Get raw post data
     $json = file_get_contents("php://input");
-
-    $data = json_decode($json);
+    $data = json_decode($json ?? '{}');
 
     if(empty($data) OR empty($data->zone_code))
     {
@@ -120,7 +119,7 @@ class Stock_zone extends REST_Controller
         $arr = array(
           'status' => TRUE,
           'data' => $result,
-          'count' => count($result),
+          'count' => count($result ?? []),
           'error' => 'success'
         );
 

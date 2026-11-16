@@ -99,7 +99,7 @@ class Document_model extends CI_Model
 	public function MV($fromDate, $toDate)
 	{
 		$rs = $this->db
-		->select('date_add, code, inv_code, status')
+		->select('date_add, code, inv_code, status, is_expire, cancle_reason AS reason')
 		->where('date_add >=', from_date($fromDate))
 		->where('date_add <=', to_date($toDate))
 		->get('move');

@@ -1,12 +1,16 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use OpenSpout\Writer\XLSX\Writer;
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Common\Entity\Style\Style;
+
 class Order_details extends PS_Controller
 {
   public $menu_code = 'RAODDT';
 	public $menu_group_code = 'RE';
   public $menu_sub_group_code = 'REAUDIT';
 	public $title = 'รายงานสถานะเอกสารขาออก แสดงรายละเอียด';
-  public $filter;
+ 
   public function __construct()
   {
     parent::__construct();
@@ -23,8 +27,8 @@ class Order_details extends PS_Controller
   public function index()
   {
     $ds = array(
-      'channels_list' => $this->channels_model->get_data(),
-      'payment_list' => $this->payment_methods_model->get_data(),
+      'channels_list' => $this->channels_model->get_all(),
+      'payment_list' => $this->payment_methods_model->get_all(),
       'warehouse_list' => $this->warehouse_model->get_sell_warehouse_list()
     );
 
@@ -34,8 +38,8 @@ class Order_details extends PS_Controller
   private function channels_array()
   {
     $ds = array();
-
     $rs = $this->db->get('channels');
+
     if($rs->num_rows() > 0)
     {
       foreach($rs->result() as $rd)
@@ -99,27 +103,22 @@ class Order_details extends PS_Controller
   private function cancel_reason($code)
   {
     $rs = $this->db->where('code', $code)->order_by('id', 'DESC')->limit(1)->get('order_cancle_reason');
-
-    if($rs->num_rows() == 1)
-    {
-      return $rs->row()->reason;
-    }
-
-    return NULL;
+    return $rs->num_rows() == 1 ? $rs->row()->reason : "";    
   }
 
 
   public function get_report()
   {
-    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
-    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
-    ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
+    ini_set('memory_limit','2048M'); 
+    ini_set('max_execution_time', 600);
+    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); 
+    ini_set('sqlsrv.client_buffer_max_kb_size','2097152');
 
     $sc = TRUE;
 
     if($this->input->get("json"))
     {
-      $json = json_decode($this->input->get("json"));
+      $json = json_decode($this->input->get("json") ?? '{}');
 
       if( ! empty($json))
       {
@@ -152,7 +151,6 @@ class Order_details extends PS_Controller
           $channels = $this->channels_array();
           $payment = $this->payment_array();
           $cust = array();
-
           $no = 1;
 
           foreach($details as $rs)
@@ -163,21 +161,21 @@ class Order_details extends PS_Controller
             $rs->date_add = thai_date($rs->date_add, FALSE, '/');
             $rs->date_upd = thai_date($rs->date_upd, FALSE, '/');
             $rs->total_amount = number($this->order_details_model->get_doc_total($rs->code), 2);
-            $rs->channels_name = empty($channels[$rs->channels_code]) ? NULL : $channels[$rs->channels_code];
-            $rs->payment_name = empty($payment[$rs->payment_code]) ? NULL : $payment[$rs->payment_code];
-            $rs->warehouse_name = empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code];
-            $rs->state_name = $state[$rs->state];
+            $rs->channels_name = empty($channels[$rs->channels_code ?? '']) ? NULL : $channels[$rs->channels_code];
+            $rs->payment_name = empty($payment[$rs->payment_code ?? '']) ? NULL : $payment[$rs->payment_code];
+            $rs->warehouse_name = empty($wh[$rs->warehouse_code ?? '']) ? NULL : $wh[$rs->warehouse_code];
+            $rs->state_name = $state[$rs->state ?? ''];
             $rs->uname = $rs->user;
             $rs->emp_name = $this->user_model->get_name($rs->user);
             $rs->cancel_reason = $rs->state == 9 ? $this->cancel_reason($rs->code) : NULL;
 
-            if(empty($cust[$rs->customer_code]))
+            if(empty($cust[$rs->customer_code ?? '']))
             {
-              $customer_name = $this->customers_model->get_name($rs->customer_code);
-              $cust[$rs->customer_code] = $customer_name;
+              $customer_name = $this->customers_model->get_name($rs->customer_code ?? '');
+              $cust[$rs->customer_code ?? ''] = $customer_name;
             }
 
-            $rs->customer_name = $cust[$rs->customer_code];
+            $rs->customer_name = $cust[$rs->customer_code ?? ''];
             $no++;
           }
         }
@@ -199,195 +197,186 @@ class Order_details extends PS_Controller
   }
 
 
-
   public function do_export()
   {
-    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
-    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
-    ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
+    ini_set('memory_limit','2048M');
+    ini_set('max_execution_time', 600);
+    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152');
+    ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); 
 
     $token = $this->input->post('token');
+    $allRole = $this->input->post('allRole');
+    $allWarehouse = $this->input->post('allWarehouse');
+    $allChannels = $this->input->post('allChannels');
+    $allPayments = $this->input->post('allPayments');
+    $allState = $this->input->post('allState');
+    $is_expired = $this->input->post('is_expired');
+    $is_preorder = $this->input->post('is_preorder');
+    $fromDate = $this->input->post('fromDate');
+    $toDate = $this->input->post('toDate');
+    $role = $this->input->post('role');
+    $channels = $this->input->post('channels');
+    $payments = $this->input->post('payments');
+    $warehouse = $this->input->post('warehouse');
+    $state = $this->input->post('state');
 
-    //--- load excel library
-    $this->load->library('excel');
+    $filter = array(
+      "from_date" => $fromDate,
+      "to_date" => $toDate,
+      "all_role" => $allRole,
+      "role" => $role,
+      "is_expired" => $is_expired,
+      "is_preorder" => $is_preorder,
+      "all_state" => $allState,
+      "state" => $state,
+      "all_channels" => $allChannels,
+      "channels" => $channels,
+      "all_payment" => $allPayments,
+      "payment" => $payments,
+      "all_warehouse" => $allWarehouse,
+      "warehouse" => $warehouse
+    );
+    
+    //---  Report title
+    $report_title = "รายงานสถานะเอกสารแสดงรายละเอียด";
+    $role_title = "เอกสาร : " . ($allRole == 1 ? 'ทั้งหมด' : $this->get_role_title($role));
+    $expire_title = "อายุเอกสาร : " . ($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
+    $wh_title     = 'คลัง :  ' . ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
+    $ch_title = "ช่องทางขาย : " . ($allChannels == 1 ? 'ทั้งหมด' : $this->get_title($channels));
+    $pay_title = "การชำระเงิน : " . ($allPayments == 1 ? "ทั้งหมด" : $this->get_title($payments));
+    $state_title = "สถานะ : " . ($allState == 1 ? "ทั้งหมด" : $this->get_state_title($state));
+    $date_title = "วันที่เอกสาร : (" . thai_date($fromDate, '/') . ") - (" . thai_date($toDate, '/') . ")";
 
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Order details Report');
+    $count = $this->order_details_model->count_rows($filter);
+    
+    $tempFile = tempnam(sys_get_temp_dir(), 'item_reserved_');
+    $writer = new Writer();
+    $writer->openToFile($tempFile);
+    $style = (new Style())->setShouldWrapText(false);
+    $writer->getOptions()->DEFAULT_ROW_STYLE = $style;
+    
 
-    if($this->input->post('fromDate'))
+    try 
     {
-      $allRole = $this->input->post('allRole');
-      $allWarehouse = $this->input->post('allWarehouse');
-      $allChannels = $this->input->post('allChannels');
-      $allPayments = $this->input->post('allPayments');
-      $allState = $this->input->post('allState');
-      $is_expired = $this->input->post('is_expired');
-      $is_preorder = $this->input->post('is_preorder');
-      $fromDate = $this->input->post('fromDate');
-      $toDate = $this->input->post('toDate');
-      $role = $this->input->post('role');
-      $channels = $this->input->post('channels');
-      $payments = $this->input->post('payments');
-      $warehouse = $this->input->post('warehouse');
-      $state = $this->input->post('state');
+      $header = ['#', 'วันที่', 'เลขที่', 'อ้างอิง', 'มูลค่า', 'รหัสลูกค้า', 'ชื่อลูกค้า', 'สถานะ', 'หมดอายุ', 'วันที่แก้ไข', 'ช่องทางขาย', 'การชำระเงิน', 'รหัสคลัง', 'ชื่อคลัง', 'Username', 'พนักงาน', 'หมายเหตุ', 'cancel reason', 'Pre-order', 'DO No'];
 
-      $filter = array(
-        "from_date" => $fromDate,
-        "to_date" => $toDate,
-        "all_role" => $allRole,
-        "role" => $role,
-        "is_expired" => $is_expired,
-        "is_preorder" => $is_preorder,
-        "all_state" => $allState,
-        "state" => $state,
-        "all_channels" => $allChannels,
-        "channels" => $channels,
-        "all_payment" => $allPayments,
-        "payment" => $payments,
-        "all_warehouse" => $allWarehouse,
-        "warehouse" => $warehouse
-      );
+      $writer->addRow(Row::fromValues([$report_title]));
+      $writer->addRow(Row::fromValues([$role_title]));
+      $writer->addRow(Row::fromValues([$expire_title]));
+      $writer->addRow(Row::fromValues([$state_title]));
+      $writer->addRow(Row::fromValues([$ch_title]));
+      $writer->addRow(Row::fromValues([$pay_title]));
+      $writer->addRow(Row::fromValues([$wh_title]));
+      $writer->addRow(Row::fromValues([$date_title]));
+      $writer->addRow(Row::fromValues(['']));
+      $writer->addRow(Row::fromValues($header));
 
-      $details = $this->order_details_model->get_data($filter);
+      $writer->getOptions()->mergeCells(0, 1, 19, 1);
+      $writer->getOptions()->mergeCells(0, 2, 19, 2);
+      $writer->getOptions()->mergeCells(0, 3, 19, 3);
+      $writer->getOptions()->mergeCells(0, 4, 19, 4);
+      $writer->getOptions()->mergeCells(0, 5, 19, 5);
+      $writer->getOptions()->mergeCells(0, 6, 19, 6);
+      $writer->getOptions()->mergeCells(0, 7, 19, 7);
+      $writer->getOptions()->mergeCells(0, 8, 19, 8);
 
-      //---  Report title
-      $report_title = "รายงานสถานะเอกสารแสดงรายละเอียด";
-      $role_title = "เอกสาร : ". ($allRole == 1 ? 'ทั้งหมด' : $this->get_role_title($role));
-      $expire_title = "อายุเอกสาร : ".($is_expired == 'all' ? 'ทั้งหมด' : ($is_expired == 1 ? 'เฉพาะที่หมดอายุ' : 'เฉพาะที่ไม่หมดอายุ'));
-      $wh_title     = 'คลัง :  '. ($allWarehouse == 1 ? 'ทั้งหมด' : $this->get_title($warehouse));
-      $ch_title = "ช่องทางขาย : ". ($allChannels == 1 ? 'ทั้งหมด' : $this->get_title($channels));
-      $pay_title = "การชำระเงิน : ". ($allPayments == 1 ? "ทั้งหมด" : $this->get_title($payments));
-      $state_title = "สถานะ : ".($allState == 1 ? "ทั้งหมด" : $this->get_state_title($state));
+      $sheet = $writer->getCurrentSheet();
+      $sheet->setColumnWidth(7, 1);
+      $sheet->setColumnWidth(12, 2);
+      $sheet->setColumnWidth(15, 3);
+      $sheet->setColumnWidth(20, 4);
+      $sheet->setColumnWidth(15, 5);
+      $sheet->setColumnWidth(12, 6);
+      $sheet->setColumnWidth(70, 7);
+      $sheet->setColumnWidth(15, 8);
+      $sheet->setColumnWidthForRange(15, 9, 12);
+      $sheet->setColumnWidth(10, 13);
+      $sheet->setColumnWidth(50, 14);
+      $sheet->setColumnWidth(20, 15);
+      $sheet->setColumnWidth(50, 16);
+      $sheet->setColumnWidth(90, 17);
+      $sheet->setColumnWidth(40, 18);
+      $sheet->setColumnWidth(10, 19);
+      $sheet->setColumnWidth(10, 20);      
 
-      //--- set report title header
-      $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
-      $this->excel->getActiveSheet()->setCellValue('A2', $role_title);
-      $this->excel->getActiveSheet()->setCellValue('A3', $expire_title);
-      $this->excel->getActiveSheet()->setCellValue('A4', $state_title);
-      $this->excel->getActiveSheet()->setCellValue('A5', $ch_title);
-      $this->excel->getActiveSheet()->setCellValue('A6', $pay_title);
-      $this->excel->getActiveSheet()->setCellValue('A7', $wh_title);
-      $this->excel->getActiveSheet()->setCellValue('A8', 'วันที่เอกสาร : ('.thai_date($fromDate,'/') .') - ('.thai_date($toDate,'/').')');
-
-      //--- set Table header
-      $row = 9;
-
-      $this->excel->getActiveSheet()->setCellValue("A{$row}", 'ลำดับ');
-      $this->excel->getActiveSheet()->setCellValue("B{$row}", 'วันที่');
-      $this->excel->getActiveSheet()->setCellValue("C{$row}", 'เลขที่');
-      $this->excel->getActiveSheet()->setCellValue("D{$row}", 'อ้างอิง');
-      $this->excel->getActiveSheet()->setCellValue("E{$row}", 'มูลค่า');
-      $this->excel->getActiveSheet()->setCellValue("F{$row}", 'รหัสลูกค้า');
-      $this->excel->getActiveSheet()->setCellValue("G{$row}", 'ชื่อลูกค้า');
-      $this->excel->getActiveSheet()->setCellValue("H{$row}", 'สถานะ');
-      $this->excel->getActiveSheet()->setCellValue("I{$row}", 'หมดอายุ');
-      $this->excel->getActiveSheet()->setCellValue("J{$row}", 'วันที่แก้ไข');
-      $this->excel->getActiveSheet()->setCellValue("K{$row}", 'ช่องทางขาย');
-      $this->excel->getActiveSheet()->setCellValue("L{$row}", 'การชำระเงิน');
-      $this->excel->getActiveSheet()->setCellValue("M{$row}", 'รหัสคลัง');
-      $this->excel->getActiveSheet()->setCellValue("N{$row}", 'ชื่อคลัง');
-      $this->excel->getActiveSheet()->setCellValue("O{$row}", 'Username');
-      $this->excel->getActiveSheet()->setCellValue("P{$row}", 'พนักงาน');
-      $this->excel->getActiveSheet()->setCellValue("Q{$row}", 'หมายเหตุ');
-      $this->excel->getActiveSheet()->setCellValue("R{$row}", 'cancel reason');
-      $this->excel->getActiveSheet()->setCellValue("S{$row}", 'Pre-order');
-      $this->excel->getActiveSheet()->setCellValue("T{$row}", 'DO No');
-      $row++;
-
-      //---- กำหนดความกว้างของคอลัมภ์
-      $this->excel->getActiveSheet()->getColumnDimension('B')->setWidth(15);
-      $this->excel->getActiveSheet()->getColumnDimension('C')->setWidth(20);
-      $this->excel->getActiveSheet()->getColumnDimension('D')->setWidth(20);
-      $this->excel->getActiveSheet()->getColumnDimension('E')->setWidth(20);
-      $this->excel->getActiveSheet()->getColumnDimension('F')->setWidth(20);
-      $this->excel->getActiveSheet()->getColumnDimension('G')->setWidth(90);
-      $this->excel->getActiveSheet()->getColumnDimension('H')->setWidth(15);
-      $this->excel->getActiveSheet()->getColumnDimension('I')->setWidth(10);
-      $this->excel->getActiveSheet()->getColumnDimension('J')->setWidth(15);
-      $this->excel->getActiveSheet()->getColumnDimension('K')->setWidth(20);
-      $this->excel->getActiveSheet()->getColumnDimension('L')->setWidth(20);
-      $this->excel->getActiveSheet()->getColumnDimension('M')->setWidth(15);
-      $this->excel->getActiveSheet()->getColumnDimension('N')->setWidth(40);
-      $this->excel->getActiveSheet()->getColumnDimension('O')->setWidth(15);
-      $this->excel->getActiveSheet()->getColumnDimension('P')->setWidth(15);
-      $this->excel->getActiveSheet()->getColumnDimension('Q')->setWidth(40);
-      $this->excel->getActiveSheet()->getColumnDimension('R')->setWidth(40);
-      $this->excel->getActiveSheet()->getColumnDimension('S')->setWidth(10);
-      $this->excel->getActiveSheet()->getColumnDimension('R')->setWidth(15);
-
-      if( ! empty($details))
+      $limit = 10000;
+      $offset = 0;
+      $max_loop = 100;
+      $rows = 0;
+     
+      if ($count > 0)
       {
         $state = $this->state_array();
         $wh = $this->warehouse_array();
         $channels = $this->channels_array();
         $payment = $this->payment_array();
         $cust = array();
-
         $no = 1;
-        foreach($details as $rs)
+
+        while ($rows < $count && $max_loop > 0)
         {
-          $ay		= date('Y', strtotime($rs->date_add));
-          $am		= date('m', strtotime($rs->date_add));
-          $ad		= date('d', strtotime($rs->date_add));
-          $date_add = PHPExcel_Shared_Date::FormattedPHPToExcel($ay, $am, $ad);
+          $details = $this->order_details_model->get_data($filter, $limit, $offset);
 
-          $uy		= date('Y', strtotime($rs->date_upd));
-          $um		= date('m', strtotime($rs->date_upd));
-          $ud		= date('d', strtotime($rs->date_upd));
-          $date_upd = PHPExcel_Shared_Date::FormattedPHPToExcel($uy, $um, $ud);
-
-          $amount = $this->order_details_model->get_doc_total($rs->code);
-
-          if(empty($cust[$rs->customer_code]))
+          if (!empty($details))
           {
-            $customer_name = $this->customers_model->get_name($rs->customer_code);
-            $cust[$rs->customer_code] = $customer_name;
+            foreach ($details as $rs)
+            {
+              if (!empty($rs->customer_code) && empty($cust[$rs->customer_code]))
+              {
+                $customer_name = $this->customers_model->get_name($rs->customer_code);
+                $cust[$rs->customer_code] = $customer_name;
+              }
+
+              $writer->addRow(Row::fromValues([
+                $no,
+                thai_date($rs->date_add),
+                $rs->code,
+                $rs->reference,
+                round($this->order_details_model->get_doc_total($rs->code) ?? 0.00, 2),
+                $rs->customer_code ?? '',
+                empty($rs->customer_code) ? '' : $cust[$rs->customer_code],
+                $state[$rs->state],
+                $rs->is_expired == 1 ? 'Y' : 'N',
+                thai_date($rs->date_upd),
+                empty($rs->channels_code) ? '' : (empty($channels[$rs->channels_code]) ? NULL : $channels[$rs->channels_code]),
+                empty($rs->payment_code) ? '' : (empty($payment[$rs->payment_code]) ? NULL : $payment[$rs->payment_code]),
+                $rs->warehouse_code,
+                empty($rs->warehouse_code) ? '' : (empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]),
+                $rs->user,
+                $this->user_model->get_name($rs->user),
+                $rs->remark,
+                $rs->state == 9 ? $this->cancel_reason($rs->code) : '',
+                $rs->is_pre_order == 1 ? 'Y' : 'N',
+                $rs->inv_code
+              ]));
+
+              $no++;
+              $rows++;
+              $offset++;
+            }
           }
 
-          $this->excel->getActiveSheet()->setCellValue("A{$row}", $no);
-          $this->excel->getActiveSheet()->setCellValue("B{$row}", $date_add);
-          $this->excel->getActiveSheet()->setCellValue("C{$row}", $rs->code);
-          $this->excel->getActiveSheet()->setCellValue("D{$row}", $rs->reference);
-          $this->excel->getActiveSheet()->setCellValue("E{$row}", $amount);
-          $this->excel->getActiveSheet()->setCellValue("F{$row}", $rs->customer_code);
-          $this->excel->getActiveSheet()->setCellValue("G{$row}", $cust[$rs->customer_code]);
-          $this->excel->getActiveSheet()->setCellValue("H{$row}", $state[$rs->state]);
-          $this->excel->getActiveSheet()->setCellValue("I{$row}", $rs->is_expired == 1 ? 'Y' : 'N');
-          $this->excel->getActiveSheet()->setCellValue("J{$row}", $date_upd);
-          $this->excel->getActiveSheet()->setCellValue("K{$row}", empty($channels[$rs->channels_code]) ? NULL : $channels[$rs->channels_code]);
-          $this->excel->getActiveSheet()->setCellValue("L{$row}", empty($payment[$rs->payment_code]) ? NULL : $payment[$rs->payment_code]);
-          $this->excel->getActiveSheet()->setCellValue("M{$row}", $rs->warehouse_code);
-          $this->excel->getActiveSheet()->setCellValue("N{$row}", empty($wh[$rs->warehouse_code]) ? NULL : $wh[$rs->warehouse_code]);
-          $this->excel->getActiveSheet()->setCellValue("O{$row}", $rs->user);
-          $this->excel->getActiveSheet()->setCellValue("P{$row}", $this->user_model->get_name($rs->user));
-          $this->excel->getActiveSheet()->setCellValue("Q{$row}", $rs->remark);
-
-          if($rs->state == 9)
-          {
-            $this->excel->getActiveSheet()->setCellValue("R{$row}", $this->cancel_reason($rs->code));
-          }
-
-          $this->excel->getActiveSheet()->setCellValue("S{$row}", $rs->is_pre_order == 1 ? 'Y' : 'N');
-          $this->excel->getActiveSheet()->setCellValue("T{$row}", $rs->inv_code);
-
-
-          $no++;
-          $row++;
+          $max_loop--;
         }
+      }
 
-        $this->excel->getActiveSheet()->getStyle("B10:B{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-        $this->excel->getActiveSheet()->getStyle("J10:J{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
-        $this->excel->getActiveSheet()->getStyle("E10:E{$row}")->getNumberFormat()->setFormatCode('#,##0.00');
+      $writer->close();
+      setToken($token);
+      while (ob_get_level()) ob_end_clean();
+      $file_name = "Report Order Details.xlsx";
+      header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); 
+      header('Content-Disposition: attachment;filename="' . $file_name . '"');
+      readfile($tempFile);
+    }
+    finally
+    {
+      if (file_exists($tempFile))
+      {
+        unlink($tempFile);
       }
     }
 
-    setToken($token);
-    $file_name = "Report Order Details.xlsx";
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
-    header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
-    $writer->save('php://output');
-
+    exit;    
   }
 
 
@@ -471,15 +460,4 @@ class Order_details extends PS_Controller
 
     return $list;
   }
-
-
-} //--- end class
-
-
-
-
-
-
-
-
- ?>
+} 

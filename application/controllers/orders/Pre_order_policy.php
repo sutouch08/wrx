@@ -31,43 +31,22 @@ class Pre_order_policy extends PS_Controller
     if( $this->input->post('search'))
     {
       redirect($this->home);
+      exit;
     }
-    else
-    {
-      //--- แสดงผลกี่รายการต่อหน้า
-      $perpage = get_rows();
 
-      $segment = 4; //-- url segment
-
-      $rows = $this->pre_order_policy_model->count_rows($filter);
-
-      //--- ส่งตัวแปรเข้าไป 4 ตัว base_url ,  total_row , perpage = 20, segment = 3
-      $init	= pagination_config($this->home.'/index/', $rows, $perpage, $this->segment);
-
-      $result = $this->pre_order_policy_model->get_data($filter, $perpage, $this->uri->segment($this->segment));
-
-      $filter['data'] = $result;
-
-      $this->pagination->initialize($init);
-
-      $this->load->view('preorder/policy_list', $filter);
-
-    }
+    $perpage = get_rows();
+    $rows = $this->pre_order_policy_model->count_rows($filter);
+    $filter['data'] = $this->pre_order_policy_model->get_data($filter, $perpage, $this->uri->segment($this->segment));    
+    $init = pagination_config($this->home . '/index/', $rows, $perpage, $this->segment);
+    $this->pagination->initialize($init);
+    $this->load->view('preorder/policy_list', $filter);
   }
 
 
   public function add_new()
   {
-    if($this->pm->can_add)
-    {
-      $this->load->view('preorder/policy_add');
-    }
-    else
-    {
-      $this->deny_page();
-    }
+    $this->load->view('preorder/policy_add');    
   }
-
 
   public function add()
   {
@@ -75,10 +54,10 @@ class Pre_order_policy extends PS_Controller
 
     if($this->pm->can_add)
     {
-      $name = trim($this->input->post('name'));
+      $name = trim($this->input->post('name') ?? '');
       $status = $this->input->post('status') == 1 ? 1 : 0;
-      $start_date = $this->input->post('start_date');
-      $end_date = $this->input->post('end_date');
+      $start_date = $this->input->post('start_date') ?? '';
+      $end_date = $this->input->post('end_date') ?? '';
 
       if($name && $start_date && $end_date)
       {
@@ -143,7 +122,7 @@ class Pre_order_policy extends PS_Controller
     }
     else
     {
-      $this->deny_page();
+      $this->deny_page(TRUE);
     }
   }
 
@@ -155,10 +134,10 @@ class Pre_order_policy extends PS_Controller
     if($this->pm->can_add OR $this->pm->can_edit)
     {
       $id = $this->input->post('id');
-      $name = trim($this->input->post('name'));
+      $name = trim($this->input->post('name') ?? '');
       $status = $this->input->post('status') == 1 ? 1 : 0;
-      $start_date = $this->input->post('start_date');
-      $end_date = $this->input->post('end_date');
+      $start_date = $this->input->post('start_date') ?? '';
+      $end_date = $this->input->post('end_date') ?? '';
 
       if($name && $start_date && $end_date)
       {
@@ -358,7 +337,7 @@ class Pre_order_policy extends PS_Controller
   {
     $sc = TRUE;
     $id_policy = $this->input->post('id');
-    $style_code = trim($this->input->post('style_code'));
+    $style_code = trim($this->input->post('style_code') ?? '');
 
     $result = array();
 
@@ -516,9 +495,6 @@ class Pre_order_policy extends PS_Controller
   public function clear_filter()
   {
     $filter = array('policy_code', 'policy_name', 'active', 'start_date', 'end_date');
-    clear_filter($filter);
-    echo 'done';
+    return clear_filter($filter);   
   }
-
-}//-- end class
-?>
+}

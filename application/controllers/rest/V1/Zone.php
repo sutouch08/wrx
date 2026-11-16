@@ -6,6 +6,7 @@ class Zone extends REST_Controller
 {
   public $error;
   public $user;
+  public $api;
 
   public function __construct()
   {
@@ -46,7 +47,7 @@ class Zone extends REST_Controller
 	public function getUpdateZone_get()
 	{
 		$json = file_get_contents("php://input");
-		$ds = json_decode($json);
+		$ds = json_decode($json ?? '{}');
 
 		if(! empty($ds))
 		{

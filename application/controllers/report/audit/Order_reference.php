@@ -1,5 +1,9 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 class Order_reference extends PS_Controller
 {
   public $menu_code = 'RAOREF';
@@ -22,7 +26,7 @@ class Order_reference extends PS_Controller
   public function get_order()
   {
     $sc = TRUE;
-    $code = trim($this->input->post('code'));
+    $code = trim($this->input->post('code') ?? '');
     $ds = [];
 
     if( ! empty($code))
@@ -109,13 +113,10 @@ class Order_reference extends PS_Controller
     ini_set('memory_limit','2048M');
 
     $token = $this->input->post('token');
-    $ds = json_decode($this->input->post('data'));
-
-    $this->load->library('excel');
-
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle("order ref");
-    $sheet = $this->excel->getActiveSheet();
+    $ds = json_decode($this->input->post('data') ?? '{}');
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
+    $sheet->setTitle('order ref');    
     $sheet->getColumnDimension("A")->setAutoSize(true);
     $sheet->getColumnDimension("B")->setAutoSize(true);
     $sheet->getColumnDimension("C")->setAutoSize(true);
@@ -143,11 +144,11 @@ class Order_reference extends PS_Controller
       foreach($ds as $rs)
       {
         $sheet->setCellValue("A{$row}", $no);
-        $sheet->setCellValueExplicit("B{$row}", $rs->order_code, PHPExcel_Cell_DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit("C{$row}", $rs->reference, PHPExcel_Cell_DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit("D{$row}", $rs->tracking_no, PHPExcel_Cell_DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit("E{$row}", $rs->customer, PHPExcel_Cell_DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit("F{$row}", $rs->channels, PHPExcel_Cell_DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("B{$row}", $rs->order_code, DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("C{$row}", $rs->reference, DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("D{$row}", $rs->tracking_no, DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("E{$row}", $rs->customer, DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit("F{$row}", $rs->channels, DataType::TYPE_STRING);
         $sheet->setCellValue("G{$row}", $rs->carton);
         $sheet->setCellValue("H{$row}", $rs->pack);
         $row++;
@@ -159,17 +160,7 @@ class Order_reference extends PS_Controller
     $file_name = "Report Order Ref.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"', true);
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
   }
-
-} //--- end class
-
-
-
-
-
-
-
-
- ?>
+} 

@@ -27,16 +27,12 @@ class Stock_zone extends REST_Controller
 
 
   public function countItems_get()
-  {
-    $sc = TRUE;
-
+  {    
     $json = file_get_contents("php://input");
-
-    $data = json_decode($json);
+    $data = json_decode($json ?? '{}');
 
     if(empty($data) OR empty($data->zone_code))
-    {
-      $sc = FALSE;
+    {      
       $this->error = "Missing required parameters";
       $this->response(['status' => FALSE, 'error' => $this->error], 400);
     }
@@ -45,7 +41,6 @@ class Stock_zone extends REST_Controller
 
     if( empty($zone))
     {
-      $sc = FALSE;
       $this->error = "Invalid zone code";
       $this->response(['status' => FALSE, 'message' => $this->error], 200);
     }
@@ -74,25 +69,22 @@ class Stock_zone extends REST_Controller
     //--- Get raw post data
     $json = file_get_contents("php://input");
 
-    $data = json_decode($json);
+    $data = json_decode($json ?? '{}');
 
     if(empty($data))
-    {
-      $sc = FALSE;
+    {      
       $this->error = "Missing required parameters";
       $this->response(['status' => FALSE, 'error' => $this->error], 400);
     }
 
     if(empty($data->zone_code))
-    {
-      $sc = FALSE;
+    {      
       $this->error = "Missing required parameter : zone code";
       $this->response(['status' => FALSE, 'error' => $this->error], 400);
     }
 
     if(! isset($data->limit) OR ! isset($data->offset))
-    {
-      $sc = FALSE;
+    {     
       $this->error = "Missing required parameter: 'limit' OR 'offset'";
       $this->response(['status' => FALSE, 'error' => $this->error], 400);
     }
@@ -103,8 +95,7 @@ class Stock_zone extends REST_Controller
     $zone = $this->zone_model->get($data->zone_code);
 
     if( empty($zone))
-    {
-      $sc = FALSE;
+    {     
       $this->error = "Invalid zone code";
       $this->response(['status' => FALSE, 'message' => $this->error], 200);
     }
@@ -131,26 +122,22 @@ class Stock_zone extends REST_Controller
   {
     //--- Get raw post data
     $json = file_get_contents("php://input");
-
-    $data = json_decode($json);
+    $data = json_decode($json ?? '{}');
 
     if(empty($data))
-    {
-      $sc = FALSE;
+    {      
       $this->error = "Missing required parameters";
       $this->response(['status' => FALSE, 'error' => $this->error], 400);
     }
 
     if(empty($data->zone_code))
     {
-      $sc = FALSE;
       $this->error = "Missing required parameter : zone code";
       $this->response(['status' => FALSE, 'error' => $this->error], 400);
     }
 
     if(empty($data->product_code))
-    {
-      $sc = FALSE;
+    {     
       $this->error = "Missing required parameter : product_code";
       $this->response(['status' => FALSE, 'error' => $this->error], 400);
     }
@@ -162,9 +149,7 @@ class Stock_zone extends REST_Controller
       $sc = FALSE;
       $this->error = "Invalid zone code";
       $this->response(['status' => FALSE, 'message' => $this->error], 200);
-    }
-
-    $result = NULL;
+    }  
 
     if($zone->is_consignment)
     {
@@ -186,4 +171,4 @@ class Stock_zone extends REST_Controller
 
     $this->response($arr, 200);
   }
-}// End Class
+}

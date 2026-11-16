@@ -9,7 +9,7 @@ class Backorder_model extends CI_Model
   public function get_report(array $ds = array())
   {
     $this->db
-    ->select('b.*, o.channels_code, o.warehouse_code, o.role')
+    ->select('b.*, o.channels_code, o.warehouse_code, o.role, o.shop_id')
     ->from('order_backlog_details AS b')
     ->join('orders AS o', 'b.order_code = o.code', 'left');
 
@@ -39,15 +39,6 @@ class Backorder_model extends CI_Model
     }
 
     $rs = $this->db->get();
-
-    if($rs->num_rows() > 0)
-    {
-      return $rs->result();
-    }
-
-    return NULL;
+    return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
-
-} //-- end class
-
- ?>
+} 

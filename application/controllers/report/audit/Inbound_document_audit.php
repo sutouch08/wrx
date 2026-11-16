@@ -1,5 +1,8 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 class Inbound_document_audit extends PS_Controller
 {
   public $menu_code = 'RAIXIB';
@@ -160,10 +163,6 @@ class Inbound_document_audit extends PS_Controller
     echo json_encode($sc);
   }
 
-
-
-
-
   public function do_export()
   {
     $token = $this->input->post('token');
@@ -262,34 +261,33 @@ class Inbound_document_audit extends PS_Controller
     $roleTitle = $allRole == 1 ? 'ทั้งหมด' : $role_in;
     $stateTitle = $allState == 1 ? 'ทั้งหมด' : $state_in;
 
-    //--- load excel library
-    $this->load->library('excel');
+    $excel = new Spreadsheet();
+		$sheet = $excel->getActiveSheet();
 
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Receive PO BY Document');
+    $sheet->setTitle('Receive PO BY Document');
 
     //--- set report title header
-    $this->excel->getActiveSheet()->setCellValue('A1', $title);
-    $this->excel->getActiveSheet()->mergeCells('A1:I1');
-		$this->excel->getActiveSheet()->setCellValue('A2', $dateTitle);
-    $this->excel->getActiveSheet()->mergeCells('A2:I2');
-    $this->excel->getActiveSheet()->setCellValue('A3', "เลขที่เอกสาร : {$docTitle}");
-    $this->excel->getActiveSheet()->mergeCells('A3:I3');
-    $this->excel->getActiveSheet()->setCellValue('A4', "ประเภทเอกสาร : {$roleTitle}");
-    $this->excel->getActiveSheet()->mergeCells('A4:I4');
-    $this->excel->getActiveSheet()->setCellValue('A5', "สถานะเอกสาร : {$stateTitle}");
-    $this->excel->getActiveSheet()->mergeCells('A5:I5');
+    $sheet->setCellValue('A1', $title);
+    $sheet->mergeCells('A1:I1');
+		$sheet->setCellValue('A2', $dateTitle);
+    $sheet->mergeCells('A2:I2');
+    $sheet->setCellValue('A3', "เลขที่เอกสาร : {$docTitle}");
+    $sheet->mergeCells('A3:I3');
+    $sheet->setCellValue('A4', "ประเภทเอกสาร : {$roleTitle}");
+    $sheet->mergeCells('A4:I4');
+    $sheet->setCellValue('A5', "สถานะเอกสาร : {$stateTitle}");
+    $sheet->mergeCells('A5:I5');
 
     //--- set Table header
-    $this->excel->getActiveSheet()->setCellValue('A6', 'ลำดับ');
-    $this->excel->getActiveSheet()->setCellValue('B6', 'วันที่');
-    $this->excel->getActiveSheet()->setCellValue('C6', 'IX');
-    $this->excel->getActiveSheet()->setCellValue('D6', 'Type(IX)');
-    $this->excel->getActiveSheet()->setCellValue('E6', 'WMS');
-    $this->excel->getActiveSheet()->setCellValue('F6', 'Type(WMS)');
-    $this->excel->getActiveSheet()->setCellValue('G6', 'SAP');
-    $this->excel->getActiveSheet()->setCellValue('H6', 'Type(SAP)');
-    $this->excel->getActiveSheet()->setCellValue('I6', 'สถานะ (IX)');
+    $sheet->setCellValue('A6', 'ลำดับ');
+    $sheet->setCellValue('B6', 'วันที่');
+    $sheet->setCellValue('C6', 'IX');
+    $sheet->setCellValue('D6', 'Type(IX)');
+    $sheet->setCellValue('E6', 'WMS');
+    $sheet->setCellValue('F6', 'Type(WMS)');
+    $sheet->setCellValue('G6', 'SAP');
+    $sheet->setCellValue('H6', 'Type(SAP)');
+    $sheet->setCellValue('I6', 'สถานะ (IX)');
 
     $row = 7;
 
@@ -329,15 +327,15 @@ class Inbound_document_audit extends PS_Controller
 					}
 
 
-					$this->excel->getActiveSheet()->setCellValue('A'.$row, $no);
-	        $this->excel->getActiveSheet()->setCellValue('B'.$row, thai_date($rs->date_add, FALSE, '/'));
-	        $this->excel->getActiveSheet()->setCellValue('C'.$row, $rs->order_code);
-	        $this->excel->getActiveSheet()->setCellValue('D'.$row, $doc_type);
-	        $this->excel->getActiveSheet()->setCellValue('E'.$row, $rs->temp_code);
-	        $this->excel->getActiveSheet()->setCellValue('F'.$row, $rs->temp_type);
-	        $this->excel->getActiveSheet()->setCellValue('G'.$row, $docNum);
-	        $this->excel->getActiveSheet()->setCellValue('H'.$row, (empty($docNum) ? NULL :$SapDoc[$doc_type]));
-	        $this->excel->getActiveSheet()->setCellValue('I'.$row, $stateName[$rs->status]);
+					$sheet->setCellValue('A'.$row, $no);
+	        $sheet->setCellValue('B'.$row, thai_date($rs->date_add, FALSE, '/'));
+	        $sheet->setCellValue('C'.$row, $rs->order_code);
+	        $sheet->setCellValue('D'.$row, $doc_type);
+	        $sheet->setCellValue('E'.$row, $rs->temp_code);
+	        $sheet->setCellValue('F'.$row, $rs->temp_type);
+	        $sheet->setCellValue('G'.$row, $docNum);
+	        $sheet->setCellValue('H'.$row, (empty($docNum) ? NULL :$SapDoc[$doc_type]));
+	        $sheet->setCellValue('I'.$row, $stateName[$rs->status]);
 
 	        $no++;
 	        $row++;
@@ -345,24 +343,11 @@ class Inbound_document_audit extends PS_Controller
 			}
 		}
 
-
     setToken($token);
     $file_name = "รายงานกระทบเลขที่เอกสารขาเข้า IX-WMS-SAP ".date('Ymd').".xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
-
   }
-
-
-} //--- end class
-
-
-
-
-
-
-
-
- ?>
+} 

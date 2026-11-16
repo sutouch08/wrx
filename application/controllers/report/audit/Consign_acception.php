@@ -1,14 +1,15 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 class Consign_acception extends PS_Controller
 {
   public $menu_code = 'RADACS';
 	public $menu_group_code = 'RE';
   public $menu_sub_group_code = 'REAUDIT';
 	public $title = 'รายงานเอกสารฝากขายแท้ที่ต้องกดรับ';
-  public $filter;
-	public $wms;
-	public $limit = 2000;
+ 	public $limit = 2000;
 
   public function __construct()
   {
@@ -27,11 +28,12 @@ class Consign_acception extends PS_Controller
   public function get_report()
   {
     ini_set('memory_limit','2048M');
+    ini_set('max_execution_time', 300); // 5 minutes
 
     $sc = TRUE;
     $data = [];
 
-    $ds = json_decode($this->input->post('json'));
+    $ds = json_decode($this->input->post('json') ?? '{}');
 
     if( ! empty($ds))
     {
@@ -46,27 +48,26 @@ class Consign_acception extends PS_Controller
       );
 
       $res = $this->consign_acception_model->get_list($filter);
+      $count = count($res ?? []);
 
-      if( ! empty($res))
+      if($count > $this->limit)
       {
-        $count = count($res);
+        $sc = FALSE;
+        $this->error = "จำนวนผลลัพธ์ทั้งหมด {$count} รายการ <br/>จึงไม่เหมาะที่จะแสดงผลบนหน้าจอได้ กรุณาส่งออกเป็นไฟล์ Excel แทน";
+      }
 
-        if($count > $this->limit)
-        {
-          $sc = FALSE;
-          $this->error = "จำนวนผลลัพธ์ทั้งหมด {$count} รายการ <br/>จึงไม่เหมาะที่จะแสดงผลบนหน้าจอได้ กรุณาส่งออกเป็นไฟล์ Excel แทน";
-        }
-        else
-        {
+      if($sc === TRUE)
+      {      
+        if (! empty($res))
+        {          
           $no = 1;
-
           $zoneName = [];
 
-          foreach($res as $rs)
+          foreach ($res as $rs)
           {
-            if(empty($zoneName[$rs->zone_code]))
+            if (empty($zoneName[$rs->zone_code ?? '']))
             {
-              $zoneName[$rs->zone_code] = zone_name($rs->zone_code);
+              $zoneName[$rs->zone_code ?? ''] = zone_name($rs->zone_code ?? '');
             }
 
             $data[] = array(
@@ -79,8 +80,8 @@ class Consign_acception extends PS_Controller
               'qty' => number($rs->qty),
               'customer_code' => $rs->customer_code,
               'customer_name' => $rs->customer_name,
-              'zone_code' => $rs->zone_code,
-              'zone_name' => empty($zoneName[$rs->zone_code]) ? NULL : $zoneName[$rs->zone_code],
+              'zone_code' => $rs->zone_code ?? '',
+              'zone_name' => empty($zoneName[$rs->zone_code ?? '']) ? '' : $zoneName[$rs->zone_code ?? ''],
               'is_accept' => empty($rs->is_valid) ? 'N' : 'Y',
               'is_complete' => empty($rs->inv_code) ? 'N' : 'Y',
               'inv_code' => $rs->inv_code
@@ -89,10 +90,10 @@ class Consign_acception extends PS_Controller
             $no++;
           }
         }
-      }
-      else
-      {
-        $data[] = ['nodata' => 'nodata'];
+        else
+        {
+          $data[] = ['nodata' => 'nodata'];
+        }
       }
     }
     else
@@ -115,15 +116,15 @@ class Consign_acception extends PS_Controller
   public function do_export()
   {
     ini_set('memory_limit','2048M');
+    ini_set('max_execution_time', 300); // 5 minutes
 
     $token = $this->input->post('token');
-    $ds = json_decode($this->input->post('filter'));
+    $ds = json_decode($this->input->post('filter') ?? '{}');
 
-    $this->load->library('excel');
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
 
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle("Consign Acception");
-    $sheet = $this->excel->getActiveSheet();
+    $sheet->setTitle("Consign Acception");
     $sheet->getColumnDimension("A")->setAutoSize(true);
     $sheet->getColumnDimension("B")->setAutoSize(true);
     $sheet->getColumnDimension("C")->setAutoSize(true);
@@ -170,8 +171,6 @@ class Consign_acception extends PS_Controller
 
       $res = $this->consign_acception_model->get_list($filter);
 
-
-
       $row = 3;
 
       if( ! empty($res))
@@ -210,14 +209,14 @@ class Consign_acception extends PS_Controller
     $file_name = "Report Consign Acception.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"', true);
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
   }
 
 
   public function customer_code_and_name()
   {
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
 
     $ds = [];
 
@@ -257,7 +256,7 @@ class Consign_acception extends PS_Controller
 
   public function zone_customer($customer_code = NULL)
   {
-    $txt = trim($_REQUEST['term']);
+    $txt = trim($_REQUEST['term'] ?? '');
     $ds = [];
 
     $this->db
@@ -299,13 +298,4 @@ class Consign_acception extends PS_Controller
 
     echo json_encode($ds);
   }
-} //--- end class
-
-
-
-
-
-
-
-
- ?>
+}
