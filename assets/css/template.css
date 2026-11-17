@@ -730,7 +730,7 @@ dd {
 }
 
 .display-block{
-	display:block;
+	display:inline-block;
 }
 
 .display-inline{
@@ -1270,8 +1270,12 @@ dd {
 	}
 }
 
-.pointer{
+.pointer {
 	cursor:pointer;
+}
+
+.btn-sm {
+	height:30px;
 }
 
 .btn-100 {

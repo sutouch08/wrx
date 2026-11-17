@@ -1,12 +1,15 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 class Receive_po_by_product extends PS_Controller
 {
   public $menu_code = 'RPURPD';
 	public $menu_group_code = 'RE';
   public $menu_sub_group_code = 'REPO';
 	public $title = 'รายงาน การรับสินค้าแยกตามสินค้า';
-  public $filter;
+
   public function __construct()
   {
     parent::__construct();
@@ -22,17 +25,18 @@ class Receive_po_by_product extends PS_Controller
 
   public function get_report()
   {
-    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
-    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
-    ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
+    ini_set('memory_limit','2048M');
+    ini_set('max_execution_time', 600);
+    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152');
+    ini_set('sqlsrv.client_buffer_max_kb_size','2097152');
 
-    $sc = array();
-
+    $ds = [];
     $allDoc = $this->input->get('allDoc');
     $docFrom = $this->input->get('docFrom');
     $docTo = $this->input->get('docTo');
 
-    if($docFrom > $docTo){
+    if($docFrom > $docTo)
+    {
       $sp = $docTo;
       $docTo = $docFrom;
       $docFrom = $sp;
@@ -45,7 +49,8 @@ class Receive_po_by_product extends PS_Controller
     $vendorFrom = $this->input->get('vendorFrom');
     $vendorTo = $this->input->get('vendorTo');
 
-    if($vendorFrom > $vendorTo){
+    if($vendorFrom > $vendorTo)
+    {
       $sp = $vendorTo;
       $vendorTo = $vendorFrom;
       $vendorFrom = $sp;
@@ -55,7 +60,8 @@ class Receive_po_by_product extends PS_Controller
     $poFrom = $this->input->get('poFrom');
     $poTo = $this->input->get('poTo');
 
-    if($poFrom > $poTo){
+    if($poFrom > $poTo)
+    {
       $sp = $poTo;
       $poTo = $poFrom;
       $poFrom = $sp;
@@ -65,7 +71,8 @@ class Receive_po_by_product extends PS_Controller
     $pdFrom = $this->input->get('pdFrom');
     $pdTo = $this->input->get('pdTo');
 
-    if($pdFrom > $pdTo){
+    if($pdFrom > $pdTo)
+    {
       $sp = $pdTo;
       $pdTo = $pdFrom;
       $pdFrom = $sp;
@@ -95,14 +102,15 @@ class Receive_po_by_product extends PS_Controller
       $no = 1;
       $totalQty = 0;
       $totalAmount = 0;
+
       foreach($result as $rs)
       {
 
-        $ds = array(
+        $ds[] = array(
           'no' => number($no),
-          'date' => thai_date($rs->date_add, FALSE, '/'),
+          'date' => thai_date($rs->date_add, FALSE),
           'code' => $rs->code,
-          'vendor' => $rs->vendor_code,
+          'vendor' => $rs->vendor_code.' | '.$rs->vendor_name,
           'invoice' => $rs->invoice_code,
           'po' => $rs->po_code,
           'sapNo' => $rs->inv_code,
@@ -110,48 +118,41 @@ class Receive_po_by_product extends PS_Controller
           'qty' => number($rs->qty),
           'amount' => number($rs->amount, 2)
         );
-
-        array_push($sc, $ds);
-
+        
         $no++;
         $totalQty += $rs->qty;
         $totalAmount += $rs->amount;
 
       }
 
-      $ds = array(
+      $ds[] = array(
         'totalQty' => number($totalQty),
         'totalAmount' => number($totalAmount, 2)
-      );
-
-      array_push($sc, $ds);
+      );     
     }
     else
     {
-      $arr = array('nodata' => 'nodata');
-      array_push($sc, $arr);
+      $ds[] = array('nodata' => 'nodata');
     }
 
-    echo json_encode($sc);
+    echo json_encode($ds);
   }
-
-
-
 
 
   public function do_export()
   {
-    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
-    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
-    ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
+    ini_set('memory_limit','2048M');
+    ini_set('max_execution_time', 600);
+    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152');
+    ini_set('sqlsrv.client_buffer_max_kb_size','2097152');
 
     $token = $this->input->post('token');
-
     $allDoc = $this->input->post('allDoc');
     $docFrom = $this->input->post('docFrom');
     $docTo = $this->input->post('docTo');
 
-    if($docFrom > $docTo){
+    if($docFrom > $docTo)
+    {
       $sp = $docTo;
       $docTo = $docFrom;
       $docFrom = $sp;
@@ -159,12 +160,12 @@ class Receive_po_by_product extends PS_Controller
 
     $fromDate = $this->input->post('fromDate');
     $toDate = $this->input->post('toDate');
-
     $allVendor = $this->input->post('allVendor');
     $vendorFrom = $this->input->post('vendorFrom');
     $vendorTo = $this->input->post('vendorTo');
 
-    if($vendorFrom > $vendorTo){
+    if($vendorFrom > $vendorTo)
+    {
       $sp = $vendorTo;
       $vendorTo = $vendorFrom;
       $vendorFrom = $sp;
@@ -174,7 +175,8 @@ class Receive_po_by_product extends PS_Controller
     $poFrom = $this->input->post('poFrom');
     $poTo = $this->input->post('poTo');
 
-    if($poFrom > $poTo){
+    if($poFrom > $poTo)
+    {
       $sp = $poTo;
       $poTo = $poFrom;
       $poFrom = $sp;
@@ -184,7 +186,8 @@ class Receive_po_by_product extends PS_Controller
     $pdFrom = $this->input->post('pdFrom');
     $pdTo = $this->input->post('pdTo');
 
-    if($pdFrom > $pdTo){
+    if($pdFrom > $pdTo)
+    {
       $sp = $pdTo;
       $pdTo = $pdFrom;
       $pdFrom = $sp;
@@ -214,36 +217,37 @@ class Receive_po_by_product extends PS_Controller
     );
 
     $result = $this->receive_po_by_product_model->get_data($arr);
-
-    //--- load excel library
-    $this->load->library('excel');
-
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Receive PO BY Document');
-
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
+    $sheet->setTitle('Receive PO BY Items');    
     //--- set report title header
-    $this->excel->getActiveSheet()->setCellValue('A1', $title);
-    $this->excel->getActiveSheet()->mergeCells('A1:J1');
-    $this->excel->getActiveSheet()->setCellValue('A2', "เลขที่เอกสาร : {$document}");
-    $this->excel->getActiveSheet()->mergeCells('A2:J2');
-    $this->excel->getActiveSheet()->setCellValue('A3', "รหัสผู้ขาย : {$vendor}");
-    $this->excel->getActiveSheet()->mergeCells('A3:J3');
-    $this->excel->getActiveSheet()->setCellValue('A4', "ใบสั่งซื้อ : {$po}");
-    $this->excel->getActiveSheet()->mergeCells('A4:J4');
-    $this->excel->getActiveSheet()->setCellValue('A5', "สินค้า : {$products}");
-    $this->excel->getActiveSheet()->mergeCells('A5:J5');
+    $sheet->setCellValue('A1', $title);
+    $sheet->mergeCells('A1:J1');
+    $sheet->setCellValue('A2', "เลขที่เอกสาร : {$document}");
+    $sheet->mergeCells('A2:J2');
+    $sheet->setCellValue('A3', "รหัสผู้ขาย : {$vendor}");
+    $sheet->mergeCells('A3:J3');
+    $sheet->setCellValue('A4', "ใบสั่งซื้อ : {$po}");
+    $sheet->mergeCells('A4:J4');
+    $sheet->setCellValue('A5', "สินค้า : {$products}");
+    $sheet->mergeCells('A5:J5');
 
     //--- set Table header
-    $this->excel->getActiveSheet()->setCellValue('A6', 'ลำดับ');
-    $this->excel->getActiveSheet()->setCellValue('B6', 'วันที่');
-    $this->excel->getActiveSheet()->setCellValue('C6', 'เลขที่เอกสาร');
-    $this->excel->getActiveSheet()->setCellValue('D6', 'ใบสั่งซื้อ');
-    $this->excel->getActiveSheet()->setCellValue('E6', 'ใบส่งของ');
-    $this->excel->getActiveSheet()->setCellValue('F6', 'SAP No.');
-    $this->excel->getActiveSheet()->setCellValue('G6', 'ผู้ขาย');
-    $this->excel->getActiveSheet()->setCellValue('H6', 'สินค้า');
-    $this->excel->getActiveSheet()->setCellValue('I6', 'จำนวน');
-    $this->excel->getActiveSheet()->setCellValue('J6', 'มูลค่า');
+    $sheet->setCellValue('A6', 'ลำดับ');
+    $sheet->setCellValue('B6', 'วันที่');
+    $sheet->setCellValue('C6', 'เลขที่เอกสาร');
+    $sheet->setCellValue('D6', 'ใบสั่งซื้อ');
+    $sheet->setCellValue('E6', 'ใบส่งของ');
+    $sheet->setCellValue('F6', 'SAP No.');
+    $sheet->setCellValue('G6', 'ผู้ขาย');
+    $sheet->setCellValue('H6', 'สินค้า');
+    $sheet->setCellValue('I6', 'จำนวน');
+    $sheet->setCellValue('J6', 'มูลค่า');
+
+    foreach(range('A', 'J') as $column)
+    {
+      $sheet->getColumnDimension($column)->setAutoSize(true);
+    }
 
     $row = 7;
     if(!empty($result))
@@ -251,56 +255,43 @@ class Receive_po_by_product extends PS_Controller
       $no = 1;
       $totalQty = 0;
       $totalAmount = 0;
+
       foreach($result as $rs)
       {
-        $this->excel->getActiveSheet()->setCellValue('A'.$row, $no);
-        $this->excel->getActiveSheet()->setCellValue('B'.$row, thai_date($rs->date_add, FALSE, '/'));
-        $this->excel->getActiveSheet()->setCellValue('C'.$row, $rs->code);
-        $this->excel->getActiveSheet()->setCellValue('D'.$row, $rs->po_code);
-        $this->excel->getActiveSheet()->setCellValue('E'.$row, $rs->invoice_code);
-        $this->excel->getActiveSheet()->setCellValue('F'.$row, $rs->inv_code); //--- SAP No.
-        $this->excel->getActiveSheet()->setCellValue('G'.$row, $rs->vendor_code.' : '.$rs->vendor_name);
-        $this->excel->getActiveSheet()->setCellValue('H'.$row, $rs->product_code);
-        $this->excel->getActiveSheet()->setCellValue('I'.$row, $rs->qty);
-        $this->excel->getActiveSheet()->setCellValue('J'.$row, $rs->amount);
+        $sheet->setCellValue('A'.$row, $no);
+        $sheet->setCellValue('B'.$row, thai_date($rs->date_add, FALSE, '/'));
+        $sheet->setCellValue('C'.$row, $rs->code);
+        $sheet->setCellValue('D'.$row, $rs->po_code);
+        $sheet->setCellValue('E'.$row, $rs->invoice_code);
+        $sheet->setCellValue('F'.$row, $rs->inv_code); //--- SAP No.
+        $sheet->setCellValue('G'.$row, $rs->vendor_code.' : '.$rs->vendor_name);
+        $sheet->setCellValue('H'.$row, $rs->product_code);
+        $sheet->setCellValue('I'.$row, $rs->qty);
+        $sheet->setCellValue('J'.$row, $rs->amount);
         $totalQty += $rs->qty;
         $totalAmount += $rs->amount;
         $no++;
         $row++;
       }
 
+      $sheet->setCellValue('A'.$row, 'รวม');
+      $sheet->mergeCells('A'.$row.':H'.$row);
+      $sheet->setCellValue('I'.$row, $totalQty);
+      $sheet->setCellValue('J'.$row, $totalAmount);
 
-
-      $this->excel->getActiveSheet()->setCellValue('A'.$row, 'รวม');
-      $this->excel->getActiveSheet()->mergeCells('A'.$row.':H'.$row);
-      $this->excel->getActiveSheet()->setCellValue('I'.$row, $totalQty);
-      $this->excel->getActiveSheet()->setCellValue('J'.$row, $totalAmount);
-
-      $this->excel->getActiveSheet()->getStyle('A'.$row)->getAlignment()->setHorizontal('right');
-      $this->excel->getActiveSheet()->getStyle('D6:D'.$row)->getNumberFormat()->setFormatCode('0');
-      $this->excel->getActiveSheet()->getStyle('F6:F'.$row)->getNumberFormat()->setFormatCode('0');
-      $this->excel->getActiveSheet()->getStyle('I6:J'.$row)->getAlignment()->setHorizontal('right');
-      $this->excel->getActiveSheet()->getStyle('I6:I'.$row)->getNumberFormat()->setFormatCode('#,##0');
-      $this->excel->getActiveSheet()->getStyle('J6:J'.$row)->getNumberFormat()->setFormatCode('#,##0.00');
+      $sheet->getStyle('A'.$row)->getAlignment()->setHorizontal('right');
+      $sheet->getStyle('D6:D'.$row)->getNumberFormat()->setFormatCode('0');
+      $sheet->getStyle('F6:F'.$row)->getNumberFormat()->setFormatCode('0');
+      $sheet->getStyle('I6:J'.$row)->getAlignment()->setHorizontal('right');
+      $sheet->getStyle('I6:I'.$row)->getNumberFormat()->setFormatCode('#,##0');
+      $sheet->getStyle('J6:J'.$row)->getNumberFormat()->setFormatCode('#,##0.00');
     }
 
     setToken($token);
     $file_name = "รายงานการรับสินค้าแยกตามสินค้า.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
-
   }
-
-
-} //--- end class
-
-
-
-
-
-
-
-
- ?>
+} 
