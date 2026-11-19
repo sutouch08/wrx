@@ -6,11 +6,13 @@ class Current_stock_consignment extends PS_Controller
 	public $menu_group_code = 'RE';
   public $menu_sub_group_code = 'REINVT';
 	public $title = 'รายงานสินค้าคงเหลือปัจจุบัน (ฝากขายเทียม)';
-  public $filter;
+  public $cn;
+  
   public function __construct()
   {
     parent::__construct();
     $this->home = base_url().'report/inventory/Current_stock_consignment';
+    $this->cn = $this->load->database('cn', TRUE);
     $this->load->model('report/inventory/current_stock_consignment_report_model');
     $this->load->model('masters/products_model');
     $this->load->model('masters/product_group_model');
@@ -33,7 +35,7 @@ class Current_stock_consignment extends PS_Controller
     //--- จำนวนรายการสินค้า
     $ds['allSku'] = $this->current_stock_consignment_report_model->get_count_item();
 
-		$ds['product_group'] = $this->product_group_model->get_data();
+		$ds['product_group'] = $this->product_group_model->get_all();
 
     $this->load->view('report/inventory/current_stock_consignment_report_view', $ds);
 
@@ -83,7 +85,7 @@ class Current_stock_consignment extends PS_Controller
     $page .= '<hr/>';
 
 
-    $productGroup = $this->product_group_model->get_data();
+    $productGroup = $this->product_group_model->get_all();
 
     $page .= '<div class="row">';
     $page .= '  <div class="col-sm-2 padding-5 padding-right-0">';

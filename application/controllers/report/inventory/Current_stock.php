@@ -6,7 +6,7 @@ class Current_stock extends PS_Controller
 	public $menu_group_code = 'RE';
   public $menu_sub_group_code = 'REINVT';
 	public $title = 'รายงานสินค้าคงเหลือปัจจุบัน';
-  public $filter;
+  
   public function __construct()
   {
     parent::__construct();
@@ -34,7 +34,7 @@ class Current_stock extends PS_Controller
     //--- จำนวนรายการสินค้า
     $ds['allSku'] = $this->current_stock_report_model->get_count_item();
 
-		$ds['product_group'] = $this->product_group_model->get_data();
+		$ds['product_group'] = $this->product_group_model->get_all();
 
     $this->load->view('report/inventory/current_stock_report_view', $ds);
 
@@ -84,7 +84,7 @@ class Current_stock extends PS_Controller
     $page .= '<hr/>';
 
 
-    $productGroup = $this->product_group_model->get_data();
+    $productGroup = $this->product_group_model->get_all();
 
     $page .= '<div class="row">';
     $page .= '  <div class="col-sm-2 padding-5 padding-right-0">';

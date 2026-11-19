@@ -39,17 +39,16 @@ class Summary_stock_zone extends PS_Controller
     ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
 
     $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
     $data = [];
 
     if( ! empty($ds))
     {
       $whsCode = getConfig('DEFAULT_WAREHOUSE');
       $option = $ds->option; // E = Only zero sum, S = Only lessthan 1000, A = All
-      $itemOption = $ds->itemOption == 1 ? TRUE : FAlSE;
+      $itemOption = $ds->itemOption == 1 ? TRUE : FALSE;
       $itemCode = empty($ds->itemCode) ? NULL : $ds->itemCode;
-      $res = [];
-
+     
       if( ! empty($ds->rows))
       {
         foreach($ds->rows as $row)
@@ -96,9 +95,9 @@ class Summary_stock_zone extends PS_Controller
                 {
                   $data[] = [
                     'name' => $rs->BinName,
-                    'qty' => "-", //ac_format($Qty),
-                    'color' => 'box-0', //$rs->Qty > 1000 ? 'box-1000' : ($rs->Qty > 0 ? 'box-100' : 'box-0'),
-                    'link' => '' //$rs->Qty > 0 ? 'onclick="getItemStockZone('.$rs->BinAbs.')"' : ''
+                    'qty' => "-", 
+                    'color' => 'box-0',
+                    'link' => ''
                   ];
                 }
 
@@ -162,6 +161,4 @@ class Summary_stock_zone extends PS_Controller
 
     $this->load->view('report/inventory/summary_stock_zone/item_stock_zone', $ds);
   }
-} //--- end class
-
-?>
+}

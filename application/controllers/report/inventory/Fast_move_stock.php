@@ -1,12 +1,15 @@
 <?php
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 class Fast_move_stock extends PS_Controller
 {
   public $menu_code = 'RCFMST';
 	public $menu_group_code = 'RE';
   public $menu_sub_group_code = 'REINVT';
 	public $title = 'รายงานสินค้าคงเหลือในโซน Fast move';
-  public $filter;
-  public $error;
+ 
   public function __construct()
   {
     parent::__construct();
@@ -143,7 +146,7 @@ class Fast_move_stock extends PS_Controller
     ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
     ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
 
-    $ds = json_decode($this->input->post('data'));
+    $ds = json_decode($this->input->post('data') ?? '{}');
     $token = $this->input->post('token');
 
     $min_stock = intval($ds->min_stock);
@@ -151,26 +154,25 @@ class Fast_move_stock extends PS_Controller
     $no = 1;
 
     $report_title = 'รายงานสินค้าคงเหลือในโซน Fast move ณ วันที่  '.thai_date(date('Y-m-d'), '/');
-    $this->load->library('excel');
-
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Fast Move Stock Report');
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
+    $sheet->setTitle('Fast Move Stock Report');
 
     //--- set report title header
-    $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
-    $this->excel->getActiveSheet()->mergeCells('A1:F1');
-    $this->excel->getActiveSheet()->setCellValue('A2', "Min Stock : {$min_stock}");
-    $this->excel->getActiveSheet()->mergeCells('A2:F2');
-    $this->excel->getActiveSheet()->setCellValue('A3', "แสดงเฉพาะยอดที่ต่ำกว่ากำหนด");
-    $this->excel->getActiveSheet()->mergeCells('A3:F3');
+    $sheet->setCellValue('A1', $report_title);
+    $sheet->mergeCells('A1:F1');
+    $sheet->setCellValue('A2', "Min Stock : {$min_stock}");
+    $sheet->mergeCells('A2:F2');
+    $sheet->setCellValue('A3', "แสดงเฉพาะยอดที่ต่ำกว่ากำหนด");
+    $sheet->mergeCells('A3:F3');
 
     //--- set Table header
-    $this->excel->getActiveSheet()->setCellValue('A4', '#');
-    $this->excel->getActiveSheet()->setCellValue('B4', 'รหัสโซน');
-    $this->excel->getActiveSheet()->setCellValue('C4', 'ชื่อโซน');
-    $this->excel->getActiveSheet()->setCellValue('D4', 'รหัสสินค้า');
-    $this->excel->getActiveSheet()->setCellValue('E4', 'ชื่อสินค้า');
-    $this->excel->getActiveSheet()->setCellValue('F4', 'คงเหลือ');
+    $sheet->setCellValue('A4', '#');
+    $sheet->setCellValue('B4', 'รหัสโซน');
+    $sheet->setCellValue('C4', 'ชื่อโซน');
+    $sheet->setCellValue('D4', 'รหัสสินค้า');
+    $sheet->setCellValue('E4', 'ชื่อสินค้า');
+    $sheet->setCellValue('F4', 'คงเหลือ');
 
     $row = 5;
 
@@ -225,30 +227,31 @@ class Fast_move_stock extends PS_Controller
                 {
                   if($qty < $min_stock)
                   {
-                    $this->excel->getActiveSheet()->setCellValue("A{$row}", $no);
-                    $this->excel->getActiveSheet()->setCellValue("B{$row}", $rs->zone_code);
-                    $this->excel->getActiveSheet()->setCellValue("C{$row}", $rs->zone_name);
-                    $this->excel->getActiveSheet()->setCellValue("D{$row}", $rs->product_code);
-                    $this->excel->getActiveSheet()->setCellValue("E{$row}", $rs->product_name);
-                    $this->excel->getActiveSheet()->setCellValue("F{$row}", $qty);
-                    $this->excel->getActiveSheet()->getStyle("A{$row}:F{$row}")->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_RED);
+                    $sheet->setCellValue("A{$row}", $no);
+                    $sheet->setCellValue("B{$row}", $rs->zone_code);
+                    $sheet->setCellValue("C{$row}", $rs->zone_name);
+                    $sheet->setCellValue("D{$row}", $rs->product_code);
+                    $sheet->setCellValue("E{$row}", $rs->product_name);
+                    $sheet->setCellValue("F{$row}", $qty);
+                    $sheet->getStyle("A{$row}:F{$row}")->getFont()->getColor()->setARGB(Color::COLOR_RED);
                     $no++;
                     $row++;
                   }
                 }
                 else
                 {
-                  $this->excel->getActiveSheet()->setCellValue("A{$row}", $no);
-                  $this->excel->getActiveSheet()->setCellValue("B{$row}", $rs->zone_code);
-                  $this->excel->getActiveSheet()->setCellValue("C{$row}", $rs->zone_name);
-                  $this->excel->getActiveSheet()->setCellValue("D{$row}", $rs->product_code);
-                  $this->excel->getActiveSheet()->setCellValue("E{$row}", $rs->product_name);
-                  $this->excel->getActiveSheet()->setCellValue("F{$row}", $qty);
+                  $sheet->setCellValue("A{$row}", $no);
+                  $sheet->setCellValue("B{$row}", $rs->zone_code);
+                  $sheet->setCellValue("C{$row}", $rs->zone_name);
+                  $sheet->setCellValue("D{$row}", $rs->product_code);
+                  $sheet->setCellValue("E{$row}", $rs->product_name);
+                  $sheet->setCellValue("F{$row}", $qty);
 
                   if($qty <= $min_stock)
                   {
-                    $this->excel->getActiveSheet()->getStyle("A{$row}:F{$row}")->getFont()->getColor()->setARGB(PHPExcel_Style_Color::COLOR_RED);
+                    $sheet->getStyle("A{$row}:F{$row}")->getFont()->getColor()->setARGB(Color::COLOR_RED);
                   }
+
                   $no++;
                   $row++;
                 }
@@ -263,7 +266,7 @@ class Fast_move_stock extends PS_Controller
     $file_name = "Report Fast Move Stock.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
   }
 
@@ -273,9 +276,8 @@ class Fast_move_stock extends PS_Controller
     ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
     ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
     ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
-
-    $sc = TRUE;
-    $ds = json_decode($this->input->post('data'));
+    
+    $ds = json_decode($this->input->post('data') ?? '{}');
     $data = [];
 
     if( ! empty($ds))

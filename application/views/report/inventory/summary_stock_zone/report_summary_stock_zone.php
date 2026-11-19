@@ -5,7 +5,7 @@
     <h3 class="title"><i class="fa fa-bar-chart"></i>  <?php echo $this->title; ?></h3>
   </div>
   <div class="col-lg-4 col-md-4 col-sm-4 col-xs-12 padding-5 text-right">
-    <button type="button" class="btn btn-sm btn-success top-btn" onclick="getReport()"><i class="fa fa-bar-chart"></i> รายงาน</button>
+    <button type="button" class="btn btn-white btn-success top-btn" onclick="getReport()"><i class="fa fa-bar-chart"></i> รายงาน</button>
   </div>
 </div><!-- End Row -->
 <hr class="hidden-print"/>

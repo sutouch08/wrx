@@ -51,7 +51,7 @@ class Adjust_transform_model extends CI_Model
 
 		if($rs->num_rows() == 1)
 		{
-			return $rs->row()->qty;
+			return floatval($rs->row()->qty);
 		}
 
 		return 0;

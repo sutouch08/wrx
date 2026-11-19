@@ -183,13 +183,13 @@ class Warehouse_model extends CI_Model
   }
 
 
-  public function get_sell_warehouse_list()
+  public function get_sell_warehouse_list($order_by = 'position', $direction = 'ASC')
   {
     $rs = $this->db
     ->where_in('role', [1, 2, 3])
     ->where('active', 1)
     ->where('sell', 1)
-    ->order_by('position', 'ASC')
+    ->order_by($order_by, $direction)
     ->get($this->tb);
 
     return $rs->num_rows() > 0 ? $rs->result() : NULL;
@@ -222,7 +222,10 @@ class Warehouse_model extends CI_Model
   ///---- คลังฝากขายทั้งหมด
   public function get_consign_warehouse_list()
   {
-    $rs = $this->db->where('role', 2)->where('active', 1)->get($this->tb);
+    $rs = $this->db
+    ->where('role', 2)
+    ->where('active', 1)
+    ->get($this->tb);
     return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 
@@ -263,6 +266,7 @@ class Warehouse_model extends CI_Model
     ->where('role', 2)
     ->where('is_consignment', 1)
     ->where('active', 1)
+    ->order_by('code', 'ASC')
     ->get($this->tb);
 
     return $rs->num_rows() > 0 ? $rs->result() : NULL;
@@ -274,6 +278,7 @@ class Warehouse_model extends CI_Model
 		$rs = $this->db
 		->where_in('role', array(1, 3, 4, 5))
 		->where('active', 1)
+		->order_by('code', 'ASC')
 		->get($this->tb);
 
 		return $rs->num_rows() > 0 ? $rs->result() : NULL;
@@ -285,6 +290,7 @@ class Warehouse_model extends CI_Model
 		$rs = $this->db
 		->where('role', 8)
 		->where('active', 1)
+    ->order_by('code', 'ASC')
 		->get($this->tb);
 
 		return $rs->num_rows() > 0 ? $rs->result() : NULL;
@@ -324,10 +330,11 @@ class Warehouse_model extends CI_Model
 
 
   public function get_all_warehouse()
-  {
-    $this->ms->select('WhsCode AS code, WhsName AS name');
-    $this->ms->select('createDate, updateDate');
-    $rs = $this->ms->get('OWHS');
+  {    
+    $rs = $this->ms
+    ->select('WhsCode AS code, WhsName AS name')
+    ->select('createDate, updateDate')
+    ->get('OWHS');    
     return $rs->num_rows() > 0 ? $rs->result() : NULL;
   }
 

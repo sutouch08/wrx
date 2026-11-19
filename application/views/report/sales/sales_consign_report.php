@@ -2,10 +2,10 @@
 <div class="row">
   <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 padding-5 padding-top-5">
     <h3 class="title"><?php echo $this->title; ?></h3>
-  </div>  
+  </div>
   <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 padding-5 text-right">
     <button type="button" class="btn btn-white btn-success top-btn" onclick="getReport()"><i class="fa fa-bar-chart"></i> รายงาน</button>
-     <button type="button" class="btn btn-white btn-primary top-btn" onclick="doExport()"><i class="fa fa-file-excel-o"></i> ส่งออก</button>    
+    <button type="button" class="btn btn-white btn-primary top-btn" onclick="doExport()"><i class="fa fa-file-excel-o"></i> ส่งออก</button>
   </div>
 </div>
 <hr />
@@ -75,7 +75,7 @@
   <input type="hidden" id="allCustomer" name="allCustomer" value="1">
   <input type="hidden" id="allWarehouse" name="allWhouse" value="1">
   <input type="hidden" id="allZone" name="allZone" value="1">
-  <input type="hidden" id="zoneCode" name="zoneCode" value="">  
+  <input type="hidden" id="zoneCode" name="zoneCode" value="">
 </div>
 
 <div class="divider"></div>
@@ -123,6 +123,10 @@
   </div>
 </div>
 
+<form id="export-form" method="post" action="<?php echo $this->home; ?>/do_export">
+  <input type="hidden" name="data" id="export-data" />
+  <input type="hidden" name="token" id="token" />
+</form>
 
 <div class="modal fade" id="wh-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
   <div class="modal-dialog" style="width:500px;">

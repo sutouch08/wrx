@@ -1,4 +1,6 @@
-var HOME = BASE_URL + 'report/inventory/stock_balance/';
+function checkWhsAll(el){
+  $('.chk').prop('checked', $(el).is(':checked'));
+}
 
 function toggleAllProduct(option){
   $('#allProduct').val(option);
@@ -23,7 +25,7 @@ function toggleAllProduct(option){
 
 
 $('#pdFrom').autocomplete({
-  source : BASE_URL + 'auto_complete/get_style_code',
+  source : BASE_URL + 'auto_complete/get_item_code_and_name',
   autoFocus:true,
   close:function(){
     var rs = $(this).val();
@@ -42,7 +44,7 @@ $('#pdFrom').autocomplete({
 
 
 $('#pdTo').autocomplete({
-  source:BASE_URL + 'auto_complete/get_style_code',
+  source:BASE_URL + 'auto_complete/get_item_code_and_name',
   autoFocus:true,
   close:function(){
     var rs = $(this).val();

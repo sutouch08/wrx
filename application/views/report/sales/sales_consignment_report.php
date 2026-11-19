@@ -123,6 +123,10 @@
   </div>
 </div>
 
+<form id="export-form" method="post" action="<?php echo $this->home; ?>/do_export">
+  <input type="hidden" name="data" id="export-data" />
+  <input type="hidden" name="token" id="token" />
+</form>
 
 <div class="modal fade" id="wh-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
   <div class="modal-dialog" style="width:500px;">

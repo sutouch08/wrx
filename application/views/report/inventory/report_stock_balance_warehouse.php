@@ -1,45 +1,33 @@
 <?php $this->load->view('include/header'); ?>
-<style>
-  .pre-loader {
-    width: 120px;
-    height: 10px;
-    margin-left: auto;
-    margin-right: auto;
-    -webkit-mask: linear-gradient(90deg,#000 70%,#0000 0) left/20% 100%;
-    background:
-     linear-gradient(#000 0 0) left -25% top 0 /20% 100% no-repeat
-     #ddd;
-    animation: l7 1s infinite steps(6);
-  }
-
-  @keyframes l7 {
-      100% {background-position: right -25% top 0}
-  }
-  
-  #txt-label, #total-label {
-    font-size: 16px;
-    padding-bottom: 10px;
-    text-align: center;
-  }
-</style>
-
-<div class="row hidden-print">
-  <div class="col-sm-6">
-    <h3 class="title">
-      <i class="fa fa-bar-chart"></i>
-      <?php echo $this->title; ?>
-    </h3>
-  </div>
-  <div class="col-sm-6">
-    <p class="pull-right top-p">
-      <button type="button" class="btn btn-sm btn-primary btn-report" id="btn-export" onclick="doExport()"><i class="fa fa-file-excel-o"></i> ส่งออก</button>
-    </p>
-  </div>
-</div><!-- End Row -->
-<hr class="hidden-print"/>
 <div class="row">
-  <div class="col-sm-2 padding-5">
-    <label class="display-block">คลัง</label>
+  <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 padding-5 padding-top-5">
+    <h3 class="title"><i class="fa fa-bar-chart"></i><?php echo $this->title; ?></h3>
+  </div>
+  <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 padding-5 text-right">
+    <button type="button" class="btn btn-white btn-success top-btn" onclick="getReport()"><i class="fa fa-bar-chart"></i> รายงาน</button>
+    <button type="button" class="btn btn-white btn-primary top-btn" onclick="doExport()"><i class="fa fa-file-excel-o"></i> ส่งออก</button>
+  </div>
+</div>
+<hr />
+<div class="row">
+  <div class="col-lg-1-harf col-md-2 col-sm-2 col-xs-6 padding-5">
+    <label>สินค้า</label>
+    <div class="btn-group width-100">
+      <button type="button" class="btn btn-sm btn-primary width-50" id="btn-pd-all" onclick="toggleAllProduct(1)">ทั้งหมด</button>
+      <button type="button" class="btn btn-sm width-50" id="btn-pd-range" onclick="toggleAllProduct(0)">เลือก</button>
+    </div>
+  </div>
+  <div class="col-lg-2 col-md-2 col-sm-2 col-xs-6 padding-5">
+    <label>เริ่มต้น</label>
+    <input type="text" class="form-control input-sm r" id="pdFrom" name="pdFrom" placeholder="รหัสสินค้าเริ่มต้น" disabled />
+  </div>
+  <div class="col-lg-2 col-md-2 col-sm-2 col-xs-6 padding-5">
+    <label>สิ้นสุด</label>
+    <input type="text" class="form-control input-sm r" id="pdTo" name="pdTo" placeholder="รหัสสินค้าสิ้นสุด" disabled />
+  </div>
+
+  <div class="col-lg-1-harf col-md-2 col-sm-2 col-xs-6 padding-5">
+    <label>คลัง</label>
     <div class="btn-group width-100">
       <button type="button" class="btn btn-sm btn-primary width-50" id="btn-wh-all" onclick="toggleAllWarehouse(1)">ทั้งหมด</button>
       <button type="button" class="btn btn-sm width-50" id="btn-wh-range" onclick="toggleAllWarehouse(0)">เลือก</button>
@@ -48,30 +36,66 @@
 
   <input type="hidden" id="allProduct" name="allProduct" value="1">
   <input type="hidden" id="allWarehouse" name="allWhouse" value="1">
-	<input type="hidden" id="token" name="token" >
+</div>
+<hr class="margin-top-15 margin-bottom-15" />
+
+<div class="row">
+  <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 padding-5 table-responsive">
+    <table class="table table-striped table-medium border-1" style="min-width:1080px;">
+      <thead>
+        <tr>
+          <th class="fix-width-50 text-center">#</th>
+          <th class="fix-width-100">รหัสคลัง</th>
+          <th class="fix-width-200">ชื่อคลัง</th>
+          <th class="fix-width-150">รหัสสินค้า</th>
+          <th class="min-width-250">ชื่อสินค้า</th>
+          <th class="fix-width-100 text-right">ทุน (มาตรฐาน)</th>
+          <th class="fix-width-100 text-right">คงเหลือ</th>
+          <th class="fix-width-100 text-right">มูลค่า</th>
+          <th class="fix-width-30"></th>
+        </tr>
+      </thead>
+      <tbody id="result-table">
+
+      </tbody>
+    </table>
+  </div>
 </div>
 
+
+<form id="export-form" method="post" action="<?php echo $this->home; ?>/do_export">
+  <input type="hidden" id="token" name="token">
+  <input type="hidden" id="data" name="data">
+</form>
 
 <div class="modal fade" id="wh-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
   <div class="modal-dialog" id="modal" style="width:500px;">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header" style="border-bottom:solid 1px #ddd;">
         <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-        <h4 class="title" id="modal_title">เลือกคลัง</h4>
+        <h4 class="title text-center">เลือกคลัง</h4>
       </div>
-      <div class="modal-body" id="modal_body" style="padding:0px; height:600px; max-height: 70vh; overflow:auto;">
-        <?php if(!empty($whList)) : ?>
-          <?php foreach($whList as $rs) : ?>
-            <div class="col-sm-12">
-              <label>
-                <input type="checkbox" class="chk chk-whs" data-code="<?php echo $rs->code; ?>" data-name="<?php echo $rs->name; ?>" value="<?php echo $rs->code; ?>" style="margin-right:10px;" />
-                <?php echo $rs->code; ?> | <?php echo $rs->name; ?>
-              </label>
-            </div>
-          <?php endforeach; ?>
-        <?php endif;?>
-
-        <div class="divider" ></div>
+      <div class="modal-body" id="modal_body">
+        <div class="row">
+          <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+            <label>
+              <input type="checkbox" class="ace" onchange="checkAllWh($(this))" />
+              <span class="lbl">&nbsp;&nbsp;ทั้งหมด</span>
+            </label>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12" style="max-height: 400px; overflow-y: auto;">
+            <?php if (!empty($whList)) : ?>
+              <?php foreach ($whList as $rs) : ?>
+                <label style="display:block;">
+                  <input type="checkbox" class="ace chk" value="<?php echo $rs->code; ?>" />
+                  <span class="lbl">&nbsp;&nbsp;<?php echo $rs->code . " | " . $rs->name; ?></span>
+                </label>
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default btn-block" data-dismiss="modal">ตกลง</button>
@@ -80,41 +104,37 @@
   </div>
 </div>
 
-<div class="row">
-	<div class="col-sm-12" id="rs">
 
-    </div>
-</div>
-
-<div class="modal fade" id="progressModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
-  <div class="modal-dialog" style="width:600px; max-width:90vw;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h4 class="modal-title-site text-center" >รายงานสินค้าคงเหลือแยกตามคลัง</h4>
-      </div>
-      <div class="modal-body">
-        <div class="row" style="margin-left:0; margin-right:0;">
-          <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 padding-5">
-            <div class="text-center" id="total-label">Waiting ...</div>
-            <div class="text-center" id="txt-label"></div>
-          </div>
-          <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 padding-5">
-            <div class="progress pos-rel progress-striped" style="background-color:#CCC;" id="txt-percent" data-percent="0%">
-              <div class="progress-bar progress-bar-primary" id="progress-bar" style="width: 0%;"></div>
-            </div>
-          </div>
-          <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 padding-5">
-            <div class="float-left pre-loader"></div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-xs btn-default btn-100" onclick="cancel_and_close()">Cancel</button>
-      </div>
-    </div>
-  </div>
-</div>
+<script id="template" type="text/x-handlebars-template">
+  {{#each this}}
+    {{#if nodata}}
+      <tr>
+        <td colspan="9" class="text-center">ไม่พบข้อมูล</td>
+      </tr>
+    {{else}}
+      {{#if @last}}
+        <tr>
+          <td colspan="6" class="text-right">รวม</td>
+          <td class="text-right">{{total_qty}}</td>
+          <td class="text-right">{{total_amount}}</td>
+          <td></td>
+        </tr>
+      {{else}}
+        <tr>
+          <td class="text-center">{{no}}</td>
+          <td>{{warehouse_code}}</td>
+          <td>{{warehouse_name}}</td>
+          <td>{{item_code}}</td>
+          <td>{{item_name}}</td>
+          <td class="text-right">{{cost}}</td>
+          <td class="text-right">{{qty}}</td>
+          <td class="text-right">{{amount}}</td>
+          <td></td>
+        </tr>
+      {{/if}}    
+    {{/if}}
+  {{/each}}
+</script>
 
 <script src="<?php echo base_url(); ?>scripts/report/inventory/stock_balance_warehouse.js?v=<?php echo date('YmdH'); ?>"></script>
-<script src="<?php echo base_url(); ?>assets/js/xlsx.full.min.js"></script>
 <?php $this->load->view('include/footer'); ?>

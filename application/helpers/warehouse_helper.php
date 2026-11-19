@@ -153,3 +153,57 @@ function warehouse_name(?string $code = '')
   $ci->load->model('masters/warehouse_model');
   return $ci->warehouse_model->get_name($code);  
 }
+
+function warehouse_code_array()
+{
+  $ci =& get_instance();
+  $ci->load->model('masters/warehouse_model');
+  $list = $ci->warehouse_model->get_all_warehouse();
+  $codes = [];
+  
+  if(!empty($list))
+  {
+    foreach($list as $wh)
+    {
+      $codes[] = $wh->code;
+    }
+  }
+
+  return $codes;
+}
+
+function consign_warehouse_code_array()
+{
+  $ci =& get_instance();
+  $ci->load->model('masters/warehouse_model');
+  $list = $ci->warehouse_model->get_consign_list();
+  $codes = [];
+
+  if(!empty($list))
+  {
+    foreach($list as $wh)
+    {
+      $codes[] = $wh->code;
+    }
+  }
+
+  return $codes;
+}
+
+function consignment_warehouse_code_array()
+{
+  $ci =& get_instance();
+  $ci->load->model('masters/warehouse_model');
+  $list = $ci->warehouse_model->get_consignment_list();
+  $codes = [];
+
+  if(!empty($list))
+  {
+    foreach($list as $wh)
+    {
+      $codes[] = $wh->code;
+    }
+  }
+
+  return $codes;
+}

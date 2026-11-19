@@ -1,292 +1,329 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+use OpenSpout\Writer\XLSX\Writer;
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Common\Entity\Style\Style;
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 class Stock_balance_zone extends PS_Controller
 {
   public $menu_code = 'RICSBZ';
 	public $menu_group_code = 'RE';
   public $menu_sub_group_code = 'REINVT';
-	public $title = 'รายงานสินค้าคงเหลือ แยกตามโซน (SAP)';
-  public $filter;
-  public $error;
+	public $title = 'รายงานสินค้าคงเหลือ แยกตามโซน';
+  
   public function __construct()
   {
     parent::__construct();
     $this->home = base_url().'report/inventory/stock_balance_zone';
     $this->load->model('report/inventory/stock_balance_report_model');
     $this->load->model('masters/products_model');
+    $this->load->model('masters/warehouse_model');
   }
 
   public function index()
-  {
-    $this->load->model('masters/warehouse_model');
-    $whList = $this->warehouse_model->get_all_warehouse();
-    $ds['whList'] = $whList;
+  {    
+    $ds['whList'] = $this->warehouse_model->get_all_warehouse_list();
     $this->load->view('report/inventory/report_stock_balance_zone', $ds);
   }
 
 
   public function get_report()
   {
-    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
-    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
-    ini_set('sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
+    ini_set('memory_limit','2048M');
+    ini_set('max_execution_time', 600);
+    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152');
+    ini_set('sqlsrv.client_buffer_max_kb_size','2097152');
 
-    $sc = TRUE;
-    $allProduct = $this->input->get('allProduct');
-    $pdFrom = $this->input->get('pdFrom');
-    $pdTo = $this->input->get('pdTo');
-
-    $allWhouse = $this->input->get('allWhouse');
-    $warehouse = $this->input->get('warehouse');
-
-    $allZone = $this->input->get('allZone');
-    $zoneCode = $this->input->get('zoneCode');
-    $zoneName = $this->input->get('zoneName');
-
-    $wh_list = '';
-    if(!empty($warehouse) && empty($zoneCode))
+    $ds = json_decode($this->input->post('data') ?? '{}');
+    
+    if(empty($ds))
     {
-      $i = 1;
-      foreach($warehouse as $wh)
-      {
-        $wh_list .= $i === 1 ? $wh : ', '.$wh;
-        $i++;
-      }
+      echo "Invalid input data";
+      exit;
     }
 
-    //---  Report title
-    $ds['reportDate'] = thai_date(date('Y-m-d'),FALSE, '/');
-    $ds['whList']   = $allWhouse == 1 ? 'ทั้งหมด' : $wh_list;
-    $ds['zoneList'] = $allZone == 1 ? 'ทั้งหมด' : $zoneCode." - ".$zoneName;
-    $ds['productList']   = $allProduct == 1 ? 'ทั้งหมด' : '('.$pdFrom.') - ('.$pdTo.')';
-
+    $filter = array(
+      'allProduct' => $ds->allProduct,
+      'pdFrom' => $ds->pdFrom,
+      'pdTo' => $ds->pdTo,
+      'allWhouse' => $ds->allWhouse,
+      'warehouse' => $ds->warehouse,
+      'allZone' => $ds->allZone,
+      'zoneCode' => $ds->zoneCode
+    );
+    
     $bs = array();
 
-    $result = $this->stock_balance_report_model->get_stock_balance_zone($allProduct, $pdFrom, $pdTo, $allWhouse, $warehouse, $allZone, $zoneCode);
+    $count = $this->stock_balance_report_model->count_rows($filter);
 
-    if(!empty($result))
+    if($count > 2000)
+    {      
+      echo "ข้อมูลมีปริมาณมากเกินกว่าจะแสดงผลได้ กรุณาส่งออกข้อมูลแทนการแสดงผลหน้าจอ";
+      exit;
+    }
+    
+    $rows = 0;
+    $limit = 10000;
+    $offset = 0;
+    $max_loop = 100;
+    $no = 1;
+    $totalQty = 0;
+    $totalAmount = 0;
+
+    if($count > 0)
     {
-      if(count($result) > 2000)
+      while($rows < $count && $max_loop > 0)
       {
-        $sc = FALSE;
-        $this->error = "ข้อมูลมีปริมาณมากเกินกว่าจะแสดงผลได้ กรุณาส่งออกข้อมูลแทนการแสดงผลหน้าจอ";
-      }
-      else
-      {
-        $no = 1;
-        $totalQty = 0;
-        $totalAmount = 0;
+        $result = $this->stock_balance_report_model->get_stock_zone($filter, $limit, $offset);
 
-        foreach($result as $rs)
+        if(! empty($result))
         {
-          $amount = $rs->qty * $rs->price;
+          foreach($result as $rs)
+          {
+            $amount = round($rs->qty * $rs->price, 2);
+            $qty = round($rs->qty, 2);
 
-          $arr = array(
-            'no' => number($no),
-            'warehouse' => $rs->warehouse_code,
-            'zone' => $rs->zone_name,
-            'pdCode' => $rs->product_code,
-            'pdName' => $rs->product_name,
-            'price' => number($rs->price, 2),
-            'qty' => number($rs->qty),
-            'amount' => number($amount, 2)
-          );
+            $bs[] = array(
+              'no' => number($no),
+              'warehouse' => $rs->warehouse_code,
+              'zone' => empty($rs->zone_name) ? $rs->zone_code : $rs->zone_name,
+              'pdCode' => $rs->product_code,
+              'pdName' => $rs->product_name,
+              'price' => number($rs->price, 2),
+              'qty' => number($qty),
+              'amount' => number($amount, 2)
+            );
 
-          array_push($bs, $arr);
-          $totalQty += $rs->qty;
-          $totalAmount += $amount;
-
-          $no++;
+            $totalQty += $qty;
+            $totalAmount += $amount;
+            $no++;
+            $rows++;
+            $offset++;
+          }
         }
-
-        $arr = array( 'totalQty' => number($totalQty), 'totalAmount' => number($totalAmount, 2));
-        array_push($bs, $arr);
+        
+        $max_loop--;
       }
     }
-    else
-    {
-      $arr = array('nodata' => 'nodata');
-      array_push($bs, $arr);
-    }
 
-    $ds['bs'] = $bs;
-
-    echo $sc === TRUE ? json_encode($ds) : $this->error;
+    $bs[] = ['totalQty' => number($totalQty), 'totalAmount' => number($totalAmount, 2)];    
+    echo json_encode(['bs' => $bs]);
   }
-
-
-
 
 
   public function do_export()
   {
-    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
-    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 2048M
-    ini_set('pdo_sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
+    ini_set('memory_limit', '2048M');
+    ini_set('max_execution_time', 600);
+    ini_set('sqlsrv.ClientBufferMaxKBSize', '2097152');
+    ini_set('sqlsrv.client_buffer_max_kb_size', '2097152');
+    
+    $ds = json_decode($this->input->post('data') ?? '{}');
 
-    $sc = TRUE;
-    $allProduct = $this->input->post('allProduct');
-    $pdFrom = $this->input->post('pdFrom');
-    $pdTo = $this->input->post('pdTo');
+    if (empty($ds))
+    {
+      echo "Invalid input data";
+      exit;
+    }
 
-    $allWhouse = $this->input->post('allWhouse');
-    $warehouse = $this->input->post('warehouse');
-
-    $allZone = $this->input->post('allZone');
-    $zoneCode = $this->input->post('zoneCode');
-    $zoneName = $this->input->post('zoneName');
+    $filter = array(
+      'allProduct' => $ds->allProduct,
+      'pdFrom' => $ds->pdFrom,
+      'pdTo' => $ds->pdTo,
+      'allWhouse' => $ds->allWhouse,
+      'warehouse' => $ds->warehouse,
+      'allZone' => $ds->allZone,
+      'zoneCode' => $ds->zoneCode
+    );
 
     $token = $this->input->post('token');
-
+    
     $wh_list = '';
-    if(!empty($warehouse) && empty($zoneCode))
+
+    if( ! empty($ds->warehouse) && empty($ds->zoneCode))
     {
       $i = 1;
-      foreach($warehouse as $wh)
+
+      foreach($ds->warehouse as $wh)
       {
         $wh_list .= $i === 1 ? $wh : ', '.$wh;
         $i++;
       }
     }
-
-    //---  Report title
+    
     $report_title = "รายงานสินค้าคงเหลือแยกตามโซน ณ วันที่ ".date('d/m/Y');
-    $whList = $allWhouse == 1 ? 'ทั้งหมด' : $wh_list;
-    $zoneList = $allZone == 1 ? 'ทั้งหมด' : $zoneCode." - ".$zoneName;
-    $productList  = $allProduct == 1 ? 'ทั้งหมด' : '('.$pdFrom.') - ('.$pdTo.')';
+    $whList = $ds->allWhouse == 1 ? 'ทั้งหมด' : $wh_list;
+    $zoneList = $ds->allZone == 1 ? 'ทั้งหมด' : $ds->zoneCode." - ".$ds->zoneName;
+    $productList  = $ds->allProduct == 1 ? 'ทั้งหมด' : '('.$ds->pdFrom.') - ('.$ds->pdTo.')';
+    $tempFile = tempnam(sys_get_temp_dir(), 'stock_balance_zone_');
+    $fileName = "Report-Stock-Zone.xlsx";
 
-    $bs = array();
-
-    $result = $this->stock_balance_report_model->get_stock_balance_zone($allProduct, $pdFrom, $pdTo, $allWhouse, $warehouse, $allZone, $zoneCode);
-
-    //--- load excel library
-    $this->load->library('excel');
-
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Stock Balance Report');
-
-    //--- set report title header
-    $this->excel->getActiveSheet()->setCellValue('A1', $report_title);
-    $this->excel->getActiveSheet()->mergeCells('A1:G1');
-    $this->excel->getActiveSheet()->setCellValue('A2', 'คลัง');
-    $this->excel->getActiveSheet()->setCellValue('B2', $whList);
-    $this->excel->getActiveSheet()->mergeCells('B2:G2');
-    $this->excel->getActiveSheet()->setCellValue('A3', 'โซน');
-    $this->excel->getActiveSheet()->setCellValue('B3', $zoneList);
-    $this->excel->getActiveSheet()->mergeCells('B3:G3');
-    $this->excel->getActiveSheet()->setCellValue('A4', 'สินค้า');
-    $this->excel->getActiveSheet()->setCellValue('B4', $productList);
-    $this->excel->getActiveSheet()->mergeCells('B4:G4');
-
-    //--- set Table header
-    $this->excel->getActiveSheet()->setCellValue('A5', 'ลำดับ');
-    $this->excel->getActiveSheet()->setCellValue('B5', 'รหัสคลัง');
-    $this->excel->getActiveSheet()->setCellValue('C5', 'รหัสโซน');
-    $this->excel->getActiveSheet()->setCellValue('D5', 'ชื่อโซน');
-    $this->excel->getActiveSheet()->setCellValue('E5', 'รหัสสินค้า');
-    $this->excel->getActiveSheet()->setCellValue('F5', 'ชื่อสินค้า');
-    $this->excel->getActiveSheet()->setCellValue('G5', 'ราคาขาย');
-    $this->excel->getActiveSheet()->setCellValue('H5', 'จำนวน');
-    $this->excel->getActiveSheet()->setCellValue('I5', 'มูลค่า');
-
-    $row = 6;
-    if(!empty($result))
+    try
     {
+      $style = (new Style())->setShouldWrapText(false);
+      $excel = new writer();
+      $excel->openToFile($tempFile);
+      $excel->getOptions()->DEFAULT_ROW_STYLE = $style;
+
+      $sheet = $excel->getCurrentSheet();
+      $sheet->setName("Stock Balance Zone");
+      $sheet->setColumnWidth(7, 1);
+      $sheet->setColumnWidth(12, 2);
+      $sheet->setColumnWidth(20, 3);
+      $sheet->setColumnWidth(30, 4);
+      $sheet->setColumnWidth(30, 5);
+      $sheet->setColumnWidth(60, 6);
+      $sheet->setColumnWidth(10, 7);
+      $sheet->setColumnWidth(10, 8);
+      $sheet->setColumnWidth(12, 9);
+
+      $excel->getOptions()->mergeCells(0, 1, 8, 1);
+      $excel->getOptions()->mergeCells(1, 2, 8, 2);
+      $excel->getOptions()->mergeCells(1, 3, 8, 3);
+      $excel->getOptions()->mergeCells(1, 4, 8, 4);
+
+      $excel->addRow(Row::fromValues([$report_title]));
+      $excel->addRow(Row::fromValues(['คลัง', $whList]));
+      $excel->addRow(Row::fromValues(['โซน', $zoneList]));
+      $excel->addRow(Row::fromValues(['สินค้า', $productList]));
+      $excel->addRow(Row::fromValues(['']));
+      $excel->addRow(Row::fromValues(['#', 'รหัสคลัง', 'รหัสโซน', 'ชื่อโซน', 'รหัสสินค้า', 'ชื่อสินค้า', 'ราคาขาย', 'จำนวน', 'มูลค่า']));
+
+      $count = $this->stock_balance_report_model->count_rows($filter);
+      $rows = 0;
+      $limit = 10000;
+      $offset = 0;
+      $max_loop = 100;
       $no = 1;
       $totalQty = 0;
-      foreach($result as $rs)
+      $totalAmount = 0;
+
+      if ($count > 0)
       {
-        $this->excel->getActiveSheet()->setCellValue('A'.$row, $no);
-        $this->excel->getActiveSheet()->setCellValue('B'.$row, $rs->warehouse_code);
-        $this->excel->getActiveSheet()->setCellValue('C'.$row, $rs->zone_code);
-        $this->excel->getActiveSheet()->setCellValue('D'.$row, $rs->zone_name);
-        $this->excel->getActiveSheet()->setCellValue('E'.$row, $rs->product_code);
-        $this->excel->getActiveSheet()->setCellValue('F'.$row, $rs->product_name);
-        $this->excel->getActiveSheet()->setCellValue('G'.$row, $rs->price);
-        $this->excel->getActiveSheet()->setCellValue('H'.$row, $rs->qty);
-        $this->excel->getActiveSheet()->setCellValue('I'.$row, "=G{$row}*H{$row}");
-        $no++;
-        $row++;
+        while($rows < $count && $max_loop > 0)
+        {
+          $result = $this->stock_balance_report_model->get_stock_zone($filter, $limit, $offset);
+
+          if(!empty($result))
+          {
+            foreach($result as $rs)
+            {
+              $qty = round($rs->qty, 2);
+              $amount = round($rs->qty * $rs->price, 2);
+              $price = round($rs->price, 2);
+
+              $excel->addRow(Row::fromValues([
+                $no,
+                $rs->warehouse_code,
+                $rs->zone_code,
+                empty($rs->zone_name) ? $rs->zone_code : $rs->zone_name,
+                $rs->product_code,
+                $rs->product_name,
+                $price,
+                $qty,
+                $amount
+              ]));
+
+              $totalQty += $qty;
+              $totalAmount += $amount;
+              $no++;
+              $rows++;
+              $offset++;
+            }
+          }
+          
+          $max_loop--;
+        }
+
+        $excel->addRow(Row::fromValues(['', '', '', '', '', '', 'รวม', $totalQty, $totalAmount]));
       }
 
-      $ro = $row - 1;
-      $this->excel->getActiveSheet()->setCellValue('A'.$row, 'รวม');
-      $this->excel->getActiveSheet()->mergeCells('A'.$row.':G'.$row);
-      $this->excel->getActiveSheet()->setCellValue('H'.$row, "=SUM(H6:H{$ro})");
-      $this->excel->getActiveSheet()->setCellValue('I'.$row, "=SUM(I6:I{$ro})");
-      $this->excel->getActiveSheet()->getStyle('A'.$row)->getAlignment()->setHorizontal('right');
+      $excel->close();
+      setToken($token);
+      while(ob_get_level()) ob_end_clean();
+      header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      header('Content-Disposition: attachment;filename="'.$fileName.'"');     
+      readfile($tempFile);
     }
-
-    setToken($token);
-    $file_name = "Report Stock Zone.xlsx";
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
-    header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
-    $writer->save('php://output');
-
+    finally
+    {     
+      if(file_exists($tempFile))
+      {
+        @unlink($tempFile);
+      }
+    }
+    
+    exit;
   }
 
 
   public function export_to_check()
   {
-    ini_set('memory_limit','2048M'); // This also needs to be increased in some cases. Can be changed to a higher value as per need)
-    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152'); // Setting to 512M
-    ini_set('pdo_sqlsrv.client_buffer_max_kb_size','2097152'); // Setting to 512M - for pdo_sqlsrv
+    ini_set('memory_limit','2048M');
+    ini_set('max_execution_time', 300);
+    ini_set('sqlsrv.ClientBufferMaxKBSize','2097152');
+    ini_set('pdo_sqlsrv.client_buffer_max_kb_size','2097152');
 
-    $allProduct = 1;
-    $pdFrom = NULL;
-    $pdTo = NULL;
-
-    $allWhouse = 1;
-    $warehouse = NULL;
-
-    $allZone = 0;
-    $zoneCode = $this->input->post('zone_code');
     $token = $this->input->post('token');
+    $zoneCode = $this->input->post('zone_code') ?? '';
 
-    $result = $this->stock_balance_report_model->get_stock_balance_zone($allProduct, $pdFrom, $pdTo, $allWhouse, $warehouse, $allZone, $zoneCode);
+    $filter = array(
+      'allProduct' => 1,
+      'pdFrom' => NULL,
+      'pdTo' => NULL,
+      'allWhouse' => 1,
+      'warehouse' => NULL,
+      'allZone' => 0,
+      'zoneCode' => $zoneCode
+    );   
 
-    //--- load excel library
-    $this->load->library('excel');
+    $excel = new Spreadsheet();
+    $sheet = $excel->getActiveSheet();
+    $sheet->setTitle($zoneCode);
+    $sheet->setCellvalue('A1', 'barcode');
+    $sheet->setCellvalue('B1', 'item_code');
+    $sheet->setCellvalue('C1', 'qty');
 
-    $this->excel->setActiveSheetIndex(0);
-    $this->excel->getActiveSheet()->setTitle('Report Stock Zone');
-
-    //--- set Table header
-    $this->excel->getActiveSheet()->setCellValue('A1', 'barcode');
-    $this->excel->getActiveSheet()->setCellValue('B1', 'item_code');
-    $this->excel->getActiveSheet()->setCellValue('C1', 'qty');
-
+    $count = $this->stock_balance_report_model->count_rows($filter);
+    $rows = 0;
+    $limit = 10000;
+    $offset = 0;
+    $max_loop = 100;
     $row = 2;
-    if(!empty($result))
-    {
-      foreach($result as $rs)
-      {
-        $this->excel->getActiveSheet()->setCellValue('A'.$row, $this->products_model->get_barcode($rs->product_code));
-        $this->excel->getActiveSheet()->setCellValue('B'.$row, $rs->product_code);
-        $this->excel->getActiveSheet()->setCellValue('C'.$row, $rs->qty);
-        $row++;
-      }
 
-      $this->excel->getActiveSheet()->getStyle('A2:A'.($row -1))->getNumberFormat()->setFormatCode('0');
+    if($count > 0)
+    {
+      while($rows < $count && $max_loop > 0)
+      {
+        $result = $this->stock_balance_report_model->get_stock_zone($filter, $limit, $offset);
+        
+        if(!empty($result))
+        {
+          foreach($result as $rs)
+          {
+            $sheet->setCellvalue('A'.$row, $this->products_model->get_barcode($rs->product_code));
+            $sheet->setCellvalue('B'.$row, $rs->product_code);
+            $sheet->setCellvalue('C'.$row, $rs->qty);
+            $row++;
+            $rows++;
+          }
+        }
+
+        $offset += $limit;
+        $max_loop--;
+      }
     }
 
+    $sheet->getStyle('A2:A'.($row - 1))->getNumberFormat()->setFormatCode('0');
+    
     setToken($token);
     $file_name = "Report Stock Zone.xlsx";
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); /// form excel 2007 XLSX
     header('Content-Disposition: attachment;filename="'.$file_name.'"');
-    $writer = PHPExcel_IOFactory::createWriter($this->excel, 'Excel2007');
+    $writer = new Xlsx($excel);
     $writer->save('php://output');
   }
-
-
-} //--- end class
-
-
-
-
-
-
-
-
- ?>
+}

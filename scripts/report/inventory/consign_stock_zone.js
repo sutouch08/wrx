@@ -1,8 +1,15 @@
-var HOME = BASE_URL + 'report/inventory/consign_stock_zone/';
+window.addEventListener('load', function () {
+  zone_init();
+});
 
-function toggleAllProduct(option){
+function checkAllWh(el) {
+  $('.chk').prop('checked', el.is(':checked'));
+  zone_init();
+}
+
+function toggleAllProduct(option) {
   $('#allProduct').val(option);
-  if(option == 1){
+  if (option == 1) {
     $('#btn-pd-all').addClass('btn-primary');
     $('#btn-pd-range').removeClass('btn-primary');
     $('#pdFrom').val('');
@@ -12,27 +19,28 @@ function toggleAllProduct(option){
     return
   }
 
-  if(option == 0){
+  if (option == 0) {
     $('#btn-pd-all').removeClass('btn-primary');
     $('#btn-pd-range').addClass('btn-primary');
     $('#pdFrom').removeAttr('disabled');
     $('#pdTo').removeAttr('disabled');
     $('#pdFrom').focus();
+    return;
   }
 }
 
 
 $('#pdFrom').autocomplete({
-  source : BASE_URL + 'auto_complete/get_style_code',
-  autoFocus:true,
-  close:function(){
+  source: `${HOME}get_item_code_and_name`,
+  autoFocus: true,
+  close: function () {
     var rs = $(this).val();
     var arr = rs.split(' | ');
     var pdFrom = arr[0];
     $(this).val(pdFrom);
     var pdTo = $('#pdTo').val();
-    if(pdTo.length > 0 && pdFrom.length > 0){
-      if(pdFrom > pdTo){
+    if (pdTo.length > 0 && pdFrom.length > 0) {
+      if (pdFrom > pdTo) {
         $('#pdTo').val(pdFrom);
         $('#pdFrom').val(pdTo);
       }
@@ -42,16 +50,16 @@ $('#pdFrom').autocomplete({
 
 
 $('#pdTo').autocomplete({
-  source:BASE_URL + 'auto_complete/get_style_code',
-  autoFocus:true,
-  close:function(){
+  source: `${HOME}get_item_code_and_name`,
+  autoFocus: true,
+  close: function () {
     var rs = $(this).val();
     var arr = rs.split(' | ');
     var pdTo = arr[0];
     $(this).val(pdTo);
     var pdFrom = $('#pdFrom').val();
-    if(pdTo.length > 0 && pdFrom.length > 0){
-      if(pdFrom > pdTo){
+    if (pdTo.length > 0 && pdFrom.length > 0) {
+      if (pdFrom > pdTo) {
         $('#pdTo').val(pdFrom);
         $('#pdFrom').val(pdTo);
       }
@@ -59,16 +67,16 @@ $('#pdTo').autocomplete({
   }
 })
 
-function toggleAllWarehouse(option){
+function toggleAllWarehouse(option) {
   $('#allWarehouse').val(option);
-  if(option == 1){
+  if (option == 1) {
     $('#btn-wh-all').addClass('btn-primary');
     $('#btn-wh-range').removeClass('btn-primary');
     $('.chk').removeAttr('checked');
     return
   }
 
-  if(option == 0){
+  if (option == 0) {
     $('#btn-wh-all').removeClass('btn-primary');
     $('#btn-wh-range').addClass('btn-primary');
     $('#wh-modal').modal('show');
@@ -78,9 +86,9 @@ function toggleAllWarehouse(option){
 }
 
 
-function toggleAllZone(option){
+function toggleAllZone(option) {
   $('#allZone').val(option);
-  if(option == 1){
+  if (option == 1) {
     $('#btn-zone-all').addClass('btn-primary');
     $('#btn-zone-range').removeClass('btn-primary');
     $('#zoneCode').val('');
@@ -89,7 +97,7 @@ function toggleAllZone(option){
     return
   }
 
-  if(option == 0){
+  if (option == 0) {
     $('#btn-zone-all').removeClass('btn-primary');
     $('#btn-zone-range').addClass('btn-primary');
     $('#zoneName').removeAttr('disabled');
@@ -98,37 +106,29 @@ function toggleAllZone(option){
 }
 
 
-function zone_init(){
-  var warehouse = "";
+function zone_init() {
+  let warehouse = "";
   let i = 0;
-  $('.chk').each(function(index, el) {
-    if($(this).is(':checked')){
-      if(i == 0){
-        warehouse = warehouse + $(this).val();
-      }
-      else{
-        warehouse = warehouse + "|"+$(this).val();
-      }
-
-      i++;
-    }
+  $('.chk:checked').each(function (index, el) {
+    warehouse = warehouse + (i == 0 ? $(this).val() : "|" + $(this).val());
+    i++;
   });
 
-  if(warehouse.length > 0){
-    warehouse = "/"+warehouse;
+  if (warehouse.length > 0) {
+    warehouse = "/" + warehouse;
   }
 
   $('#zoneName').autocomplete({
-    source:BASE_URL + 'auto_complete/get_zone_code_and_name' + warehouse,
-    autoFocus:true,
-    close:function(){
+    source: `${HOME}get_zone_code_and_name${warehouse}`,
+    autoFocus: true,
+    close: function () {
       var rs = $(this).val();
       var rs = rs.split(' | ');
-      if(rs.length == 2){
+      if (rs.length == 2) {
         $(this).val(rs[1]);
         $('#zoneCode').val(rs[0]);
       }
-      else{
+      else {
         $(this).val('');
         $('#zoneCode').val('');
       }
@@ -137,190 +137,133 @@ function zone_init(){
 }
 
 
-$('.chk').change(function(){
+$('.chk').change(function () {
   zone_init();
 })
 
 
-function getReport(){
-  var allProduct = $('#allProduct').val();
-  var pdFrom = $('#pdFrom').val();
-  var pdTo = $('#pdTo').val();
-  var allWhouse = $('#allWarehouse').val();
-  var allZone = $('#allZone').val();
-  var zoneCode = $('#zoneCode').val();
-  var zoneName = $('#zoneName').val();
+function getReport() {
+  clearErrorByClass('r');
+  let h = {
+    'allProduct': $('#allProduct').val(),
+    'allWhouse': $('#allWarehouse').val(),
+    'allZone': $('#allZone').val(),
+    'pdFrom': $('#pdFrom').val(),
+    'pdTo': $('#pdTo').val(),
+    'zoneCode': $('#zoneCode').val(),
+    'zoneName': $('#zoneName').val(),
+    'warehouse': []
+  };
 
-
-
-  if(allProduct == 0){
-    if(pdFrom.length == 0){
-      $('#pdFrom').addClass('has-error');
-      return false;
-    }else{
-      $('#pdFrom').removeClass('has-error');
-    }
-
-    if(pdTo.length == 0){
-      $('#pdTo').addClass('has-error');
-      return false;
-    }else{
-      $('#pdTo').removeClass('has-error');
-    }
-  }else{
-    $('#pdFrom').removeClass('has-error');
-    $('#pdTo').removeClass('has-error');
+  if (h.allProduct == 0 && (h.pdFrom.length == 0 || h.pdTo.length == 0)) {
+    $('#pdFrom').addClass('has-error');
+    $('#pdTo').addClass('has-error');
+    return false;
   }
 
-
-  if(allWhouse == 0){
-    var count = $('.chk:checked').length;
-    console.log(count);
-    if(count == 0){
-      $('#wh-modal').modal('show');
-      return false;
-    }
+  if (h.allWhouse == 0 && $('.chk:checked').length == 0) {
+    $('#wh-modal').modal('show');
+    return false;
   }
 
-  if(allZone == 0){
-    if(zoneCode == '' || zoneName == ''){
-      $('#zoneName').addClass('has-error');
-      return false;
-    }else{
-      $('#zoneName').removeClass('has-error');
-    }
-  }
-  else
-  {
-    $('#zoneName').removeClass('has-error');
+  if (h.allZone == 0 && (h.zoneCode == '' || h.zoneName == '')) {
+    $('#zoneName').hasError();
+    return false;
   }
 
-  var data = [
-    {'name' : 'allProduct', 'value' : allProduct},
-    {'name' : 'allWhouse' , 'value' : allWhouse},
-    {'name' : 'allZone' , 'value' : allZone},
-    {'name' : 'pdFrom', 'value' : pdFrom},
-    {'name' : 'pdTo', 'value' : pdTo},
-    {'name' : 'zoneCode', 'value' : zoneCode},
-    {'name' : 'zoneName', 'value' : zoneName}
-  ];
-
-  if(allWhouse == 0){
-    $('.chk').each(function(index, el) {
-      if($(this).is(':checked')){
-        let names = 'warehouse['+$(this).val()+']';
-        data.push({'name' : names, 'value' : $(this).val() });
-      }
+  if (h.allWhouse == 0) {
+    $('.chk:checked').each(function (index, el) {
+      h.warehouse.push($(this).val());
     });
   }
 
   load_in();
 
   $.ajax({
-    url:HOME + 'get_report',
-    type:'GET',
-    cache:'false',
-    data:data,
-    success:function(rs){
+    url: `${HOME}get_report`,
+    type: 'POST',
+    cache: false,
+    data: {
+      'data': JSON.stringify(h)
+    },
+    success: function (rs) {
       load_out();
-      var rs = $.trim(rs);
-      if(isJson(rs)){
-        var source = $('#template').html();
-        var data = $.parseJSON(rs);
-        var output = $('#rs');
-        render(source,  data, output);
-      }else{
-        swal({
-          title:'Error!',
-          text:rs,
-          type:'error'
-        })
+
+      if (isJson(rs)) {
+        let ds = JSON.parse(rs);
+        let source = $('#template').html();
+        let output = $('#rs');
+        render(source, ds, output);
       }
+      else {
+        showError(rs);
+      }
+    },
+    error: function (rs) {
+      showError(rs);
     }
   });
-
 }
 
 
-function doExport(){
-  var allProduct = $('#allProduct').val();
-  var pdFrom = $('#pdFrom').val();
-  var pdTo = $('#pdTo').val();
-  var allWhouse = $('#allWarehouse').val();
-  var allZone = $('#allZone').val();
-  var zoneCode = $('#zoneCode').val();
-  var zoneName = $('#zoneName').val();
-  var token = new Date().getTime();
-  $('#token').val(token);
+function doExport() {
+  clearErrorByClass('r');
 
-  if(allProduct == 0){
-    if(pdFrom.length == 0){
-      $('#pdFrom').addClass('has-error');
-      return false;
-    }else{
-      $('#pdFrom').removeClass('has-error');
-    }
+  let h = {
+    'allProduct': $('#allProduct').val(),
+    'allWhouse': $('#allWarehouse').val(),
+    'allZone': $('#allZone').val(),
+    'pdFrom': $('#pdFrom').val(),
+    'pdTo': $('#pdTo').val(),
+    'zoneCode': $('#zoneCode').val(),
+    'zoneName': $('#zoneName').val(),
+    'warehouse': []
+  };
 
-    if(pdTo.length == 0){
-      $('#pdTo').addClass('has-error');
-      return false;
-    }else{
-      $('#pdTo').removeClass('has-error');
-    }
-  }else{
-    $('#pdFrom').removeClass('has-error');
-    $('#pdTo').removeClass('has-error');
+  if (h.allProduct == 0 && (h.pdFrom.length == 0 || h.pdTo.length == 0)) {
+    $('#pdFrom').addClass('has-error');
+    $('#pdTo').addClass('has-error');
+    return false;
   }
 
-
-  if(allWhouse == 0){
-    var count = $('.chk:checked').length;
-    console.log(count);
-    if(count == 0){
-      $('#wh-modal').modal('show');
-      return false;
-    }
+  if (h.allWhouse == 0 && $('.chk:checked').length == 0) {
+    $('#wh-modal').modal('show');
+    return false;
   }
 
-  if(allZone == 0){
-    if(zoneCode == '' || zoneName == ''){
-      $('#zoneName').addClass('has-error');
-      return false;
-    }else{
-      $('#zoneName').removeClass('has-error');
-    }
-  }
-  else
-  {
-    $('#zoneName').removeClass('has-error');
+  if (h.allZone == 0 && (h.zoneCode == '' || h.zoneName == '')) {
+    $('#zoneName').hasError();
+    return false;
   }
 
+  if (h.allWhouse == 0) {
+    $('.chk:checked').each(function (index, el) {
+      h.warehouse.push($(this).val());
+    });
+  }
 
+  let token = generateUID();
+  $('#token').val(token);  
+  $('#data').val(JSON.stringify(h));
   get_download(token);
-  $('#reportForm').submit();
-
+  $('#export-form').submit();
 }
 
 
-function exportToCheck()
-{
-  var zoneCode = $('#zoneCode').val();
-  var zoneName = $('#zoneName').val();
+function exportToCheck() {
+  let zoneCode = $('#zoneCode').val();
+  let zoneName = $('#zoneName').val();
 
-  if(zoneCode.length == 0 || zoneName.length == 0)
-  {
+  if (zoneCode.length == 0 || zoneName.length == 0) {
     swal("กรุณาระบุโซน");
     return false;
   }
 
-  var token = new Date().getTime();
+  let token = generateUID();
   $('#export-token').val(token);
   $('#export-zone-code').val(zoneCode);
-
   get_download(token);
   $('#exportForm').submit();
 }
 
-$(document).ready(function(){
-  zone_init();
-})
+

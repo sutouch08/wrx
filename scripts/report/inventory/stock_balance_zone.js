@@ -1,8 +1,15 @@
-var HOME = BASE_URL + 'report/inventory/stock_balance_zone/';
+window.addEventListener('load', function() {
+  zone_init();
+});
+
+function checkAllWh(el) {
+  $('.chk').prop('checked', el.is(':checked'));
+  zone_init();
+}
 
 function toggleAllProduct(option){
   $('#allProduct').val(option);
-  if(option == 1){
+  if(option == 1) {
     $('#btn-pd-all').addClass('btn-primary');
     $('#btn-pd-range').removeClass('btn-primary');
     $('#pdFrom').val('');
@@ -18,12 +25,13 @@ function toggleAllProduct(option){
     $('#pdFrom').removeAttr('disabled');
     $('#pdTo').removeAttr('disabled');
     $('#pdFrom').focus();
+    return;
   }
 }
 
 
 $('#pdFrom').autocomplete({
-  source : BASE_URL + 'auto_complete/get_style_code',
+  source :`${BASE_URL}auto_complete/get_item_code_and_name`,
   autoFocus:true,
   close:function(){
     var rs = $(this).val();
@@ -42,7 +50,7 @@ $('#pdFrom').autocomplete({
 
 
 $('#pdTo').autocomplete({
-  source:BASE_URL + 'auto_complete/get_style_code',
+  source:`${BASE_URL}auto_complete/get_item_code_and_name`,
   autoFocus:true,
   close:function(){
     var rs = $(this).val();
@@ -98,28 +106,20 @@ function toggleAllZone(option){
 }
 
 
-function zone_init(){
-  var warehouse = "";
+function zone_init() {
+  let warehouse = "";
   let i = 0;
-  $('.chk').each(function(index, el) {
-    if($(this).is(':checked')){
-      if(i == 0){
-        warehouse = warehouse + $(this).val();
-      }
-      else{
-        warehouse = warehouse + "|"+$(this).val();
-      }
-
-      i++;
-    }
+  $('.chk:checked').each(function(index, el) {
+    warehouse = warehouse + (i == 0 ? $(this).val() : "|"+$(this).val());
+    i++;    
   });
 
-  if(warehouse.length > 0){
+  if(warehouse.length > 0) {
     warehouse = "/"+warehouse;
   }
 
   $('#zoneName').autocomplete({
-    source:BASE_URL + 'auto_complete/get_zone_code_and_name' + warehouse,
+    source:`${BASE_URL}auto_complete/get_zone_code_and_name${warehouse}`,
     autoFocus:true,
     close:function(){
       var rs = $(this).val();
@@ -142,185 +142,130 @@ $('.chk').change(function(){
 })
 
 
-function getReport(){
-  var allProduct = $('#allProduct').val();
-  var pdFrom = $('#pdFrom').val();
-  var pdTo = $('#pdTo').val();
-  var allWhouse = $('#allWarehouse').val();
-  var allZone = $('#allZone').val();
-  var zoneCode = $('#zoneCode').val();
-  var zoneName = $('#zoneName').val();
+function getReport() {
+  clearErrorByClass('r');
+  let h = {
+    'allProduct' : $('#allProduct').val(),
+    'allWhouse' : $('#allWarehouse').val(),
+    'allZone' : $('#allZone').val(),
+    'pdFrom' : $('#pdFrom').val(),
+    'pdTo' : $('#pdTo').val(),
+    'zoneCode' : $('#zoneCode').val(),
+    'zoneName' : $('#zoneName').val(),
+    'warehouse' : []
+  };
 
-
-
-  if(allProduct == 0){
-    if(pdFrom.length == 0){
-      $('#pdFrom').addClass('has-error');
-      return false;
-    }else{
-      $('#pdFrom').removeClass('has-error');
-    }
-
-    if(pdTo.length == 0){
-      $('#pdTo').addClass('has-error');
-      return false;
-    }else{
-      $('#pdTo').removeClass('has-error');
-    }
-  }else{
-    $('#pdFrom').removeClass('has-error');
-    $('#pdTo').removeClass('has-error');
+  if(h.allProduct == 0 && (h.pdFrom.length == 0 || h.pdTo.length == 0)) {
+    $('#pdFrom').addClass('has-error');
+    $('#pdTo').addClass('has-error');
+    return false;
+  }
+      
+  if(h.allWhouse == 0 && $('.chk:checked').length == 0){    
+    $('#wh-modal').modal('show');
+    return false;
   }
 
-
-  if(allWhouse == 0){
-    var count = $('.chk:checked').length;
-    console.log(count);
-    if(count == 0){
-      $('#wh-modal').modal('show');
-      return false;
-    }
+  if(h.allZone == 0 && (h.zoneCode == '' || h.zoneName == '')){
+    $('#zoneName').hasError();
+    return false;    
   }
-
-  if(allZone == 0){
-    if(zoneCode == '' || zoneName == ''){
-      $('#zoneName').addClass('has-error');
-      return false;
-    }else{
-      $('#zoneName').removeClass('has-error');
-    }
-  }
-  else
-  {
-    $('#zoneName').removeClass('has-error');
-  }
-
-  var data = [
-    {'name' : 'allProduct', 'value' : allProduct},
-    {'name' : 'allWhouse' , 'value' : allWhouse},
-    {'name' : 'allZone' , 'value' : allZone},
-    {'name' : 'pdFrom', 'value' : pdFrom},
-    {'name' : 'pdTo', 'value' : pdTo},
-    {'name' : 'zoneCode', 'value' : zoneCode},
-    {'name' : 'zoneName', 'value' : zoneName}
-  ];
-
-  if(allWhouse == 0){
-    $('.chk').each(function(index, el) {
-      if($(this).is(':checked')){
-        let names = 'warehouse['+$(this).val()+']';
-        data.push({'name' : names, 'value' : $(this).val() });
-      }
+  
+  if(h.allWhouse == 0) {
+    $('.chk:checked').each(function(index, el) {
+      h.warehouse.push($(this).val());
     });
   }
-
+  
   load_in();
 
   $.ajax({
-    url:HOME + 'get_report',
-    type:'GET',
-    cache:'false',
-    data:data,
-    success:function(rs){
+    url:`${HOME}get_report`,
+    type:'POST',
+    cache:false,
+    data:{
+      'data' : JSON.stringify(h)
+    },
+    success:function(rs) {
       load_out();
-      var rs = $.trim(rs);
-      if(isJson(rs)){
-        var source = $('#template').html();
-        var data = $.parseJSON(rs);
-        var output = $('#rs');
-        render(source,  data, output);
-      }else{
-        swal({
-          title:'Error!',
-          text:rs,
-          type:'error'
-        })
+
+      if(isJson(rs)) {
+        let ds = JSON.parse(rs);
+        let source = $('#template').html();
+        let output = $('#rs');
+        render(source, ds, output);
       }
+      else {
+        showError(rs);
+      }
+    },
+    error:function(rs) {
+      showError(rs);
     }
   });
-
 }
 
 
-function doExport(){
-  var allProduct = $('#allProduct').val();
-  var pdFrom = $('#pdFrom').val();
-  var pdTo = $('#pdTo').val();
-  var allWhouse = $('#allWarehouse').val();
-  var allZone = $('#allZone').val();
-  var zoneCode = $('#zoneCode').val();
-  var zoneName = $('#zoneName').val();
-  var token = new Date().getTime();
+function doExport() {
+  clearErrorByClass('r');
+
+  let h = {
+    'allProduct': $('#allProduct').val(),
+    'allWhouse': $('#allWarehouse').val(),
+    'allZone': $('#allZone').val(),
+    'pdFrom': $('#pdFrom').val(),
+    'pdTo': $('#pdTo').val(),
+    'zoneCode': $('#zoneCode').val(),
+    'zoneName': $('#zoneName').val(),
+    'warehouse': []
+  };
+
+  if (h.allProduct == 0 && (h.pdFrom.length == 0 || h.pdTo.length == 0)) {
+    $('#pdFrom').addClass('has-error');
+    $('#pdTo').addClass('has-error');
+    return false;
+  }
+
+  if (h.allWhouse == 0 && $('.chk:checked').length == 0) {
+    $('#wh-modal').modal('show');
+    return false;
+  }
+
+  if (h.allZone == 0 && (h.zoneCode == '' || h.zoneName == '')) {
+    $('#zoneName').hasError();
+    return false;
+  }
+
+  if (h.allWhouse == 0) {
+    $('.chk:checked').each(function (index, el) {
+      h.warehouse.push($(this).val());
+    });
+  }
+
+  let token = generateUID();
   $('#token').val(token);
-
-  if(allProduct == 0){
-    if(pdFrom.length == 0){
-      $('#pdFrom').addClass('has-error');
-      return false;
-    }else{
-      $('#pdFrom').removeClass('has-error');
-    }
-
-    if(pdTo.length == 0){
-      $('#pdTo').addClass('has-error');
-      return false;
-    }else{
-      $('#pdTo').removeClass('has-error');
-    }
-  }else{
-    $('#pdFrom').removeClass('has-error');
-    $('#pdTo').removeClass('has-error');
-  }
-
-
-  if(allWhouse == 0){
-    var count = $('.chk:checked').length;
-    console.log(count);
-    if(count == 0){
-      $('#wh-modal').modal('show');
-      return false;
-    }
-  }
-
-  if(allZone == 0){
-    if(zoneCode == '' || zoneName == ''){
-      $('#zoneName').addClass('has-error');
-      return false;
-    }else{
-      $('#zoneName').removeClass('has-error');
-    }
-  }
-  else
-  {
-    $('#zoneName').removeClass('has-error');
-  }
-
-
+  //return false;
+  $('#data').val(JSON.stringify(h));
   get_download(token);
-  $('#reportForm').submit();
-
+  $('#export-form').submit();
 }
 
 
-function exportToCheck()
-{
-  var zoneCode = $('#zoneCode').val();
-  var zoneName = $('#zoneName').val();
-
+function exportToCheck() {
+  let zoneCode = $('#zoneCode').val();
+  let zoneName = $('#zoneName').val();
+ 
   if(zoneCode.length == 0 || zoneName.length == 0)
   {
     swal("กรุณาระบุโซน");
     return false;
   }
 
-  var token = new Date().getTime();
+  let token = generateUID();
   $('#export-token').val(token);
   $('#export-zone-code').val(zoneCode);
-
   get_download(token);
   $('#exportForm').submit();
 }
 
-$(document).ready(function(){
-  zone_init();
-})
+

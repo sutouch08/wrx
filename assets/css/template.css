@@ -1803,6 +1803,18 @@ input[type=number]::-webkit-outer-spin-button {
 	width:150px !important;
 }
 
+.fix-width-160 {
+	width:160px !important;
+}
+
+.fix-width-165 {
+	width:165px !important;
+}
+
+.fix-width-170 {
+	width:170px !important;
+}
+
 .fix-width-175 {
   width:175px !important;
 }
